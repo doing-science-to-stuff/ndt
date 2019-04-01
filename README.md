@@ -78,7 +78,7 @@ Change the name in the `scene_setup call from "empty" to "custom".
 This will cause all images created by the custom scene to be placed in a newly
 created "custom" subdirectory under the "images" directory.
 
-**int scene_setup(scene \*scn, int dimensions, int frame, int frames, char \*config)**
+**int scene_setup(scene \*scn, int dimensions, int frame, int frames, char \*config);**
 
 The required function populates a scene structure with the camerea, objects
 and lighting.
