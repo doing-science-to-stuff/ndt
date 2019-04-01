@@ -1,0 +1,8 @@
+.git
+ndt
+images/
+yaml/
+*.o
+*.so
+.DS_Store
+*.swp

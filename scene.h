@@ -1,0 +1,83 @@
+/*
+ * scemne.h
+ * ndt: n-dimensional tracer
+ *
+ * Copyright (c) 2019 Bryan Franklin. All rights reserved.
+ */
+#ifndef SCENE_H
+#define SCENE_H
+#include "vectNd.h"
+#include "object.h"
+#include "camera.h"
+#include "map.h"
+
+/* see:
+ * https://stackoverflow.com/questions/9907160/how-to-convert-enum-names-to-string-in-c
+ */
+#define FOREACH_LIGHT_TYPE(LIGHT_TYPE) \
+    LIGHT_TYPE(LIGHT_AMBIENT)   /* no location, no direction */ \
+    LIGHT_TYPE(LIGHT_POINT)     /* location, no direction */ \
+    LIGHT_TYPE(LIGHT_DIRECTIONAL)  /* no location, direction */ \
+    LIGHT_TYPE(LIGHT_SPOT)      /* location, direction */ \
+    LIGHT_TYPE(LIGHT_DISK)      /* location, circular area */ \
+    LIGHT_TYPE(LIGHT_RECT)      /* location, rectangular area */
+
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
+
+typedef enum LIGHT_TYPE_ENUM {
+    FOREACH_LIGHT_TYPE(GENERATE_ENUM)
+} light_type;
+
+static const char *LIGHT_TYPE_STRING[] = {
+    FOREACH_LIGHT_TYPE(GENERATE_STRING)
+};
+
+typedef struct light_t
+{
+    vectNd pos;
+    vectNd target;
+    vectNd dir;     /* for directional and spot lights */
+    vectNd u, v;    /* basis for area lights */
+    double radius;  /* radius for disk lights */
+    light_type type;
+    double red, green, blue;
+    double angle;
+    vectNd u1, v1;    /* ortho-normal basis for area lights */
+    unsigned int prepared:1;
+} light;
+
+typedef struct scene_t
+{
+    int dimensions;
+   camera cam;
+    int num_objects;
+    int num_lights;
+    object **object_ptrs;
+    light **lights;
+    light ambient;
+    double bg_red, bg_green, bg_blue;
+    char name[256];
+} scene;
+
+int scene_init(scene *scn, char *name, int dim);
+int scene_free(scene *scn);
+int scene_alloc_object(scene *scn, int dimensions, object **obj, char *type);
+int scene_remove_object(scene *scn, object *obj);
+int scene_alloc_light(scene *scn, light **lgt);
+int scene_aim_light(light *lgt, vectNd *target);
+int scene_prepare_light(light *lgt);
+int scene_validate_objects(scene *scn);
+int scene_cluster(scene *scn, int k);
+int scene_find_dupes(scene *scn);
+int scene_remove_dupes(scene *scn);
+
+int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config);
+
+#ifdef WITH_YAML
+int scene_write_yaml(scene *scn, char *fname);
+int scene_read_yaml(scene *scn, char *fname, int frame);
+int scene_yaml_count_frames(char *fname);
+#endif /* WITH_YAML */
+
+#endif /* SCENE_H */

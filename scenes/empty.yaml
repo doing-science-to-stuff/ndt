@@ -1,0 +1,23 @@
+---
+scene: empty
+dimensions: 4
+camera:
+  viewPoint: [60, 0, 0, 0]
+  viewTarget: [0, 0, 0, 0]
+  up: [0, 10, 0, 0]
+lights:
+- type: LIGHT_AMBIENT
+  color: {red: 0.5, green: 0.5, blue: 0.5}
+- type: LIGHT_POINT
+  color: {red: 300, green: 300, blue: 300}
+  pos: [0, 40, 0, -40]
+objects:
+- type: hplane
+  dimensions: 4
+  material:
+    color: {red: 0.8, green: 0.8, blue: 0.8}
+    reflectivity: {red: 0.5, green: 0.5, blue: 0.5}
+  positions:
+  - [0, -20, 0, 0]
+  directions:
+  - [0, 1, 0, 0]
