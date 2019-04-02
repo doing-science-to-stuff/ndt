@@ -380,7 +380,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     #endif /* 0 */
 
     #if 1
-    scene_alloc_object(scn, dimensions, &obj, "hfacet");
+    scene_alloc_object(scn, dimensions, &obj, "facet");
     obj->red = 0.9;
     obj->green = 0.9;
     obj->blue = 0.9;
@@ -428,7 +428,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_set(&viewPoint,1,40);
     vectNd_set(&viewPoint,2,60*sin(2*M_PI*t));
     vectNd_set(&viewPoint,3,5);
-    vectNd_setStr(&viewTarget,"0,-1,20,-5");
+    vectNd_setStr(&viewTarget,"0,-1,20,0");
     vectNd up_vect;
     vectNd_calloc(&up_vect,dimensions);
     vectNd_set(&up_vect,1,10);
