@@ -348,13 +348,6 @@ int object_validate(object *obj) {
         exit(1);
     }
 
-    for(int i=0; i<obj->n_dir; ++i) {
-        if( ((int)obj->dir[i].v & 0xf) != 0 ) {
-            fprintf(stderr,"vector %p not aligned on 16 byte boundary.\n", obj->dir[i].v);
-            exit(1);
-        }
-    }
-
     /* validate sub-objects */
     for(int i=0; i<obj->n_obj; ++i) {
         object_validate(obj->obj[i]);
