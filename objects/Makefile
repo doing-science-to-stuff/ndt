@@ -21,9 +21,6 @@ src = $(wildcard *.c)
 obj = $(src:.c=.so)
 all: $(obj)
 
-#.c.o: $@.c
-#	$(CC) $(CFLAGS) -c $*.c
-
 %.so: %.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $<
 
