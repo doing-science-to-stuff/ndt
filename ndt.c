@@ -1494,7 +1494,10 @@ int main(int argc, char **argv)
         char *output_dir = "images";
         mkdir(output_dir,0700);
         utimes(output_dir, NULL);
-        snprintf(dname,sizeof(dname),"%s/%s_%id%s%s%s%s", output_dir, scn.name, dimensions, mode_str[0]=='\0'?"":"_", mode_str, cam_str[0]=='\0'?"":"_", cam_str);
+        snprintf(dname,sizeof(dname),"%s/%s", output_dir, scn.name);
+        mkdir(dname,0700);
+        utimes(dname,NULL);
+        snprintf(dname,sizeof(dname),"%s/%s/%id%s%s%s%s", output_dir, scn.name, dimensions, mode_str[0]=='\0'?"":"_", mode_str, cam_str[0]=='\0'?"":"_", cam_str);
         mkdir(dname,0700);
         utimes(dname,NULL);
         snprintf(res_str,sizeof(res_str),"%ix%i", width, height);
