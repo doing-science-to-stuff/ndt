@@ -25,9 +25,7 @@ typedef enum CAMERA_TYPE_ENUM {
     FOREACH_CAMERA_TYPE(GENERATE_ENUM)
 } camera_type_t;
 
-static const char *CAMERA_TYPE_STRING[] = {
-    FOREACH_CAMERA_TYPE(GENERATE_STRING)
-};
+extern const char *CAMERA_TYPE_STRING[];
 
 /* camera is just a set of points and vectors that will start positioned near
  * the origin and moved into place via a series of affine transformations */

@@ -12,6 +12,10 @@
 #include "object.h"
 #include "camera.h"
 
+const char *CAMERA_TYPE_STRING[] = {
+    FOREACH_CAMERA_TYPE(GENERATE_STRING)
+};
+
 int camera_alloc(camera *cam, int dim)
 {
     vectNd_calloc(&cam->viewPoint,dim);

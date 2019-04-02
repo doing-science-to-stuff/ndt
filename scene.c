@@ -16,6 +16,10 @@
 #include "scene.h"
 #include "matrix.h"
 
+const char *LIGHT_TYPE_STRING[] = {
+    FOREACH_LIGHT_TYPE(GENERATE_STRING)
+};
+
 int scene_init(scene *scn, char *name, int dim)
 {
     memset(scn,'\0',sizeof(scene));

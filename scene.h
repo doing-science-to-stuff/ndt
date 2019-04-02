@@ -29,9 +29,7 @@ typedef enum LIGHT_TYPE_ENUM {
     FOREACH_LIGHT_TYPE(GENERATE_ENUM)
 } light_type;
 
-static const char *LIGHT_TYPE_STRING[] = {
-    FOREACH_LIGHT_TYPE(GENERATE_STRING)
-};
+extern const char *LIGHT_TYPE_STRING[];
 
 typedef struct light_t
 {
