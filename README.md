@@ -17,26 +17,26 @@ are available via [macports](https://www.macports.org) on macOS.
  * libyaml (optional)
 
 In [Debian](https://www.debian.org/) Linux:
-```
+```text
 $ sudo apt-get install libjpeg-dev libpng-dev libyaml-dev
 ```
 
 In macOS using [macports](https://www.macports.org):
-```
+```text
 $ sudo port install jpeg libpng libyaml
 ```
 
 ### Linux or macOS
 
 Build from source:
-```
+```text
 $ cd ndt
 $ make
 ```
 *Note: If not all dependencies are met, manual editing of `common.mk` will be needed.*
 
 ### Render sample image
-```
+```text
 $ ./ndt -f 1
 ```
 
@@ -49,7 +49,7 @@ There are two ways to create a scene, the C API or a YAML file.
 
 To create a custom scene using the C API, start by making a copy of `empty.c`
 in the scenes directory.
-```
+```text
 $ cd scenes
 $ cp empty.c custom.c
 ```
@@ -63,8 +63,8 @@ to be rendered, if the scene describes multiple frames, (e.g., an animation).
 **int scene_frames(int dimensions, char \*config);**
  
 Parameters:
- * **dimensions** - The number of dimensions for the current render.
- * **config** - A custom configuration string passed via the `-u` flag.
+ * *dimensions* - The number of dimensions for the current render.
+ * *config* - A custom configuration string passed via the `-u` flag.
 
 Returns:
  * Number of frames to render.  This value can be overridden using the `-f`
@@ -84,11 +84,11 @@ The required function populates a scene structure with the camerea, objects
 and lighting.
 
 Parameters:
- * **scn** - The scene structure that will contain the scene.
- * **dimensions** - The number of dimensions for the current render.
- * **frame** - Current frame to be rendered (starting from zero).
- * **frames** - Total number of frames to be rendered.
- * **config** - A custom configuration string passed via the `-u` flag.
+ * *scn* - The scene structure that will contain the scene.
+ * *dimensions* - The number of dimensions for the current render.
+ * *frame* - Current frame to be rendered (starting from zero).
+ * *frames* - Total number of frames to be rendered.
+ * *config* - A custom configuration string passed via the `-u` flag.
 
 #### Vectors
 
@@ -109,7 +109,7 @@ Each scene must have a camera that defines perspective from which the scene
 will be viewed.
 
 A camera must first be allocated and initialized:
-```
+```c
 camera_alloc(&scn->cam, dimensions);
 camera_reset(&scn->cam);
 ```
@@ -126,6 +126,13 @@ a vector that should point toward the top of the rendered image.
 The fifth is a double that indicates a rotation (in radians) parallel to the
 image plane to be applied before the camera is aimed.
 In most cases, this should be zero.
+
+```c
+vectNd_setStr(&viewPoint,"60,0,0,0");
+vectNd_setStr(&viewTarget,"0,0,0,0");
+vectNd_set(&up_vect,1,10);  /* 0,10,0,0... */
+camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0);
+```
 
 #### Lights
 
@@ -144,6 +151,15 @@ The simplest type of light is ambient light.
 To configure an ambient light, set the type to `LIGHT_AMBIENT`, (e.g., `lgt->type = LIGHT_AMBIENT`).
 Then to configure the color/intensity of the ambient light, set the `red`, `green`, and `blue` fields to a value between 0.0 and 1.0.
 
+```c
+light *lgt=NULL;
+scene_alloc_light(scn,&lgt);
+lgt->type = LIGHT_AMBIENT;
+lgt->red = 0.5;
+lgt->green = 0.5;
+lgt->blue = 0.5;
+```
+
 Another, more complex light is a point light.
 To configure a point light, set the type to `LIGHT_POINT`, (e.g., `lgt->type = LIGHT_POINT`).
 Unlike ambient light, a point light has a position which is set by allocating and setting the `pos` field of the light structure.
@@ -152,6 +168,17 @@ each color channel.
 Due to how light intensity falls off with distance, it is often necessary to
 set the intensity of position based lighting to values in the hundreds, thousands, or more,
 depending on the distance.
+
+```c
+light *lgt=NULL;
+scene_alloc_light(scn,&lgt);
+lgt->type = LIGHT_POINT;
+vectNd_calloc(&lgt->pos,dimensions);
+vectNd_setStr(&lgt->pos,"0,40,0,-40");
+lgt->red = 300;
+lgt->green = 300;
+lgt->blue = 300;
+```
 
 Additional types of lighting are available, but these two should be enough to get started.
 
@@ -177,7 +204,7 @@ Positions are added with the `object_add_pos` function, directions with
 When adding vectors or objects, a pointer is used, not the actual value.
 
 For example, to add sphere to a 4-dimensional custom scene:
-```
+```c
 object *obj = NULL;
 scene_alloc_object(scn, 4, &obj, "sphere");
 vectNd center;
@@ -194,7 +221,7 @@ obj->red_r = 0.2;
 obj->green_r = 0.2;
 obj->blue_r = 0.2;
 ```
-**Note: In general, the *dimensions* variable should be used whenever the number of dimensions is needed.**
+*Note: In general, the **dimensions** variable should be used whenever the number of dimensions is needed.*
 
 Not all types of objects require elements in each set.
 The number of elements required in each set can depend on the number of
@@ -208,21 +235,22 @@ Once `custom.c` has been modified, it needs to be compiled into a shared object 
 The make file in the scenes directory should do this automatically when `make`
 is run in either the scenes directory or the top level ndt directory.
 
-```
+```text
 $ cd ..
 $ make
 ```
 
-To actually render a scene, ndt needs to be told to load the shared object
+To actually render a scene, ndt needs to be told, using the `-s` options, to load the shared object
 that contains the scene description.
-```
-$ ./ndt -s scenes/custom.so
+The `-d` option indicates that the scene should be rendered using 4-dimensions.
+```text
+$ ./ndt -s scenes/custom.so -d 4
 ```
 
 If the custom scene needs any additional configuration information passed into
 it, the `-u` option can be used.
 
-```
+```text
 $ ./ndt -s scenes/custom.so -u `configuration string`
 ```
 
@@ -231,7 +259,7 @@ $ ./ndt -s scenes/custom.so -u `configuration string`
 To create a custom scene using a YAML file, start by making a copy of
 empty.yaml in the scenes directory.
 
-```
+```text
 $ cd scenes
 $ cp empty.yaml custom.yaml
 ```
@@ -239,7 +267,7 @@ $ cp empty.yaml custom.yaml
 Next, open custom.yaml (or whatever you called it) in a text editor.
 
 It should look like this:
-```
+```yaml
 ---
 scene: empty
 dimensions: 4
@@ -280,7 +308,7 @@ In YAML an n-dimensional vector is a sequence of double values, (e.g., `[60, 0, 
 Each scene must have a camera that defines perspective from which the scene will be viewed.
 
 A camera is described in a map named `camera`.
-```
+```yaml
 camera:
   viewPoint: [60, 0, 0, 0]
   viewTarget: [0, 0, 0, 0]
@@ -300,7 +328,7 @@ Each scene contains a set of light structures that provide illumination.
 
 Lights are described in a sequence named `lights` where each entry is a map
 with multiple fields which depends on the type of the light.
-```
+```yaml
 lights:
 - type: LIGHT_AMBIENT
   color: {red: 0.5, green: 0.5, blue: 0.5}
@@ -323,7 +351,7 @@ Objects are described in a sequence named `objects`, where each entry is a map
 with multiple fields which depends on the type of the object.
 
 In the "empty" scene there is actually one object.
-```
+```yaml
 - type: hplane
   dimensions: 4
   material:
@@ -346,7 +374,7 @@ Fields:
 
 To add a sphere to the custom scene, insert the following snippet into the
 objects section:
-```
+```yaml
 - type: sphere
   dimensions: 4
   material:
@@ -360,8 +388,9 @@ objects section:
 
 #### Rendering Custom Scene
 
-To render the custom scene, a special yaml scene is used and the yaml file is
-passed as a custom parameter.
-```
-$ ./ndt -s scenes/yaml.so -u scenes/custom.yaml
+To render the custom scene, a special yaml scene, specified with `-s` options, is used and the yaml file is
+passed as a custom parameter, passed with the `-u` option.
+The `-d` option indicates that the scene should be rendered using 4-dimensions.
+```text
+$ ./ndt -s scenes/yaml.so -u scenes/custom.yaml -d 4
 ```
