@@ -458,7 +458,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     lgt->blue = 150;
 
     printf("\n\nRendering test scene, to render a different scene, use the -s flag.\n");
-    printf("\n\tExample:\n\t\tndt -s scenes/pipes.so\n\tor:\n");
+    printf("\n\tExample:\n\t\tndt -s scenes/balls.so\n\tor:\n");
     #ifdef WITH_YAML
     printf("\t\tndt -s scenes/yaml.so -u filename.yaml\n");
     #endif /* WITH_YAML */
