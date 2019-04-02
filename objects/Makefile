@@ -10,10 +10,10 @@ include ../common.mk
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     CFLAGS+=-fPIC
-    LDFLAGS+=-fPIC -g
+    LDFLAGS+=-fPIC
 endif
 ifeq ($(UNAME_S),Darwin)
-    LDFLAGS+=-shared -undefined dynamic_lookup -g
+    LDFLAGS+=-shared -undefined dynamic_lookup
 endif
 
 # see: http://nuclear.mutantstargoat.com/articles/make/
@@ -22,7 +22,7 @@ obj = $(src:.c=.so)
 all: $(obj)
 
 %.so: %.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $<
+	$(CC) $(LDFLAGS) -shared -o $@ $<
 
 clean:
 	rm -f *.o *.so
