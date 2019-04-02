@@ -42,13 +42,15 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_free(&viewTarget);
 
     /* setup lighting */
-    vectNd_calloc(&scn->ambient.pos,dimensions);
-    scn->ambient.red = 0.5;
-    scn->ambient.green = 0.5;
-    scn->ambient.blue = 0.5;
-
     light *lgt=NULL;
     scene_alloc_light(scn,&lgt);
+    lgt->type = LIGHT_AMBIENT;
+    lgt->red = 0.5;
+    lgt->green = 0.5;
+    lgt->blue = 0.5;
+
+    scene_alloc_light(scn,&lgt);
+    lgt->type = LIGHT_POINT;
     vectNd_calloc(&lgt->pos,dimensions);
     vectNd_setStr(&lgt->pos,"0,40,0,-40");
     lgt->red = 300;
