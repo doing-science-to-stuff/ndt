@@ -320,7 +320,7 @@ int object_validate(object *obj) {
         return -1;
     }
 
-    /* verify parameter countes */
+    /* verify parameter counts */
     int n_pos;
     int n_dir;
     int n_size;
