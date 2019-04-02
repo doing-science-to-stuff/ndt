@@ -425,12 +425,8 @@ static int image_load_png(image_t *img, char *fname)
     png_error_ptr user_error_fn=NULL;
     png_error_ptr user_warning_fn=NULL;
     png_uint_32 width=0, height=0;
-    int bit_depth=0, color_type=0, interlace_type=0;
-    int compression_type=0, filter_method=0;
+    int color_type=0;
     unsigned int i=0, j=0, pixel_width=1;
-    png_byte channels;
-    png_uint_32 rowbytes;
-    png_const_bytep signature;
 
     /* This is all 'based on' the libpng(3) manpage */
 
@@ -508,14 +504,7 @@ static int image_load_png(image_t *img, char *fname)
 
     width = png_get_image_width(png_ptr, info_ptr);
     height = png_get_image_height(png_ptr, info_ptr);
-    bit_depth = png_get_bit_depth(png_ptr, info_ptr);
     color_type = png_get_color_type(png_ptr, info_ptr);
-    interlace_type = png_get_interlace_type(png_ptr, info_ptr);
-    compression_type = png_get_compression_type(png_ptr, info_ptr);
-    filter_method = png_get_filter_type(png_ptr, info_ptr);
-    channels = png_get_channels(png_ptr, info_ptr);
-    rowbytes = png_get_rowbytes(png_ptr, info_ptr);
-    signature = png_get_signature(png_ptr, info_ptr);
 
     printf("color_type=");
     switch( color_type )
