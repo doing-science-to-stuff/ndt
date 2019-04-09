@@ -10,6 +10,9 @@
 
 static int puzzle_dimensions = -1;
 
+/*************************\
+ * Puzzle Representation *
+\*************************/
 typedef struct puzzle_face {
     /* Note: using chars limits us to 6 dimensions */
     unsigned char c[3][3];
@@ -30,21 +33,6 @@ typedef struct piece_coord {
     int i;
     int j;
 } piece_coord_t;
-
-typedef struct transitions {
-    /* given a face and position, store the source face and position from
-     * before the move occured */
-    int num_faces;
-    int face_size;
-    piece_coord_t *table;
-} transitions_t;
-
-typedef struct move {
-    int rot_dim_0, rot_dim_1;   /* dimensions of rotation plane */
-    int *group_offset;  /* n offsets [-1,0,1,2] indicating which pieces are rotating (-1 for rotation plane dimensions) */
-    int dir;
-    transitions_t *trans;
-} move_t;
 
 static int factorial(int n) {
     int ret = 1;
@@ -177,8 +165,113 @@ int puzzle_create(puzzle_t *puzzle, int dimensions) {
     return 0;
 }
 
+int puzzle_copy(puzzle_t *dst, puzzle_t *src) {
+    dst->n = src->n;
+    dst->faces = calloc(dst->n, sizeof(face_t));
+
+    /* color faces */
+    for(int f=0; f<dst->n; ++f) {
+        for(int i=0; i<3; ++i) {
+            for(int j=0; j<3; ++j) {
+                dst->faces[f].c[i][j] = src->faces[f].c[i][j];
+            }
+        }
+    }
+
+    return 0;
+}
+
+int puzzle_face_center(puzzle_t *puzzle, int face, int pos_i, int pos_j, vectNd *pos) {
+    vectNd_reset(pos);
+
+    /* 0.5 + i in dim0, 0.5 + j in dim1 in face plane */
+    int plane_id, offset_id;
+    plane_and_offset_ids(face, puzzle_dimensions, &plane_id, &offset_id);
+    int dim0, dim1;
+    plane_by_id(plane_id, puzzle_dimensions, &dim0, &dim1);
+    vectNd_set(pos, dim0, 0.5+pos_i);
+    vectNd_set(pos, dim1, 0.5+pos_j);
+
+    /* bits of offset_id indicate which dimensions to move in */
+    int which = 0;
+    while( offset_id > 0 ) {
+        while( which == dim0 || which == dim1 )
+            ++which;
+        int value = offset_id % 2;
+
+        vectNd_set(pos, which, value * 3);
+
+        offset_id >>= 1;
+        ++which;
+    }
+
+    return 0;
+}
+
+int puzzle_find_face_coord(puzzle_t *puzzle, vectNd *pos, int *face, int *pos_i, int *pos_j) {
+    int num_faces = num_n_faces(puzzle_dimensions, 2);
+    vectNd test;
+    vectNd_calloc(&test, puzzle_dimensions);
+    /* for each face */
+    for(int f=0; f<num_faces; ++f) {
+        /* for each position */
+        for(int j=0; j<3; ++j) {
+            for(int i=0; i<3; ++i) {
+                puzzle_face_center(puzzle, f, i, j, &test);
+                #if 0
+                vectNd_print(&test, "testing");
+                #endif /* 0 */
+                double dist = -1;
+                vectNd_dist(&test, pos, &dist);
+                if( dist < 0.25 ) {
+                    *face = f;
+                    *pos_i = i;
+                    *pos_j = j;
+                    vectNd_free(&test);
+                    return 1;
+                }
+            }
+        }
+    }
+    vectNd_free(&test);
+
+    fprintf(stderr, "Unable to find position on cube. (%i faces)\n", num_faces);
+    vectNd_print(pos, "position");
+    exit(1);
+    return 0;
+}
+
 int puzzle_free(puzzle_t *puzzle) {
     free(puzzle->faces);  puzzle->faces = NULL;
+    return 0;
+}
+
+/***********************\
+ * Puzzle Manipulation *
+\***********************/
+typedef struct transitions {
+    /* given a face and position, store the source face and position from
+     * before the move occured */
+    int num_faces;
+    int face_size;
+    piece_coord_t *table;
+} transitions_t;
+
+typedef struct move {
+    int rot_dim_0, rot_dim_1;   /* dimensions of rotation plane */
+    int *group_offset;  /* n offsets [-1,0,1,2] indicating which pieces are rotating (-1 for rotation plane dimensions) */
+    int dir;
+    transitions_t *trans;
+} move_t;
+
+int puzzle_print_move(move_t *move) {
+    printf("move: dir %i, plane %i,%i; ", move->dir, move->rot_dim_0, move->rot_dim_1);
+    printf(" offsets ");
+    for(int i=0; i<puzzle_dimensions; ++i) {
+        printf("%i ", move->group_offset[i]);
+    }
+    printf("\n");
+
     return 0;
 }
 
@@ -249,44 +342,6 @@ int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
     return 0;
 }
 
-int puzzle_print_move(move_t *move) {
-    printf("move: dir %i, plane %i,%i; ", move->dir, move->rot_dim_0, move->rot_dim_1);
-    printf(" offsets ");
-    for(int i=0; i<puzzle_dimensions; ++i) {
-        printf("%i ", move->group_offset[i]);
-    }
-    printf("\n");
-
-    return 0;
-}
-
-int puzzle_face_center(puzzle_t *puzzle, int face, int pos_i, int pos_j, vectNd *pos) {
-    vectNd_reset(pos);
-
-    /* 0.5 + i in dim0, 0.5 + j in dim1 in face plane */
-    int plane_id, offset_id;
-    plane_and_offset_ids(face, puzzle_dimensions, &plane_id, &offset_id);
-    int dim0, dim1;
-    plane_by_id(plane_id, puzzle_dimensions, &dim0, &dim1);
-    vectNd_set(pos, dim0, 0.5+pos_i);
-    vectNd_set(pos, dim1, 0.5+pos_j);
-
-    /* bits of offset_id indicate which dimensions to move in */
-    int which = 0;
-    while( offset_id > 0 ) {
-        while( which == dim0 || which == dim1 )
-            ++which;
-        int value = offset_id % 2;
-
-        vectNd_set(pos, which, value * 3);
-
-        offset_id >>= 1;
-        ++which;
-    }
-
-    return 0;
-}
-
 int puzzle_piece_in_group(move_t *move, vectNd *pos) {
 
     for(int i=0; i<puzzle_dimensions; ++i) {
@@ -300,39 +355,6 @@ int puzzle_piece_in_group(move_t *move, vectNd *pos) {
     }
 
     return 1;
-}
-
-int puzzle_find_face_coord(puzzle_t *puzzle, vectNd *pos, int *face, int *pos_i, int *pos_j) {
-    int num_faces = num_n_faces(puzzle_dimensions, 2);
-    vectNd test;
-    vectNd_calloc(&test, puzzle_dimensions);
-    /* for each face */
-    for(int f=0; f<num_faces; ++f) {
-        /* for each position */
-        for(int j=0; j<3; ++j) {
-            for(int i=0; i<3; ++i) {
-                puzzle_face_center(puzzle, f, i, j, &test);
-                #if 0
-                vectNd_print(&test, "testing");
-                #endif /* 0 */
-                double dist = -1;
-                vectNd_dist(&test, pos, &dist);
-                if( dist < 0.25 ) {
-                    *face = f;
-                    *pos_i = i;
-                    *pos_j = j;
-                    vectNd_free(&test);
-                    return 1;
-                }
-            }
-        }
-    }
-    vectNd_free(&test);
-
-    fprintf(stderr, "Unable to find position on cube. (%i faces)\n", num_faces);
-    vectNd_print(pos, "position");
-    exit(1);
-    return 0;
 }
 
 int puzzle_alloc_transitions(puzzle_t *puzzle, transitions_t **trans) {
@@ -459,22 +481,6 @@ int puzzle_random_move(move_t *move, int dimensions) {
     return -1;
 }
 
-int puzzle_copy(puzzle_t *dst, puzzle_t *src) {
-    dst->n = src->n;
-    dst->faces = calloc(dst->n, sizeof(face_t));
-
-    /* color faces */
-    for(int f=0; f<dst->n; ++f) {
-        for(int i=0; i<3; ++i) {
-            for(int j=0; j<3; ++j) {
-                dst->faces[f].c[i][j] = src->faces[f].c[i][j];
-            }
-        }
-    }
-
-    return 0;
-}
-
 int puzzle_apply_transitions(puzzle_t *dst, puzzle_t *src, transitions_t *trans) {
     /* color faces */
     for(int f=0; f<dst->n; ++f) {
@@ -510,6 +516,14 @@ int puzzle_apply_move(puzzle_t *puzzle, move_t *move) {
     puzzle_free(&backup);
 
     return 0;
+}
+
+/******************\
+ * Puzzle Solving *
+\******************/
+
+int puzzle_solve(puzzle_t *puzzle) {
+    return -1;
 }
 
 /* scene_frames is optional, but gives the total number of frames to render
