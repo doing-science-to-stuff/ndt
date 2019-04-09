@@ -149,7 +149,9 @@ int puzzle_create(puzzle_t *puzzle, int dimensions) {
     /* allocate faces */
     puzzle_dimensions = dimensions;
     puzzle->n = num_n_faces(dimensions, 2);
+    #if 0
     printf("%i faces\n", puzzle->n);
+    #endif /* 0 */
     puzzle->faces = calloc(puzzle->n, sizeof(face_t));
 
     /* color faces */
@@ -161,7 +163,9 @@ int puzzle_create(puzzle_t *puzzle, int dimensions) {
         }
     }
 
+    #if 0
     puzzle_print(puzzle);
+    #endif /* 0 */
     return 0;
 }
 
@@ -280,7 +284,9 @@ int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
     int num_faces = num_n_faces(puzzle_dimensions, 2);
     int num_planes = num_faces / 2;
     int num_moves = 2 * num_planes * pow(3, puzzle_dimensions - 2);
+    #if 0
     printf("%s: %i possible moves.\n", __FUNCTION__, num_moves);
+    #endif /* 0 */
     *num = num_moves;
 
     move_t *move = calloc(num_moves, sizeof(move_t));
@@ -317,7 +323,7 @@ int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
                     else
                         move[curr].group_offset[i] = count[i];
                 }
-                #if 1
+                #if 0
                 printf("move: %i / %i\n", curr, num_moves);
                 puzzle_print_move(&move[curr]);
                 #endif /* 0 */
@@ -336,7 +342,9 @@ int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
             }
         }
     }
+    #if 0
     printf("produced %i moves.\n", curr);
+    #endif /* 0 */
     *list = move;
 
     return 0;
@@ -537,13 +545,22 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     double t = frame/(double)frames;
     scene_init(scn, "empty", dimensions);
 
+    printf("Creating puzzle...");
+    fflush(stdout);
     puzzle_t puzzle;
     puzzle_create(&puzzle, dimensions);
+    printf("done!\n");
+
+    printf("Finding possible moves...");
+    fflush(stdout);
     move_t *moves = NULL;
     int num_moves;
     puzzle_build_moves(&puzzle, &moves, &num_moves);
+    printf("done!\n");
 
     /* perturb puzzle, recording moves */
+    printf("Perturbing puzzle...");
+    fflush(stdout);
     int perturb_steps = 30;
     for(int i=0; i<perturb_steps; ++i) {
         /* pick random move */
@@ -552,15 +569,20 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         /* apply move */
         puzzle_apply_move(&puzzle, &moves[which]);
 
-        #if 1
+        #if 0
         printf("applied move %i\n", which);
         /* print updated state */
         puzzle_print(&puzzle);
         sleep(1);
         #endif /* 0 */
     }
+    printf("done!\n");
 
     /* solve puzzle, also recording moves */
+    printf("Solving puzzle...");
+    fflush(stdout);
+    puzzle_solve(&puzzle);
+    printf("done!\n");
 
     exit(1);
 
