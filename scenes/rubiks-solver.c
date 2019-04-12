@@ -23,11 +23,6 @@ typedef struct puzzle {
     face_t *faces;
 } puzzle_t;
 
-typedef struct state {
-    puzzle_t puzzle;
-    double score;
-} state_t;
-
 typedef struct piece_coord {
     int face;
     int i;
@@ -262,18 +257,31 @@ typedef struct transitions {
 } transitions_t;
 
 typedef struct move {
+    /* Given that a rotation needs a single center of rotation,
+     * that point must therefore be a point along a line connecting
+     * the centers of two parallel faces.
+     *
+     * Thus, a move must consist of two distinct parallel faces,
+     * and a selector for how far along that line the center
+     * the rotation is {0.5,1.5,2.5}, or group dividers are
+     * {{0,1}, {1,2}, {2,3}}.
+     *
+     * Additionally, the two parallel faces must be connected by a
+     * perpendicular face, thus can only be offset from eachother on one
+     * dimension that is othoganal to the plane.
+     */
     int rot_dim_0, rot_dim_1;   /* dimensions of rotation plane */
-    int *group_offset;  /* n offsets [-1,0,1,2] indicating which pieces are rotating (-1 for rotation plane dimensions) */
-    int dir;
+    int conn_dim;   /* dimension connecting faces are in */
+    int face_id; /* ids of faces that bound the move */
+    int group_offset;   /* offset between faces where move occurs [0,1,2] */
+    int dir;    /* which way the pieces rotate [0,1] */
+
+    /* filled in after the move is specified */
     transitions_t *trans;
 } move_t;
 
 int puzzle_print_move(move_t *move) {
-    printf("move: dir %i, plane %i,%i; ", move->dir, move->rot_dim_0, move->rot_dim_1);
-    printf(" offsets ");
-    for(int i=0; i<puzzle_dimensions; ++i) {
-        printf("%i ", move->group_offset[i]);
-    }
+    printf("move: dir %i, plane %i,%i; dim %i, offset %i", move->dir, move->rot_dim_0, move->rot_dim_1, move->conn_dim, move->group_offset);
     printf("\n");
 
     return 0;
@@ -282,67 +290,62 @@ int puzzle_print_move(move_t *move) {
 int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
     /* get number of moves */
     int num_faces = num_n_faces(puzzle_dimensions, 2);
-    int num_planes = num_faces / 2;
-    int num_moves = 2 * num_planes * pow(3, puzzle_dimensions - 2);
+    int num_moves = num_faces * (puzzle_dimensions - 2) * 3;
     #if 0
     printf("%s: %i possible moves.\n", __FUNCTION__, num_moves);
     #endif /* 0 */
     *num = num_moves;
+    printf("%i expected moves.\n", num_moves);
 
     move_t *move = calloc(num_moves, sizeof(move_t));
     int curr = 0;
     for(int dir=0; dir<2; ++dir) {
-        for(int p=0; p<num_planes; ++p) {
+        for(int f=0; f<num_faces; ++f) {
             /* determine rotation cooridinates */
             int plane_id, offset_id;
-            plane_and_offset_ids(p, puzzle_dimensions, &plane_id, &offset_id);
+            plane_and_offset_ids(f, puzzle_dimensions, &plane_id, &offset_id);
             int dim0, dim1;
             plane_by_id(plane_id, puzzle_dimensions, &dim0, &dim1);
             #if 0
             printf("plane id: %i; dim0: %i; dim1: %i\n", p, dim0, dim1);
             #endif /* 0 */
 
-            /* enumerate group offsets */
-            int done = 0;
-            int *count = NULL;
-            count = calloc(puzzle_dimensions-2,sizeof(int));
-            while( !done ) {
-                /* copy counter into move offsets */
-                move[curr].rot_dim_0 = dim0;
-                move[curr].rot_dim_1 = dim1;
-                move[curr].dir = dir;
-                move[curr].group_offset = calloc(puzzle_dimensions, sizeof(int));
+            /* allow any face for which there is at least one dimension where
+             * a move in the positive direction leads to another face.
+             * i.e. any offset_id where there is a zero bit */
+            if( offset_id == (1<<(puzzle_dimensions - 2))-1 )
+                continue;
 
-                for(int i=0; i<puzzle_dimensions; ++i) {
-                    if( i==dim0 || i==dim1 )
-                        move[curr].group_offset[i] = -1;
-                    else if( i > dim0 && i > dim1 )
-                        move[curr].group_offset[i] = count[i-2];
-                    else if( i > dim0 || i > dim1 )
-                        move[curr].group_offset[i] = count[i-1];
-                    else
-                        move[curr].group_offset[i] = count[i];
-                }
-                #if 0
-                printf("move: %i / %i\n", curr, num_moves);
-                puzzle_print_move(&move[curr]);
-                #endif /* 0 */
-                curr += 1;
+            /* loop through dimensions to find orthoginal ones */
+            for(int dim=0; dim<puzzle_dimensions; ++dim) {
+                if( dim == dim0 | dim == dim1 )
+                    continue;
 
-                /* update counter */
-                int i=0;
-                while(count[i] == (3-1)) {
-                    count[i] = 0;
-                    i++;
+                /* if dimension `dim` is already 1 in offset_id, skip it */
+                int value = offset_id % 2;
+                offset_id >>= 1;
+                if( value != 0 )
+                    continue;
+
+                /* enumerate group offsets */
+                for(int which=0; which<3; ++which) {
+                    if( curr == num_moves ) {
+                        fprintf(stderr, "Too many moves! (%i)\n", curr+1);
+                        exit(1);
+                    }
+                    move[curr].rot_dim_0 = dim0;
+                    move[curr].rot_dim_1 = dim1;
+                    move[curr].dir = dir;
+                    move[curr].face_id = f;
+                    move[curr].conn_dim = dim;
+                    move[curr].group_offset = which;
+
+                    curr += 1;
                 }
-                if( i >= puzzle_dimensions-2 )
-                    done = 1;
-                else
-                    ++count[i];
             }
         }
     }
-    #if 0
+    #if 1
     printf("produced %i moves.\n", curr);
     #endif /* 0 */
     *list = move;
@@ -352,14 +355,23 @@ int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
 
 int puzzle_piece_in_group(move_t *move, vectNd *pos) {
 
+    if( fabs( pos->v[move->conn_dim] - (move->group_offset+0.5) ) > 0.6 ) {
+        return 0;
+    }
+
+    /* offset_id encodes what the value of `extra` dimensions must be */
+    int plane_id, offset_id;
+    plane_and_offset_ids(move->face_id, puzzle_dimensions, &plane_id, &offset_id);
     for(int i=0; i<puzzle_dimensions; ++i) {
-        /* ignore rotation plane dimensions */
-        if( move->group_offset[i] == -1 )
+        if( i==move->rot_dim_0 || i==move->rot_dim_1 || i==move->conn_dim )
             continue;
 
-        if( fabs(pos->v[i]-(move->group_offset[i]+0.5)) > 0.6 ) {
+        /* extract low order bit and remove it */
+        int value = offset_id % 2;
+        offset_id >>= 1;
+
+        if( fabs( pos->v[i] - value*3 ) > 0.25 )
             return 0;
-        }
     }
 
     return 1;
@@ -404,7 +416,13 @@ int puzzle_fill_transitions(puzzle_t *puzzle, move_t *move) {
     /* allocate transistion table for move m */
     puzzle_alloc_transitions(puzzle, &move->trans);
 
+    #if 0
+    puzzle_print_move(move);
+    #endif /* 0 */
+
     /* for each face */
+    int cells_affected = 0;
+    int cells_total = 0;
     for(int f=0; f<num_faces; ++f) {
         /* for each position */
         for(int j=0; j<3; ++j) {
@@ -420,21 +438,24 @@ int puzzle_fill_transitions(puzzle_t *puzzle, move_t *move) {
                         vectNd_rotate(&piece, &center, move->rot_dim_0, move->rot_dim_1, -M_PI / 2.0, &rotated);
 
                     #if 0
-                    printf("face %i, piece %i,%i ", f, i, j);
-                    vectNd_print(&piece, "piece");
-                    vectNd_print(&rotated, "rotated");
+                    printf("face %i, piece %i,%i\n", f, i, j);
+                    vectNd_print(&piece, "\tpiece");
+                    vectNd_print(&rotated, "\trotated");
                     #endif /* 0 */
+                    ++cells_affected;
                 } else {
                     vectNd_copy(&rotated, &piece);
                 }
+                ++cells_total;
 
                 /* determine face and position on face for destination */
                 int rot_face, rot_i, rot_j;
                 puzzle_find_face_coord(puzzle, &rotated, &rot_face, &rot_i, &rot_j);
                 #if 0
-                printf("%i,%i,%i -> %i,%i,%i%s\n", f, i, j,
+                printf("\t%i,%i,%i -> %i,%i,%i%s\t", f, i, j,
                         rot_face, rot_i, rot_j,
                         (f!=rot_face || i!=rot_i || j!=rot_j)?" *":"");
+                vectNd_print(&piece, "\tpiece");
                 #endif /* 0 */
 
                 /* update transition table */
@@ -445,6 +466,9 @@ int puzzle_fill_transitions(puzzle_t *puzzle, move_t *move) {
     vectNd_free(&center);
     vectNd_free(&piece);
     vectNd_free(&rotated);
+    #if 0
+    printf("move affected %i/%i cells.\n", cells_affected, cells_total);
+    #endif /* 0 */
 
     return 0;
 }
@@ -464,29 +488,6 @@ int puzzle_build_moves(puzzle_t *puzzle, move_t **moves, int *num_moves) {
     }
 
     return 0;
-}
-
-int puzzle_random_move(move_t *move, int dimensions) {
-    /* pick a uniformly random pair of dimensions for the rotation plane */
-    /* Assume a square transition matrix between faces, remove the diagonal
-     * and compact into a Nx(N-1) rectangle, pick a position in that rectange
-     * and map it back to the original pair of dimensions. */
-    int n_planes = dimensions * (dimensions-1);
-    int plane_id = lrand48()%n_planes;
-    move->rot_dim_0 = plane_id % dimensions;
-    move->rot_dim_1 = plane_id / dimensions;
-    /* account for removed diagonal */
-    if( move->rot_dim_0 <= move->rot_dim_1 )
-        move->rot_dim_1 += 1;
-
-    /* pick a offsets of pieces group to be rotated */
-    int n_offsets = dimensions-2;
-    move->group_offset = calloc(n_offsets, sizeof(int));
-
-    for(int i=0; i<n_offsets; ++i) {
-        
-    }
-    return -1;
 }
 
 int puzzle_apply_transitions(puzzle_t *dst, puzzle_t *src, transitions_t *trans) {
@@ -529,6 +530,74 @@ int puzzle_apply_move(puzzle_t *puzzle, move_t *move) {
 /******************\
  * Puzzle Solving *
 \******************/
+typedef struct state {
+    puzzle_t puzzle;
+    double score;
+} state_t;
+
+double puzzle_state_score(puzzle_t *puzzle) {
+    double score = 0.0;
+    for(int f=0; f<puzzle->n; ++f) {
+        for(int j=0; j<3; ++j) {
+            for(int i=0; i<3; ++i) {
+                /* count square that dont match center */
+                if( puzzle->faces[f].c[i][j] != puzzle->faces[f].c[1][1] )
+                    score += 1;
+            }
+        }
+    }
+
+    return score;
+}
+
+double puzzle_state_score2(puzzle_t *puzzle) {
+    double score = 0.0;
+    for(int f=0; f<puzzle->n; ++f) {
+        for(int j=0; j<3; ++j) {
+            for(int i=0; i<3; ++i) {
+                /* count square that dont match original position */
+                if( puzzle->faces[f].c[i][j] != f )
+                    score += 1;
+            }
+        }
+    }
+
+    return score;
+}
+
+double heuristic(puzzle_t *puzzle) {
+    /* (pre)determine how many face cells can be affected by a single move */
+    int cells_per_move = 12;    /* 12 for 3D */
+
+    /* count how many cells are out of place (as in puzzle_state_score) */
+    double count = -1;
+    #if 1
+    /* to solve in any orientation */
+    count = puzzle_state_score(puzzle);
+    #else
+    /* to get back to original orientation */
+    count = puzzle_state_score2(puzzle);
+    #endif /* 0 */
+
+    /* divide total out of place cells, but number affected by each move */
+    double h = count / cells_per_move;
+
+    return h;
+}
+
+int puzzle_is_solved(puzzle_t *puzzle) {
+    for(int f=0; f<puzzle->n; ++f) {
+        for(int j=0; j<3; ++j) {
+            for(int i=0; i<3; ++i) {
+                if( puzzle->faces[f].c[i][j] != puzzle->faces[f].c[0][0] )
+                    return  0;
+            }
+        }
+    }
+
+    /* no out of place pieces found, assume solved */
+    return 1;
+}
 
 int puzzle_solve(puzzle_t *puzzle) {
     return -1;
@@ -561,19 +630,23 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     /* perturb puzzle, recording moves */
     printf("Perturbing puzzle...");
     fflush(stdout);
-    int perturb_steps = 30;
+    int perturb_steps = 300;
+    perturb_steps = num_moves;
     for(int i=0; i<perturb_steps; ++i) {
         /* pick random move */
         int which = lrand48()%num_moves;
+        which = i;
 
         /* apply move */
         puzzle_apply_move(&puzzle, &moves[which]);
 
-        #if 0
+        #if 1
         printf("applied move %i\n", which);
         /* print updated state */
         puzzle_print(&puzzle);
+        #if 1
         sleep(1);
+        #endif /* 0 */
         #endif /* 0 */
     }
     printf("done!\n");
