@@ -5,6 +5,7 @@
  * Copyright (c) 2019 Bryan Franklin. All rights reserved.
  */
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include "../scene.h"
 
@@ -280,6 +281,12 @@ typedef struct move {
     transitions_t *trans;
 } move_t;
 
+typedef struct move_list {
+    move_t *list;
+    int num;
+    int cap;
+} move_list_t;
+
 int puzzle_print_move(move_t *move) {
     printf("move: dir %i, plane %i,%i; dim %i, offset %i", move->dir, move->rot_dim_0, move->rot_dim_1, move->conn_dim, move->group_offset);
     printf("\n");
@@ -287,17 +294,58 @@ int puzzle_print_move(move_t *move) {
     return 0;
 }
 
-int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
+int move_copy(move_t *dst, move_t *src) {
+    memcpy(dst,src,sizeof(move_t));
+    dst->trans = NULL;
+    return 0;
+}
+
+int move_list_init(move_list_t *list) {
+    memset(list, '\0', sizeof(move_list_t));
+    return 0;
+}
+
+int move_list_append(move_list_t *list, move_t *move) {
+    if( list->num == list->cap ) {
+        int new_cap = 2*list->cap + 1;
+        move_t *tmp = malloc(new_cap*sizeof(move_t));
+        if( tmp==NULL ) {
+            perror("malloc");
+            exit(1);
+        }
+        memcpy(tmp,list->list,list->num*sizeof(move_t));
+        free(list->list); list->list = NULL;
+        list->list = tmp;
+        list->cap = new_cap;
+    }
+
+    int ret = move_copy(&list->list[list->num], move);
+    ++list->num;
+
+    return ret;
+}
+
+int move_list_remove(move_list_t *list, int pos) {
+    if( pos >= list->num )
+        return -1;
+
+    memmove(&list->list[pos], &list->list[pos+1], (list->num-pos-1) * sizeof(move_t));
+    --list->num;
+
+    return 0;
+}
+
+int enumerate_moves(puzzle_t *puzzle, move_list_t *list) {
+    move_list_init(list);
+
     /* get number of moves */
     int num_faces = num_n_faces(puzzle_dimensions, 2);
     int num_moves = num_faces * (puzzle_dimensions - 2) * 3;
     #if 0
     printf("%s: %i possible moves.\n", __FUNCTION__, num_moves);
     #endif /* 0 */
-    *num = num_moves;
     printf("%i expected moves.\n", num_moves);
 
-    move_t *move = calloc(num_moves, sizeof(move_t));
     int curr = 0;
     for(int dir=0; dir<2; ++dir) {
         for(int f=0; f<num_faces; ++f) {
@@ -333,22 +381,21 @@ int enumerate_moves(puzzle_t *puzzle, move_t **list, int *num) {
                         fprintf(stderr, "Too many moves! (%i)\n", curr+1);
                         exit(1);
                     }
-                    move[curr].rot_dim_0 = dim0;
-                    move[curr].rot_dim_1 = dim1;
-                    move[curr].dir = dir;
-                    move[curr].face_id = f;
-                    move[curr].conn_dim = dim;
-                    move[curr].group_offset = which;
-
-                    curr += 1;
+                    move_t move;
+                    move.rot_dim_0 = dim0;
+                    move.rot_dim_1 = dim1;
+                    move.dir = dir;
+                    move.face_id = f;
+                    move.conn_dim = dim;
+                    move.group_offset = which;
+                    move_list_append(list, &move);
                 }
             }
         }
     }
     #if 1
-    printf("produced %i moves.\n", curr);
+    printf("produced %i moves.\n", list->num);
     #endif /* 0 */
-    *list = move;
 
     return 0;
 }
@@ -473,18 +520,18 @@ int puzzle_fill_transitions(puzzle_t *puzzle, move_t *move) {
     return 0;
 }
 
-int puzzle_build_moves(puzzle_t *puzzle, move_t **moves, int *num_moves) {
+int puzzle_build_moves(puzzle_t *puzzle, move_list_t *moves) {
     /* make list of possible moves */
-    enumerate_moves(puzzle, moves, num_moves);
+    enumerate_moves(puzzle, moves);
 
     /* for each possible move */
-    for(int m=0; m<*num_moves; ++m) {
+    for(int m=0; m<moves->num; ++m) {
         #if 0
         printf("m: %i / %i\n", m, *num_moves);
-        puzzle_print_move(&(*moves)[m]);
+        puzzle_print_move(&moves->list[m]);
         #endif /* 0 */
         /* fill in transitions for each move */
-        puzzle_fill_transitions(puzzle, &(*moves)[m]);
+        puzzle_fill_transitions(puzzle, &moves->list[m]);
     }
 
     return 0;
@@ -531,8 +578,10 @@ int puzzle_apply_move(puzzle_t *puzzle, move_t *move) {
  * Puzzle Solving *
 \******************/
 typedef struct state {
-    puzzle_t puzzle;
-    double score;
+    puzzle_t puzzle;    /* current puzzle configuration */
+    move_t move;        /* move that lead to this state */
+    int path_length;    /* number of moves to get here */
+    struct state *prev; /* state that was modified by move to get here */
 } state_t;
 
 double puzzle_state_score(puzzle_t *puzzle) {
@@ -589,8 +638,15 @@ int puzzle_is_solved(puzzle_t *puzzle) {
     for(int f=0; f<puzzle->n; ++f) {
         for(int j=0; j<3; ++j) {
             for(int i=0; i<3; ++i) {
+                #if 1
+                /* to solve in any orientation */
                 if( puzzle->faces[f].c[i][j] != puzzle->faces[f].c[0][0] )
                     return  0;
+                #else
+                /* solved in original orientation */
+                if( puzzle->faces[f].c[i][j] != f )
+                    return  0;
+                #endif /* 0 */
             }
         }
     }
@@ -599,8 +655,47 @@ int puzzle_is_solved(puzzle_t *puzzle) {
     return 1;
 }
 
-int puzzle_solve(puzzle_t *puzzle) {
-    return -1;
+int puzzle_solve(puzzle_t *puzzle, move_list_t *valid, move_list_t *solution) {
+    if( valid == NULL || valid->num == 0 ) {
+        fprintf(stderr,"%s requires a list of valid moves.\n", __FUNCTION__);
+        return -1;
+    }
+
+    move_list_init(solution);
+
+    /* contruct initial state */
+    /* compute heuristic function */
+    /* place initial state into priority queue */
+
+    /* while not done */
+    int done = 1;
+    while( !done ) {
+        state_t curr;
+
+        /* remove state from queue */
+
+        /* test for solved condition */
+
+        /* apply all valid moves to get new states */
+            /* compute heuristic for new state */
+            /* place new state into priority queue */
+    }
+
+    /* once solved */
+    move_list_t temp;
+    move_list_init(&temp);
+    /* start from solves state */
+
+    /* traverse prev pointers */
+        /* append move to temp list */
+        /* move to previous state */
+
+    /* reverse temp list into solution */
+    for(int i=temp.num-1; i>=0; --i) {
+        move_list_append(solution, &temp.list[i]);
+    }
+
+    return 0;
 }
 
 /* scene_frames is optional, but gives the total number of frames to render
@@ -620,11 +715,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     puzzle_create(&puzzle, dimensions);
     printf("done!\n");
 
-    printf("Finding possible moves...");
+    printf("Finding valid moves...");
     fflush(stdout);
-    move_t *moves = NULL;
-    int num_moves;
-    puzzle_build_moves(&puzzle, &moves, &num_moves);
+    move_list_t valid_moves;
+    puzzle_build_moves(&puzzle, &valid_moves);
     printf("done!\n");
 
     /* perturb puzzle, recording moves */
@@ -632,17 +726,17 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     fflush(stdout);
     int perturb_steps = 300;
     #if 0
-    perturb_steps = num_moves;
+    perturb_steps = valid_moves.num;
     #endif /* 0 */
     for(int i=0; i<perturb_steps; ++i) {
         /* pick random move */
-        int which = lrand48()%num_moves;
+        int which = lrand48()%valid_moves.num;
         #if 0
         which = i;
         #endif /* 0 */
 
         /* apply move */
-        puzzle_apply_move(&puzzle, &moves[which]);
+        puzzle_apply_move(&puzzle, &valid_moves.list[which]);
 
         #if 0
         printf("applied move %i\n", which);
@@ -656,9 +750,21 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     printf("done!\n");
 
     /* solve puzzle, also recording moves */
+    move_list_t solve_moves;
     printf("Solving puzzle...");
     fflush(stdout);
-    puzzle_solve(&puzzle);
+    puzzle_solve(&puzzle, &valid_moves, &solve_moves);
+    printf("%i moves in solution...", solve_moves.num);
+    /* apply solution */
+    for(int i=0; i<solve_moves.num; ++i) {
+        puzzle_apply_move(&puzzle, &solve_moves.list[i]);
+    }
+    if( ! puzzle_is_solved(&puzzle) ) {
+        puzzle_print(&puzzle);
+        fflush(stdout);
+        fprintf(stderr, "FAILED!  Puzzle is not solved!\n\n");
+        exit(1);
+    }
     printf("done!\n");
 
     exit(1);
