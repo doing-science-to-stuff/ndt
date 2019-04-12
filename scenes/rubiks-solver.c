@@ -631,16 +631,20 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     printf("Perturbing puzzle...");
     fflush(stdout);
     int perturb_steps = 300;
+    #if 0
     perturb_steps = num_moves;
+    #endif /* 0 */
     for(int i=0; i<perturb_steps; ++i) {
         /* pick random move */
         int which = lrand48()%num_moves;
+        #if 0
         which = i;
+        #endif /* 0 */
 
         /* apply move */
         puzzle_apply_move(&puzzle, &moves[which]);
 
-        #if 1
+        #if 0
         printf("applied move %i\n", which);
         /* print updated state */
         puzzle_print(&puzzle);
