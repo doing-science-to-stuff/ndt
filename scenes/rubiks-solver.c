@@ -169,14 +169,8 @@ int puzzle_copy(puzzle_t *dst, puzzle_t *src) {
     dst->n = src->n;
     dst->faces = calloc(dst->n, sizeof(face_t));
 
-    /* color faces */
-    for(int f=0; f<dst->n; ++f) {
-        for(int i=0; i<3; ++i) {
-            for(int j=0; j<3; ++j) {
-                dst->faces[f].c[i][j] = src->faces[f].c[i][j];
-            }
-        }
-    }
+    /* copy faces */
+    memcpy(dst->faces, src->faces, dst->n * sizeof(face_t));
 
     return 0;
 }
@@ -281,11 +275,12 @@ typedef struct move {
     transitions_t *trans;
 } move_t;
 
-typedef struct move_list {
-    move_t *list;
-    int num;
-    int cap;
-} move_list_t;
+typedef struct gen_list {
+    void *list;
+    size_t width;
+    size_t num;
+    size_t cap;
+} gen_list_t;
 
 int puzzle_print_move(move_t *move) {
     printf("move: dir %i, plane %i,%i; dim %i, offset %i", move->dir, move->rot_dim_0, move->rot_dim_1, move->conn_dim, move->group_offset);
@@ -300,43 +295,50 @@ int move_copy(move_t *dst, move_t *src) {
     return 0;
 }
 
-int move_list_init(move_list_t *list) {
-    memset(list, '\0', sizeof(move_list_t));
+int gen_list_init(gen_list_t *list, size_t width) {
+    memset(list, '\0', sizeof(gen_list_t));
+    list->width = width;
     return 0;
 }
 
-int move_list_append(move_list_t *list, move_t *move) {
+int gen_list_append(gen_list_t *list, void *item) {
     if( list->num == list->cap ) {
         int new_cap = 2*list->cap + 1;
-        move_t *tmp = malloc(new_cap*sizeof(move_t));
+        move_t *tmp = malloc(new_cap*list->width);
         if( tmp==NULL ) {
             perror("malloc");
             exit(1);
         }
-        memcpy(tmp,list->list,list->num*sizeof(move_t));
+        memcpy(tmp,list->list,list->num*list->width);
         free(list->list); list->list = NULL;
         list->list = tmp;
         list->cap = new_cap;
     }
 
-    int ret = move_copy(&list->list[list->num], move);
+    memcpy(list->list + list->num * list->width, item, list->width);
     ++list->num;
 
-    return ret;
+    return 0;
 }
 
-int move_list_remove(move_list_t *list, int pos) {
+void *gen_list_item_ptr(gen_list_t *list, int pos) {
+    return list->list + pos*list->width;
+}
+
+int gen_list_remove(gen_list_t *list, int pos) {
     if( pos >= list->num )
         return -1;
 
-    memmove(&list->list[pos], &list->list[pos+1], (list->num-pos-1) * sizeof(move_t));
+    memmove(list->list + pos*list->width,
+            list->list + (pos+1)*list->width,
+            (list->num-pos-1) * sizeof(list->width));
     --list->num;
 
     return 0;
 }
 
-int enumerate_moves(puzzle_t *puzzle, move_list_t *list) {
-    move_list_init(list);
+int enumerate_moves(puzzle_t *puzzle, gen_list_t *list) {
+    gen_list_init(list, sizeof(move_t));
 
     /* get number of moves */
     int num_faces = num_n_faces(puzzle_dimensions, 2);
@@ -366,7 +368,7 @@ int enumerate_moves(puzzle_t *puzzle, move_list_t *list) {
 
             /* loop through dimensions to find orthoginal ones */
             for(int dim=0; dim<puzzle_dimensions; ++dim) {
-                if( dim == dim0 | dim == dim1 )
+                if( dim == dim0 || dim == dim1 )
                     continue;
 
                 /* if dimension `dim` is already 1 in offset_id, skip it */
@@ -388,13 +390,13 @@ int enumerate_moves(puzzle_t *puzzle, move_list_t *list) {
                     move.face_id = f;
                     move.conn_dim = dim;
                     move.group_offset = which;
-                    move_list_append(list, &move);
+                    gen_list_append(list, &move);
                 }
             }
         }
     }
     #if 1
-    printf("produced %i moves.\n", list->num);
+    printf("produced %lu moves.\n", list->num);
     #endif /* 0 */
 
     return 0;
@@ -520,7 +522,7 @@ int puzzle_fill_transitions(puzzle_t *puzzle, move_t *move) {
     return 0;
 }
 
-int puzzle_build_moves(puzzle_t *puzzle, move_list_t *moves) {
+int puzzle_build_moves(puzzle_t *puzzle, gen_list_t *moves) {
     /* make list of possible moves */
     enumerate_moves(puzzle, moves);
 
@@ -528,10 +530,10 @@ int puzzle_build_moves(puzzle_t *puzzle, move_list_t *moves) {
     for(int m=0; m<moves->num; ++m) {
         #if 0
         printf("m: %i / %i\n", m, *num_moves);
-        puzzle_print_move(&moves->list[m]);
+        puzzle_print_move(gen_list_item_ptr(moves,m));
         #endif /* 0 */
         /* fill in transitions for each move */
-        puzzle_fill_transitions(puzzle, &moves->list[m]);
+        puzzle_fill_transitions(puzzle, gen_list_item_ptr(moves,m));
     }
 
     return 0;
@@ -583,6 +585,121 @@ typedef struct state {
     int path_length;    /* number of moves to get here */
     struct state *prev; /* state that was modified by move to get here */
 } state_t;
+
+typedef struct priority_entry {
+    double priority;
+    void *payload;
+} priority_entry_t;
+
+typedef struct priority_queue {
+    priority_entry_t *entries;
+    size_t num;
+    size_t cap;
+} priority_queue_t;
+
+int priority_init(priority_queue_t *queue) {
+    memset(queue,'\0',sizeof(priority_queue_t));
+    return 0;
+}
+
+int priority_enqueue(priority_queue_t *queue, void *payload, double priority) {
+
+    /* resize as needed */
+    if( queue->num == queue->cap ) {
+        priority_entry_t *tmp;
+        size_t new_cap = queue->cap * 2 + 1;
+        new_cap = (new_cap<1)?1:new_cap;
+        tmp = malloc(new_cap * sizeof(priority_entry_t));
+        if( tmp == NULL ) {
+            perror("malloc");
+            exit(1);
+        }
+        queue->cap = new_cap;
+        memcpy(tmp, queue->entries, queue->num * sizeof(priority_entry_t));
+        free(queue->entries); queue->entries = NULL;
+        queue->entries = tmp;
+    }
+
+    /* add new entry to the end */
+    queue->entries[queue->num].payload = payload;
+    queue->entries[queue->num].priority = priority;
+    ++queue->num;
+
+    /* heap up */
+    int pos = queue->num - 1;
+    int parent = (pos-1) / 2;
+    if( queue->entries[pos].priority < queue->entries[parent].priority ) {
+        priority_entry_t tmp;
+        memcpy(&tmp, &queue->entries[pos], sizeof(priority_entry_t));
+        memcpy(&queue->entries[pos], &queue->entries[parent], sizeof(priority_entry_t));
+        memcpy(&queue->entries[parent], &tmp, sizeof(priority_entry_t));
+    }
+    #if 0
+    printf("%s: queue now contains %zu items.\n", __FUNCTION__, queue->num);
+    #endif /* 0 */
+
+    return 0;
+}
+
+int priority_dequeue(priority_queue_t *queue, void **ptr) {
+
+    /* check for empty queue */
+    if( queue->num < 1 ) {
+        *ptr = NULL;
+        return -1;
+    }
+
+    /* record return value */
+    *ptr = queue->entries[0].payload;
+
+    /* replace root with last element */
+    if( queue->num > 1 ) {
+        memcpy(&queue->entries[0], &queue->entries[queue->num-1], sizeof(priority_entry_t));
+        memset(&queue->entries[queue->num-1], '\0', sizeof(priority_entry_t));
+    }
+    if( queue->num > 0 )
+        --queue->num;
+    if( queue->num == 0 ) {
+        printf("%s: queue now empty.\n", __FUNCTION__);
+        return 0;
+    }
+
+    /* heap-down */
+    int pos = 0;
+    int done = 0;
+    do {
+        done = 1;
+        
+        int left = pos * 2 + 1;
+        int right = pos * 2 + 2;
+        int swap = -1;
+        double target_prio = queue->entries[pos].priority;
+
+        if( left<queue->num && queue->entries[left].priority < target_prio ) {
+            swap = left;
+            target_prio = queue->entries[left].priority;
+        }
+        if( right<queue->num && queue->entries[right].priority < target_prio ) {
+            swap = right;
+            target_prio = queue->entries[right].priority;
+        }
+
+        if( swap > 0 ) {
+            priority_entry_t tmp;
+            memcpy(&tmp, &queue->entries[pos], sizeof(priority_entry_t));
+            memcpy(&queue->entries[pos], &queue->entries[swap], sizeof(priority_entry_t));
+            memcpy(&queue->entries[swap], &tmp, sizeof(priority_entry_t));
+            pos = swap;
+            done = 0;
+        }
+
+    } while( done != 1 );
+    #if 0
+    printf("%s: queue now contains %zu items.\n", __FUNCTION__, queue->num);
+    #endif /* 0 */
+
+    return 0;
+}
 
 double puzzle_state_score(puzzle_t *puzzle) {
     double score = 0.0;
@@ -655,44 +772,141 @@ int puzzle_is_solved(puzzle_t *puzzle) {
     return 1;
 }
 
-int puzzle_solve(puzzle_t *puzzle, move_list_t *valid, move_list_t *solution) {
+int puzzle_solve(puzzle_t *puzzle, gen_list_t *valid, gen_list_t *solution) {
     if( valid == NULL || valid->num == 0 ) {
         fprintf(stderr,"%s requires a list of valid moves.\n", __FUNCTION__);
         return -1;
     }
 
-    move_list_init(solution);
+    /* initialize data storage */
+    gen_list_init(solution, sizeof(move_t));
+    gen_list_t states;
+    gen_list_init(&states, sizeof(state_t*));
+    priority_queue_t queue;
+    priority_init(&queue);
 
     /* contruct initial state */
+    state_t *initial = NULL;
+    initial = calloc(1,sizeof(state_t));
+    memset(initial, '\0', sizeof(state_t));
+    puzzle_copy(&initial->puzzle, puzzle);
+    gen_list_append(&states, &initial);
+
     /* compute heuristic function */
+    double h = heuristic(puzzle);
+
     /* place initial state into priority queue */
+    priority_enqueue(&queue, initial, h);
 
     /* while not done */
-    int done = 1;
-    while( !done ) {
-        state_t curr;
+    int solved = 0;
+    state_t *curr = NULL;
+    int iter = 0;
+    while( !solved && queue.num > 0 ) {
+
+        if( queue.entries[0].payload == NULL )
+            puzzle_print(&((state_t*)queue.entries[0].payload)->puzzle);
 
         /* remove state from queue */
+        void *ptr = NULL;
+        priority_dequeue(&queue, &ptr);
+        curr = (state_t*)ptr;
+        #if 1
+        if( (++iter % 100) == 0 ) {
+            printf("%zu states created.\n", states.num);
+            printf("curr:\n");
+            puzzle_print(&curr->puzzle);
+            printf("path length: %i\n", curr->path_length);
+            printf("h: %g\n", heuristic(&curr->puzzle));
+        }
+        #endif /* 1 */
 
         /* test for solved condition */
+        if( puzzle_is_solved(&curr->puzzle) ) {
+            printf("Found a solution!\n");
+            puzzle_print(&curr->puzzle);
+            solved = 1;
+            break;
+        }
 
         /* apply all valid moves to get new states */
+        state_t *next = NULL;
+        for(int i=0; i<valid->num; ++i) {
+            /* apply move */
+            move_t *move_ptr = gen_list_item_ptr(valid, i);
+            next = calloc(1,sizeof(state_t));
+            puzzle_copy(&next->puzzle, &curr->puzzle);
+            
+            #if 0
+            printf("before:\n");
+            puzzle_print(&curr->puzzle);
+            puzzle_print(&next->puzzle);
+            #endif /* 0 */
+
+            puzzle_apply_move(&next->puzzle, move_ptr);
+
+            #if 0
+            printf("after:\n");
+            puzzle_print(&curr->puzzle);
+            puzzle_print(&next->puzzle);
+            #endif /* 0 */
+
+            move_copy(&next->move, move_ptr);
+            next->path_length = curr->path_length+1;
+            next->prev = curr;
+
+            /* check for duplicate */
+            int is_dupe = 0;
+            for(int j=0; j<states.num && !is_dupe; ++j) {
+                state_t *check = *((state_t**)gen_list_item_ptr(&states, j));
+                if( memcmp(next->puzzle.faces, check->puzzle.faces, next->puzzle.n * sizeof(face_t)) == 0 ) {
+                    is_dupe = 1;
+                    #if 0
+                    puzzle_print(&next->puzzle);
+                    puzzle_print(&check->puzzle);
+                    #endif /* 0 */
+                } else {
+                    #if 0
+                    printf("not a dupe!\n");
+                    puzzle_print(&next->puzzle);
+                    #endif /* 0 */
+                }
+            }
+            if( is_dupe ) {
+                #if 0
+                printf("dupe detected.\n");
+                #endif /* 0 */
+                puzzle_free(&next->puzzle);
+                free(next); next = NULL;
+                continue;
+            }
+
             /* compute heuristic for new state */
+            double h = heuristic(&next->puzzle);
+
             /* place new state into priority queue */
+            gen_list_append(&states, &next);
+            priority_enqueue(&queue, next, next->path_length + h);
+        }
     }
 
     /* once solved */
-    move_list_t temp;
-    move_list_init(&temp);
-    /* start from solves state */
+    gen_list_t temp;
+    gen_list_init(&temp, sizeof(move_t));
+    /* start from solved state */
 
     /* traverse prev pointers */
+    while( curr != NULL ) {
         /* append move to temp list */
+        gen_list_append(&temp, &curr->move);
+
         /* move to previous state */
+        curr = curr->prev;
+    }
 
     /* reverse temp list into solution */
     for(int i=temp.num-1; i>=0; --i) {
-        move_list_append(solution, &temp.list[i]);
+        gen_list_append(solution, gen_list_item_ptr(&temp, i));
     }
 
     return 0;
@@ -717,14 +931,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     printf("Finding valid moves...");
     fflush(stdout);
-    move_list_t valid_moves;
+    gen_list_t valid_moves;
     puzzle_build_moves(&puzzle, &valid_moves);
     printf("done!\n");
 
     /* perturb puzzle, recording moves */
     printf("Perturbing puzzle...");
     fflush(stdout);
-    int perturb_steps = 300;
+    int perturb_steps = 6;
     #if 0
     perturb_steps = valid_moves.num;
     #endif /* 0 */
@@ -736,7 +950,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         #endif /* 0 */
 
         /* apply move */
-        puzzle_apply_move(&puzzle, &valid_moves.list[which]);
+        puzzle_apply_move(&puzzle, gen_list_item_ptr(&valid_moves, which));
 
         #if 0
         printf("applied move %i\n", which);
@@ -750,22 +964,23 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     printf("done!\n");
 
     /* solve puzzle, also recording moves */
-    move_list_t solve_moves;
+    gen_list_t solve_moves;
     printf("Solving puzzle...");
     fflush(stdout);
     puzzle_solve(&puzzle, &valid_moves, &solve_moves);
-    printf("%i moves in solution...", solve_moves.num);
+    printf("%zu moves in solution...", solve_moves.num);
     /* apply solution */
     for(int i=0; i<solve_moves.num; ++i) {
-        puzzle_apply_move(&puzzle, &solve_moves.list[i]);
+        puzzle_apply_move(&puzzle, gen_list_item_ptr(&solve_moves, i));
     }
     if( ! puzzle_is_solved(&puzzle) ) {
         puzzle_print(&puzzle);
         fflush(stdout);
         fprintf(stderr, "FAILED!  Puzzle is not solved!\n\n");
         exit(1);
+    } else {
+        printf("SUCCESS!!!\n");
     }
-    printf("done!\n");
 
     exit(1);
 
