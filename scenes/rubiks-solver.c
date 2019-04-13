@@ -930,17 +930,13 @@ int puzzle_solve_a_star(puzzle_t *puzzle, gen_list_t *valid, gen_list_t *solutio
     return 0;
 }
 
-/* scene_frames is optional, but gives the total number of frames to render
- * for an animated scene. */
-int scene_frames(int dimensions, char *config) {
-    return 1;
-}
+typedef struct puzzle_info {
+    int dim;
+    gen_list_t perturb_moves;
+    gen_list_t solution;
+} puzzle_info_t;
 
-int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
-{
-    double t = frame/(double)frames;
-    scene_init(scn, "empty", dimensions);
-
+int puzzle_simulate(puzzle_info_t *info, int dimensions, int perturb_steps) {
     printf("Creating puzzle...");
     fflush(stdout);
     puzzle_t puzzle;
@@ -956,9 +952,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     /* perturb puzzle, recording moves */
     printf("Perturbing puzzle...");
     fflush(stdout);
-    gen_list_t perturb_moves;
-    gen_list_init(&perturb_moves, sizeof(move_t));
-    int perturb_steps = 20;
+    gen_list_init(&info->perturb_moves, sizeof(move_t));
     #if 0
     perturb_steps = valid_moves.num;
     #endif /* 0 */
@@ -973,7 +967,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         move_t *move = gen_list_item_ptr(&valid_moves, which);
 
         /* record move */
-        gen_list_append(&perturb_moves, move);
+        gen_list_append(&info->perturb_moves, move);
 
         /* apply move */
         puzzle_apply_move(&puzzle, move);
@@ -990,18 +984,17 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     printf("done!\n");
 
     /* solve puzzle, also recording moves */
-    gen_list_t solve_moves;
     printf("Solving puzzle...");
     fflush(stdout);
     #if 1
-    puzzle_solve_simple(&puzzle, &perturb_moves, &solve_moves);
+    puzzle_solve_simple(&puzzle, &info->perturb_moves, &info->solution);
     #else
-    puzzle_solve_a_star(&puzzle, &valid_moves, &solve_moves);
+    puzzle_solve_a_star(&puzzle, &valid_moves, &info->solution);
     #endif /* 0 */
-    printf("%zu moves in solution...", solve_moves.num);
+    printf("%zu moves in solution...", info->solution.num);
     /* apply solution */
-    for(int i=0; i<solve_moves.num; ++i) {
-        puzzle_apply_move(&puzzle, gen_list_item_ptr(&solve_moves, i));
+    for(int i=0; i<info->solution.num; ++i) {
+        puzzle_apply_move(&puzzle, gen_list_item_ptr(&info->solution, i));
     }
     if( ! puzzle_is_solved(&puzzle) ) {
         puzzle_print(&puzzle);
@@ -1012,7 +1005,44 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         printf("SUCCESS!!!\n");
     }
 
-    exit(1);
+    return 0;
+}
+
+static puzzle_info_t puzzle_info;
+static int puzzle_ready = 0;
+
+#define FRAMES_PER_MOVE 15
+#define FRAMES_INTER_MOVE 1
+
+static int prepare_puzzle(int dimensions, char *config) {
+    int perturb_steps = 20;
+    if( config )
+        perturb_steps = atoi(config);
+    if( !puzzle_ready ) {
+        puzzle_simulate(&puzzle_info, dimensions, perturb_steps);
+        puzzle_ready = 1;
+    }
+
+    return 0;
+}
+
+/* scene_frames is optional, but gives the total number of frames to render
+ * for an animated scene. */
+int scene_frames(int dimensions, char *config) {
+    prepare_puzzle(dimensions, config);
+    int total_moves = puzzle_info.perturb_moves.num + puzzle_info.solution.num;
+    int frames = FRAMES_PER_MOVE * total_moves
+                 + FRAMES_INTER_MOVE * (total_moves - 1);
+    printf("will need %i frames.\n", frames);
+    return frames;
+}
+
+int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
+{
+    double t = frame/(double)frames;
+    scene_init(scn, "rubiks-solver", dimensions);
+
+    prepare_puzzle(dimensions, config);
 
     printf("Generating frame %i of %i scene '%s' (%.2f%% through animation).\n",
             frame, frames, scn->name, 100.0*t);
