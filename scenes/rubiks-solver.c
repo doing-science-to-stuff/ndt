@@ -731,6 +731,9 @@ double puzzle_state_score2(puzzle_t *puzzle) {
     return score;
 }
 
+/* This will probably need a pattern database:
+ * https://www.cs.princeton.edu/courses/archive/fall06/cos402/papers/korfrubik.pdf
+ */
 double heuristic(puzzle_t *puzzle) {
     /* (pre)determine how many face cells can be affected by a single move */
     int cells_per_move = 12;    /* 12 for 3D */
