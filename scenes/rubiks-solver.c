@@ -1013,6 +1013,9 @@ static int puzzle_ready = 0;
 
 #define FRAMES_PER_MOVE 15
 #define FRAMES_INTER_MOVE 1
+#define CUBE_SIZE 30.0
+#define FLOOR_DIST  30.0
+#define WALL_DIST  45.0
 
 static int prepare_puzzle(int dimensions, char *config) {
     int perturb_steps = 20;
@@ -1021,6 +1024,219 @@ static int prepare_puzzle(int dimensions, char *config) {
     if( !puzzle_ready ) {
         puzzle_simulate(&puzzle_info, dimensions, perturb_steps);
         puzzle_ready = 1;
+    }
+
+    return 0;
+}
+
+static int get_face_color(int face_id, double *red, double *green, double *blue) {
+    /* first 6 faces based one:
+     * https://en.wikipedia.org/wiki/Rubik%27s_Cube#/media/File:Rubik%27s_cube_colors.svg
+     */
+    switch(face_id) {
+        case 0: /* red */
+            *red = 1.0;
+            *green = 0.0;
+            *blue = 0.0;
+            break;
+        case 1: /* yellow */
+            *red = 1.0;
+            *green = 1.0;
+            *blue = 0.0;
+            break;
+        case 2: /* green */
+            *red = 0.0;
+            *green = 1.0;
+            *blue = 0.0;
+            break;
+        case 3: /* orange */
+            *red = 1.0;
+            *green = 0.5;
+            *blue = 0.0;
+            break;
+        case 4: /* white */
+            *red = 1.0;
+            *green = 1.0;
+            *blue = 1.0;
+            break;
+        case 5:/* blue */
+            *red = 0.0;
+            *green = 0.0;
+            *blue = 1.0;
+            break;
+        default:
+            *red = 1.0;
+            *green = 0.0;
+            *blue = 1.0;
+            break;
+    }
+
+    return 0;
+}
+
+static int add_puzzle(scene *scn, object **puzzle_ptr) {
+    /* create cluster for entire puzzle */
+    object *puzzle = NULL;
+    scene_alloc_object(scn, scn->dimensions, &puzzle, "cluster");
+    object_add_flag(puzzle, scn->dimensions * 2);
+    *puzzle_ptr = puzzle;
+
+    vectNd p0, p1, p2, p3;
+    vectNd_calloc(&p0, scn->dimensions);
+    vectNd_calloc(&p1, scn->dimensions);
+    vectNd_calloc(&p2, scn->dimensions);
+    vectNd_calloc(&p3, scn->dimensions);
+    vectNd offset;
+    vectNd_calloc(&offset, scn->dimensions);
+
+    /* create all faces */
+    int num_faces = num_n_faces(scn->dimensions, 2);
+    for(int f=0; f<num_faces; ++f) {
+        int plane_id, offset_id;
+        plane_and_offset_ids(f, scn->dimensions, &plane_id, &offset_id);
+        int dim0, dim1;
+        plane_by_id(plane_id, scn->dimensions, &dim0, &dim1);
+
+        double red, green, blue;
+        get_face_color(f, &red, &green, &blue);
+
+        /* compute offsets for face */
+        vectNd_reset(&offset);
+        for(int d = 0; d<scn->dimensions; ++d) {
+            if( d == dim0 || d == dim1 )
+                continue;
+
+            int value = offset_id % 2;
+            offset_id >>= 1;
+
+            if( value > 0 )
+                vectNd_set(&offset, d, -CUBE_SIZE/2.0);
+            else
+                vectNd_set(&offset, d, CUBE_SIZE/2.0);
+        }
+
+        double cell_size = CUBE_SIZE / 3;
+
+        /* create two facets for face,cell pair */
+        for(int j=0; j<3; ++j) {
+            for(int i=0; i<3; ++i) {
+                vectNd_reset(&p0);
+                vectNd_reset(&p1);
+                vectNd_reset(&p2);
+                vectNd_reset(&p3);
+
+                /* find corners of cell */
+                double min0 = -CUBE_SIZE/2 + i*CUBE_SIZE/3;
+                double min1 = -CUBE_SIZE/2 + j*CUBE_SIZE/3;
+                vectNd_set(&p0, dim0, min0);
+                vectNd_set(&p0, dim1, min1);
+
+                vectNd_set(&p1, dim0, min0 + cell_size);
+                vectNd_set(&p1, dim1, min1);
+
+                vectNd_set(&p2, dim0, min0);
+                vectNd_set(&p2, dim1, min1 + cell_size);
+
+                vectNd_set(&p3, dim0, min0 + cell_size);
+                vectNd_set(&p3, dim1, min1 + cell_size);
+
+                /* add offset */
+                vectNd_add(&p0, &offset, &p0);
+                vectNd_add(&p1, &offset, &p1);
+                vectNd_add(&p2, &offset, &p2);
+                vectNd_add(&p3, &offset, &p3);
+
+                char face_name[OBJ_NAME_MAX_LEN];
+                object *face = NULL;
+                /* first triangle */
+                snprintf(face_name, sizeof(face_name), "face %ia cell %i,%i", f, i, j);
+                face = object_alloc(scn->dimensions, "facet", face_name);
+                object_add_pos(face, &p0);
+                object_add_pos(face, &p1);
+                object_add_pos(face, &p3);
+                object_add_dir(face, &offset);
+                object_add_dir(face, &offset);
+                object_add_dir(face, &offset);
+                object_add_flag(face, 1);
+                face->red = red;
+                face->green = green;
+                face->blue = blue;
+                object_add_obj(puzzle, face);
+
+                /* second triangle */
+                snprintf(face_name, sizeof(face_name), "face %ib cell %i,%i", f, i, j);
+                face = object_alloc(scn->dimensions, "facet", face_name);
+                object_add_pos(face, &p0);
+                object_add_pos(face, &p2);
+                object_add_pos(face, &p3);
+                object_add_dir(face, &offset);
+                object_add_dir(face, &offset);
+                object_add_dir(face, &offset);
+                object_add_flag(face, 1);
+                face->red = red;
+                face->green = green;
+                face->blue = blue;
+                object_add_obj(puzzle, face);
+            }
+        }
+    }
+    vectNd_free(&offset);
+    vectNd_free(&p0);
+    vectNd_free(&p1);
+    vectNd_free(&p2);
+    vectNd_free(&p3);
+
+    vectNd origin;
+    vectNd_calloc(&origin, scn->dimensions);
+    //object_rotate(puzzle, &origin, 0, 2, M_PI);
+    object_rotate(puzzle, &origin, 1, 2, M_PI);
+    object_rotate(puzzle, &origin, 0, 1, -M_PI/2.0);
+    vectNd_free(&origin);
+
+    return 0;
+}
+
+int puzzle_object_in_group(move_t *move, object *obj) {
+
+    vectNd pos;
+    vectNd_calloc(&pos, obj->dimensions);
+    vectNd_copy(&pos, &obj->bounds.center);
+
+    /* translate cube size/position into model coordinate space */
+    for(int i=0; i<pos.n; ++i) {
+        pos.v[i] += CUBE_SIZE/2.0;
+        pos.v[i] = pos.v[i] * 3 / CUBE_SIZE;
+    }
+
+    int ret = puzzle_piece_in_group(move, &pos);
+    vectNd_free(&pos);
+
+    return ret;
+}
+
+static int apply_move_to_objects(object *puzzle, move_t *move, double progress) {
+    printf("%s: applying %.2f%% of move.\n", __FUNCTION__, 100.0*progress);
+    puzzle_print_move(move);
+
+    /* center of rotation is the origin */
+    vectNd origin;
+    vectNd_calloc(&origin, puzzle->dimensions);
+
+    /* loop through all sub-objects */
+    for(int i=0; i<puzzle->n_obj; ++i) {
+        if( puzzle->obj[i]->bounds.radius == 0 )
+            puzzle->obj[i]->get_bounds(puzzle->obj[i]);
+
+        /* if object is region being rotated */
+        if( puzzle_object_in_group(move, puzzle->obj[i]) ) {
+            /* apply rotation */
+            double angle = 0.0;
+            if( move->dir == 0 )
+                angle = progress * (-M_PI) / 2.0;
+            else
+                angle = progress * M_PI / 2.0;
+            object_rotate(puzzle->obj[i], &origin, move->rot_dim_0, move->rot_dim_1, angle);
+        }
     }
 
     return 0;
@@ -1044,6 +1260,18 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     prepare_puzzle(dimensions, config);
 
+    /* combine move lists into one list */
+    gen_list_t combined;
+    gen_list_init(&combined, sizeof(move_t));
+    for(int i=0; i<puzzle_info.perturb_moves.num; ++i) {
+        move_t *move = gen_list_item_ptr(&puzzle_info.perturb_moves, i);
+        gen_list_append(&combined, move);
+    }
+    for(int i=0; i<puzzle_info.solution.num; ++i) {
+        move_t *move = gen_list_item_ptr(&puzzle_info.solution, i);
+        gen_list_append(&combined, move);
+    }
+
     printf("Generating frame %i of %i scene '%s' (%.2f%% through animation).\n",
             frame, frames, scn->name, 100.0*t);
 
@@ -1059,10 +1287,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_calloc(&viewTarget,dimensions);
     vectNd_calloc(&up_vect,dimensions);
 
-    vectNd_setStr(&viewPoint,"60,0,0,0");
-    vectNd_setStr(&viewTarget,"0,0,0,0");
+    vectNd_setStr(&viewTarget,"-20,-10,20,0");
+    vectNd_setStr(&viewPoint,"160,30,-120,0");
     vectNd_set(&up_vect,1,10);  /* 0,10,0,0... */
-    camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0);
+    camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0.0);
     vectNd_free(&up_vect);
     vectNd_free(&viewPoint);
     vectNd_free(&viewTarget);
@@ -1071,17 +1299,17 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     light *lgt=NULL;
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_AMBIENT;
-    lgt->red = 0.5;
-    lgt->green = 0.5;
-    lgt->blue = 0.5;
+    lgt->red = 0.75;
+    lgt->green = 0.75;
+    lgt->blue = 0.75;
 
     scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"0,40,0,-40");
-    lgt->red = 300;
-    lgt->green = 300;
-    lgt->blue = 300;
+    lgt->type = LIGHT_DIRECTIONAL;
+    vectNd_calloc(&lgt->dir,dimensions);
+    vectNd_setStr(&lgt->dir,"0,-1,0,0");
+    lgt->red = 0.25;
+    lgt->green = 0.25;
+    lgt->blue = 0.25;
 
     /* create objects array */
     object *obj = NULL;
@@ -1098,10 +1326,58 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     obj->red_r = 0.5;
     obj->green_r = 0.5;
     obj->blue_r = 0.5;
-    vectNd_set(&pos,1,-20);
+    vectNd_set(&pos,1,-FLOOR_DIST);
     object_add_pos(obj, &pos);
     vectNd_set(&normal,1,1);
     object_add_dir(obj, &normal);
+
+    /* add reflective walls */
+    vectNd_calloc(&pos,dimensions);
+    vectNd_calloc(&normal,dimensions);
+    scene_alloc_object(scn,dimensions,&obj,"hplane");
+    obj->red = 0.1;
+    obj->green = 0.1;
+    obj->blue = 0.1;
+    obj->red_r = 0.9;
+    obj->green_r = 0.9;
+    obj->blue_r = 0.9;
+    vectNd_set(&pos,0,-WALL_DIST);
+    object_add_pos(obj, &pos);
+    vectNd_set(&normal,0,1);
+    object_add_dir(obj, &normal);
+
+    vectNd_calloc(&pos,dimensions);
+    vectNd_calloc(&normal,dimensions);
+    scene_alloc_object(scn,dimensions,&obj,"hplane");
+    obj->red = 0.1;
+    obj->green = 0.1;
+    obj->blue = 0.1;
+    obj->red_r = 0.9;
+    obj->green_r = 0.9;
+    obj->blue_r = 0.9;
+    vectNd_set(&pos,2,WALL_DIST);
+    object_add_pos(obj, &pos);
+    vectNd_set(&normal,2,-1);
+    object_add_dir(obj, &normal);
+
+    /* add puzzle faces */
+    object *puzzle = NULL;
+    add_puzzle(scn, &puzzle);
+
+    /* apply finished rotations */
+    int finished_moves = frame / (FRAMES_PER_MOVE + FRAMES_INTER_MOVE);
+    for(int i=0; i<finished_moves; ++i) {
+        move_t *move = gen_list_item_ptr(&combined, i);
+        apply_move_to_objects(puzzle, move, 1.0);
+    }
+
+    /* apply in-progress rotation */
+    double progress = (frame % (FRAMES_PER_MOVE + FRAMES_INTER_MOVE)) /
+                        (double)(FRAMES_PER_MOVE + FRAMES_INTER_MOVE);
+    if( progress > 0.0 ) {
+        move_t *move = gen_list_item_ptr(&combined, finished_moves);
+        apply_move_to_objects(puzzle, move, progress);
+    }
 
     return 1;
 }
