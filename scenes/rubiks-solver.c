@@ -775,7 +775,22 @@ int puzzle_is_solved(puzzle_t *puzzle) {
     return 1;
 }
 
-int puzzle_solve(puzzle_t *puzzle, gen_list_t *valid, gen_list_t *solution) {
+int puzzle_solve_simple(puzzle_t *puzzle, gen_list_t *perturb, gen_list_t *solution) {
+    gen_list_init(solution, sizeof(move_t));
+    /* reverse perturb list into solution */
+    for(int i=perturb->num-1; i>=0; --i) {
+        move_t *move = gen_list_item_ptr(perturb, i);
+        move_t reverse;
+        move_copy(&reverse, move);
+        reverse.dir = 1 - reverse.dir;  /* reverse rotation */
+        reverse.trans = NULL;
+        gen_list_append(solution, &reverse);
+    }
+
+    return 0;
+}
+
+int puzzle_solve_a_star(puzzle_t *puzzle, gen_list_t *valid, gen_list_t *solution) {
     if( valid == NULL || valid->num == 0 ) {
         fprintf(stderr,"%s requires a list of valid moves.\n", __FUNCTION__);
         return -1;
@@ -941,7 +956,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     /* perturb puzzle, recording moves */
     printf("Perturbing puzzle...");
     fflush(stdout);
-    int perturb_steps = 6;
+    gen_list_t perturb_moves;
+    gen_list_init(&perturb_moves, sizeof(move_t));
+    int perturb_steps = 20;
     #if 0
     perturb_steps = valid_moves.num;
     #endif /* 0 */
@@ -952,8 +969,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         which = i;
         #endif /* 0 */
 
+        /* fetch move from list of valid moves */
+        move_t *move = gen_list_item_ptr(&valid_moves, which);
+
+        /* record move */
+        gen_list_append(&perturb_moves, move);
+
         /* apply move */
-        puzzle_apply_move(&puzzle, gen_list_item_ptr(&valid_moves, which));
+        puzzle_apply_move(&puzzle, move);
 
         #if 0
         printf("applied move %i\n", which);
@@ -970,7 +993,11 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     gen_list_t solve_moves;
     printf("Solving puzzle...");
     fflush(stdout);
-    puzzle_solve(&puzzle, &valid_moves, &solve_moves);
+    #if 1
+    puzzle_solve_simple(&puzzle, &perturb_moves, &solve_moves);
+    #else
+    puzzle_solve_a_star(&puzzle, &valid_moves, &solve_moves);
+    #endif /* 0 */
     printf("%zu moves in solution...", solve_moves.num);
     /* apply solution */
     for(int i=0; i<solve_moves.num; ++i) {
