@@ -1030,46 +1030,55 @@ static int prepare_puzzle(int dimensions, char *config) {
 }
 
 static int get_face_color(int face_id, double *red, double *green, double *blue) {
-    /* first 6 faces based one:
-     * https://en.wikipedia.org/wiki/Rubik%27s_Cube#/media/File:Rubik%27s_cube_colors.svg
-     */
-    switch(face_id) {
-        case 0: /* red */
-            *red = 1.0;
-            *green = 0.0;
-            *blue = 0.0;
-            break;
-        case 1: /* yellow */
-            *red = 1.0;
-            *green = 1.0;
-            *blue = 0.0;
-            break;
-        case 2: /* green */
-            *red = 0.0;
-            *green = 1.0;
-            *blue = 0.0;
-            break;
-        case 3: /* orange */
-            *red = 1.0;
-            *green = 0.5;
-            *blue = 0.0;
-            break;
-        case 4: /* white */
-            *red = 1.0;
-            *green = 1.0;
-            *blue = 1.0;
-            break;
-        case 5:/* blue */
-            *red = 0.0;
-            *green = 0.0;
-            *blue = 1.0;
-            break;
-        default:
-            *red = 1.0;
-            *green = 0.0;
-            *blue = 1.0;
-            break;
+    static double *r=NULL, *g=NULL, *b=NULL;
+
+    if( r == NULL || g == NULL || b == NULL ) {
+        /* need to fill in color array(s) */
+        int num_faces = num_n_faces(puzzle_dimensions, 2);
+        r = calloc(num_faces, sizeof(double));
+        g = calloc(num_faces, sizeof(double));
+        b = calloc(num_faces, sizeof(double));
+
+        for(int i=0; i<num_faces; ++i) {
+            /* first 6 faces based one:
+             * https://en.wikipedia.org/wiki/Rubik%27s_Cube#/media/File:Rubik%27s_cube_colors.svg
+             */
+            switch(i) {
+                case 0: /* red */
+                    r[i] = 1.0; g[i] = 0.0; b[i] = 0.0;
+                    break;
+                case 1: /* yellow */
+                    r[i] = 1.0; g[i] = 1.0; b[i] = 0.0;
+                    break;
+                case 2: /* green */
+                    r[i] = 0.0; g[i] = 1.0; b[i] = 0.0;
+                    break;
+                case 3: /* orange */
+                    r[i] = 1.0; g[i] = 0.5; b[i] = 0.0;
+                    break;
+                case 4: /* white */
+                    r[i] = 1.0; g[i] = 1.0; b[i] = 1.0;
+                    break;
+                case 5:/* blue */
+                    r[i] = 0.0; g[i] = 0.0; b[i] = 1.0;
+                    break;
+                default:
+                    r[i] = drand48();
+                    g[i] = drand48();
+                    b[i] = drand48();
+                    double max = (r[i] > g[i])?r[i]:g[i];
+                    max = (b[i] > max)?b[i]:max;
+                    r[i] /= max;
+                    g[i] /= max;
+                    b[i] /= max;
+                    break;
+            }
+        }
     }
+
+    *red = r[face_id];
+    *green = g[face_id];
+    *blue = b[face_id];
 
     return 0;
 }
@@ -1188,9 +1197,11 @@ static int add_puzzle(scene *scn, object **puzzle_ptr) {
 
     vectNd origin;
     vectNd_calloc(&origin, scn->dimensions);
+    #if 0
     //object_rotate(puzzle, &origin, 0, 2, M_PI);
     object_rotate(puzzle, &origin, 1, 2, M_PI);
     object_rotate(puzzle, &origin, 0, 1, -M_PI/2.0);
+    #endif /* 0 */
     vectNd_free(&origin);
 
     return 0;
@@ -1289,6 +1300,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     vectNd_setStr(&viewTarget,"-20,-10,20,0");
     vectNd_setStr(&viewPoint,"160,30,-120,0");
+    for(int i=3; i<dimensions; ++i) {
+        vectNd_set(&viewTarget,i, CUBE_SIZE/2.0);
+        vectNd_set(&viewPoint,i, CUBE_SIZE/2.0);
+    }
     vectNd_set(&up_vect,1,10);  /* 0,10,0,0... */
     camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0.0);
     vectNd_free(&up_vect);
