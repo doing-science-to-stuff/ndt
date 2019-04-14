@@ -75,6 +75,7 @@ int camera_init(camera *cam)
     cam->flip_y = 0;
     cam->flatten = 0;
 
+    cam->leveling = 0.0;
     vectNd_reset(&cam->pos);
     vectNd_reset(&cam->leftEye);
     vectNd_set(&cam->leftEye,0,-EYE_OFFSET);
@@ -99,6 +100,8 @@ int camera_init(camera *cam)
 
     cam->focal_distance = 100.0;
     cam->aperture_radius = 0.0;
+
+    cam->prepared = 0;
 
     return 1;
 }
@@ -299,6 +302,10 @@ int camera_aim_naive(camera *cam)
 
     vectNd_free(&posX);
     vectNd_free(&posY);
+    vectNd_free(pos);
+    free(pos); pos = NULL;
+    vectNd_free(target);
+    free(target); target=NULL;
 
     if( flip_x )
         camera_flip_x(cam);
