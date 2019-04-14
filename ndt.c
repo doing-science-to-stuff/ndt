@@ -846,6 +846,10 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             free(img); img=NULL;
         }
     }
+    if( img ) {
+        image_free(img);
+        free(img); img=NULL;
+    }
 
     return 1;
 }
