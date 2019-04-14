@@ -1452,7 +1452,9 @@ int main(int argc, char **argv)
         /* set up scene */
         if( custom_scene!=NULL ) {
             (*custom_scene)(&scn,dimensions,i,frames,scene_config);
-            dlclose(&dl_handle); dl_handle=NULL;
+            if( dl_handle ) {
+                dlclose(&dl_handle); dl_handle=NULL;
+            }
         } else {
             scene_setup(&scn,dimensions,i,frames,scene_config);
         }
