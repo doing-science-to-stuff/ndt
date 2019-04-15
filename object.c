@@ -42,6 +42,9 @@ static int default_trans(object *obj, vectNd *at, int *transparent) {
 int register_object(char *filename) {
     /* record function pointers */
     void *dl_handle = NULL;
+    /* If you're looking to fix the memory leak reported here, see:
+     * https://bugs.kde.org/show_bug.cgi?id=358980
+     */
     dl_handle = dlopen(filename,RTLD_NOW);
     if( !dl_handle ) {
         fprintf(stderr, "%s\n", dlerror());
@@ -49,10 +52,13 @@ int register_object(char *filename) {
     }
 
     /* add record to registry */
+    int error = 0;
     struct object_reg_entry *entry;
     entry = calloc(1,sizeof(*entry));
+    entry->obj.dl_handle = dl_handle;
     entry->obj.type_name = dlsym(dl_handle, "type_name");
     entry->obj.params = dlsym(dl_handle, "params");
+    entry->obj.cleanup = dlsym(dl_handle, "cleanup");
     entry->obj.get_bounds = dlsym(dl_handle, "get_bounds");
     entry->obj.intersect = dlsym(dl_handle, "intersect");
     entry->obj.get_color = dlsym(dl_handle, "get_color");
@@ -66,26 +72,31 @@ int register_object(char *filename) {
         entry->obj.get_trans = default_trans;
     entry->obj.refract_ray = dlsym(dl_handle, "refract_ray");
 
+    /* check for required functions */
     if( entry->obj.type_name == NULL ) {
         fprintf(stderr, "%s missing type_name function.\n", filename);
-        return -1;
+        error = 1;
     }
     if( entry->obj.params == NULL ) {
         fprintf(stderr, "%s missing params function.\n", filename);
-        return -1;
+        error = 2;
     }
     if( entry->obj.get_bounds == NULL ) {
         fprintf(stderr, "%s missing get_bounds function.\n", filename);
-        return -1;
+        error = 3;
     }
     if( entry->obj.intersect == NULL ) {
         fprintf(stderr, "%s missing intersect function.\n", filename);
+        error = 4;
+    }
+
+    if( error ) {
+        dlclose(dl_handle);
+        free(entry); entry = NULL;
         return -1;
     }
 
-    char name[256];
-    entry->obj.type_name(name, sizeof(name));
-    entry->type = strdup(name);
+    entry->obj.type_name(entry->type, sizeof(entry->type));
     entry->next = registry.objs;
 
     registry.objs = entry;
@@ -193,7 +204,7 @@ int unregister_objects() {
    while( curr ) {
        struct object_reg_entry *next = curr->next;
        printf("unregistering '%s'.\n", curr->type);
-       free(curr->type); curr->type = NULL;
+       dlclose(curr->obj.dl_handle); curr->obj.dl_handle = NULL;
        free(curr);
        curr = next;
    }
@@ -215,7 +226,7 @@ object *object_alloc(int dimensions, char *type, char *name) {
 
     /* allocate object */
     object *obj = NULL;
-    obj = calloc(1, sizeof(*obj));
+    obj = calloc(1, sizeof(object));
 
     /* record number of dimensions */
     obj->dimensions = dimensions;
@@ -223,6 +234,7 @@ object *object_alloc(int dimensions, char *type, char *name) {
     /* fill in function pointers */
     obj->type_name = curr->obj.type_name;
     obj->params = curr->obj.params;
+    obj->cleanup = curr->obj.cleanup;
     obj->get_bounds = curr->obj.get_bounds;
     obj->intersect = curr->obj.intersect;
     obj->get_color = curr->obj.get_color;
@@ -248,6 +260,13 @@ object *object_alloc(int dimensions, char *type, char *name) {
 
 int object_free(object *obj) {
 
+    if( obj->cleanup ) {
+        obj->cleanup(obj);
+    }
+
+    vectNd_free(&obj->bounds.center);
+    obj->bounds.radius = 0;
+
     if( obj->pos != NULL ) {
         for(int i=0; i<obj->n_pos; ++i) {
             vectNd_free(&obj->pos[i]);
@@ -272,7 +291,7 @@ int object_free(object *obj) {
 
     if( obj->obj !=NULL ) {
         for(int i=0; i<obj->n_obj; ++i) {
-            object_free(obj->obj[i]);
+            object_free(obj->obj[i]); obj->obj[i] = NULL;
         }
         free(obj->obj); obj->obj = NULL;
     }
@@ -281,6 +300,8 @@ int object_free(object *obj) {
         free(obj->prepped); obj->prepped = NULL;
     }
     obj->prepared = 0;
+
+    free(obj);
 
     return 0;
 }

@@ -47,6 +47,20 @@ static int prepare(object *cyl) {
     return 1;
 }
 
+int cleanup(object *cyl) {
+    if( cyl->prepared == 0 )
+        return -1;
+
+    prepped_t *prepped = cyl->prepped;
+    int dim = cyl->dimensions;
+    for(int i=0; i<dim-2; i++) {
+        vectNd_free(&prepped->axes[i]);
+    }
+    free(prepped->axes); prepped->axes = NULL;
+    free(prepped->lengths); prepped->lengths = NULL;
+    return 0;
+}
+
 int type_name(char *name, int size) {
     strncpy(name,"hcylinder",size);
     return 0;
