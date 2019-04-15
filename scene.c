@@ -44,8 +44,7 @@ int scene_free(scene *scn)
 {
     int i=0;
     for(i=0; i<scn->num_objects; ++i) {
-        object_free(scn->object_ptrs[i]);
-        free(scn->object_ptrs[i]); scn->object_ptrs[i]=NULL;
+        object_free(scn->object_ptrs[i]); scn->object_ptrs[i]=NULL;
     }
     free(scn->object_ptrs); scn->object_ptrs=NULL;
     for(i=0; i<scn->num_lights; ++i) {
@@ -348,6 +347,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     /* create scene */
     #if 1
     scene_alloc_object(scn, dimensions, &obj, "hplane");
+    snprintf(obj->name, sizeof(obj->name), "floor");
     obj->red = 0.9;
     obj->green = 0.9;
     obj->blue = 0.9;
@@ -364,6 +364,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     #if 1
     scene_alloc_object(scn, dimensions, &obj, "sphere");
+    snprintf(obj->name, sizeof(obj->name), "the ball");
     obj->red = 0.9;
     obj->green = 0.1;
     obj->blue = 0.1;
@@ -381,6 +382,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     #if 1
     scene_alloc_object(scn, dimensions, &obj, "facet");
+    snprintf(obj->name, sizeof(obj->name), "triangle");
     obj->red = 0.9;
     obj->green = 0.9;
     obj->blue = 0.9;
@@ -395,6 +397,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     #if 1
     scene_alloc_object(scn, dimensions, &obj, "hcylinder");
+    snprintf(obj->name, sizeof(obj->name), "cylinder");
     obj->red = 0.1;
     obj->green = 0.9;
     obj->blue = 0.1;
