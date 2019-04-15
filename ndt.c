@@ -1213,6 +1213,7 @@ int main(int argc, char **argv)
     void *dl_handle = NULL;
     int (*custom_scene)(scene *scn, int dimensions, int frame, int frames, char *config) = NULL;
     int (*custom_frame_count)(int dimensions, char *config) = NULL;
+    int (*custom_scene_cleanup)() = NULL;
     char *scene_config = NULL;
     int record_depth_map = 0;
     int enable_vr = 0;
@@ -1418,6 +1419,7 @@ int main(int argc, char **argv)
                 } else {
                     *(void **) (&custom_scene) = dlsym(dl_handle, "scene_setup");
                     *(void **) (&custom_frame_count) = dlsym(dl_handle, "scene_frames");
+                    *(void **) (&custom_scene_cleanup) = dlsym(dl_handle, "scene_cleanup");
                 }
                 break;
             case 't':
@@ -1585,8 +1587,17 @@ int main(int argc, char **argv)
         printf("\r                                               \rdone.\n");
     }
 
+    /* cleanup after scene */
+    if( custom_scene_cleanup != NULL ) {
+        (*custom_scene_cleanup)();
+    }
+
     /* free custom scene library */
-    if( dl_handle ) {
+    if( dl_handle 
+        #ifdef WITH_VALGRIND
+        && !RUNNING_ON_VALGRIND
+        #endif /* WITH_VALGRIND */
+        ) {
         dlclose(dl_handle); dl_handle = NULL;
     }
 
@@ -1599,7 +1610,7 @@ int main(int argc, char **argv)
         printf("Sleeping for a bit.\n");
         sleep(1);
     }
-    #endif /* 0 */
+    #endif /* WITH_VALGRIND */
 
     return 0;
 }

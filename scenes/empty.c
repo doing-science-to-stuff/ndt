@@ -79,3 +79,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     return 1;
 }
+
+int scene_cleanup() {
+    /* If any persistent resources were allocated,
+     * they should be freed here. */
+    return 0;
+}

@@ -8,13 +8,13 @@
 #include <limits.h>
 #include "../scene.h"
 
-double box_size = 10.0;     /* m */
-double max_velocity = 2;  /* m/s */
-double min_radius = 1;
-double max_radius = 2;
-double min_mass = 1;
-double max_mass = 2;
-int num_balls = 100;
+static double box_size = 10.0;     /* m */
+static double max_velocity = 2;  /* m/s */
+static double min_radius = 1;
+static double max_radius = 2;
+static double min_mass = 1;
+static double max_mass = 2;
+static int num_balls = 100;
 
 typedef struct ball {
     vectNd pos;
@@ -24,8 +24,10 @@ typedef struct ball {
     double red, green, blue;
 } ball_t;
 
+static ball_t *balls = NULL;
+
 /* frame rate: 30fps */
-double fps = 24;
+static double fps = 24;
 int scene_frames(int dimensions, char *config) {
     return 1500;
 }
@@ -61,10 +63,10 @@ static void print_total_momentum(ball_t *b1, ball_t *b2) {
     vectNd_free(&sum);
 }
 
-double edge_radius = 0.1;
-double edge_red = 0.4;
-double edge_green = 0.4;
-double edge_blue = 0.4;
+static double edge_radius = 0.1;
+static double edge_red = 0.4;
+static double edge_green = 0.4;
+static double edge_blue = 0.4;
 
 static int add_new_corner(scene *scn, vectNd *pos, double radius) {
 
@@ -98,14 +100,12 @@ static int add_new_corner(scene *scn, vectNd *pos, double radius) {
     /* add sphere */
     object *obj;
     scene_alloc_object(scn, dim, &obj, "sphere");
+    snprintf(obj->name, sizeof(obj->name),"corner");
     obj->red = edge_red;
     obj->green = edge_green;
     obj->blue = edge_blue;
     obj->red_r = obj->green_r = obj->blue_r = 0.1;
-    vectNd temp;
-    vectNd_alloc(&temp, dim);
-    object_add_pos(obj, &temp);
-    vectNd_free(&temp);
+    object_add_pos(obj, pos);
     object_add_size(obj, radius + EPSILON);
 
     return 1;
@@ -128,6 +128,7 @@ static int recursive_add_edges(scene *scn, double radius, vectNd *curr) {
             /* add cylinder from curr to next */
             object *obj;
             scene_alloc_object(scn, dim, &obj, "cylinder");
+            snprintf(obj->name, sizeof(obj->name),"edge");
             obj->red = edge_red;
             obj->green = edge_green;
             obj->blue = edge_blue;
@@ -161,8 +162,6 @@ static int add_edges(scene *scn, double radius, int dimensions) {
 }
 
 int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config) {
-    static ball_t *balls = NULL;
-
     scene_init(scn, "balls", dimensions);
 
     /* make background sky(ish) blue */
@@ -341,6 +340,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         /* add ball to scene */
         object *obj;
         scene_alloc_object(scn, dimensions, &obj, "sphere");
+        snprintf(obj->name, sizeof(obj->name),"ball %i", i);
         obj->red = balls[i].red;
         obj->green = balls[i].green;
         obj->blue = balls[i].blue;
@@ -358,6 +358,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_calloc(&temp,dimensions);
     object *ground=NULL;
     scene_alloc_object(scn,dimensions,&ground,"hplane");
+    snprintf(ground->name, sizeof(ground->name),"ground");
     vectNd_reset(&temp);
     vectNd_set(&temp,2,-1.5*box_size);
     object_add_pos(ground,&temp);  /* position */
@@ -395,5 +396,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_setStr(&viewTarget,"0,0,0");
     camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0);
 
+    return 0;
+}
+
+int scene_cleanup() {
+    for(int i=0; i<num_balls; ++i) {
+        vectNd_free(&balls[i].vel);
+        vectNd_free(&balls[i].pos);
+    }
+    free(balls); balls = NULL;
     return 0;
 }
