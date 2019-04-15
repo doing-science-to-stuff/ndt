@@ -92,7 +92,7 @@ beyond the prepped_t structure.
 This function will only be called when an object is freed.
 
 *Note: Only required for objects that allocate additional memory or vectors
-utside the lists discussed in *params* functions.*
+outside the lists discussed in *params* functions.*
 
 Parameters:
  * *obj* - The object being freed.
