@@ -55,7 +55,9 @@ $ cp empty.c custom.c
 ```
 
 Next, open `custom.c` (or whatever you called it) in a text editor or IDE.
-There are two functions defined in this file.
+There are three functions defined in this file.
+
+---
 
 The first function `scene_frames` is optional and returns the number of frames
 to be rendered, if the scene describes multiple frames, (e.g., an animation).
@@ -69,6 +71,8 @@ Parameters:
 Returns:
  * Number of frames to render.  This value can be overridden using the `-f`
  command-line option.
+
+---
 
 The second function `scene_setup` is required, and does all of the work of configuring a scene.
 Near the top of `scene_setup` there must a call to `scene_init` which provides
@@ -89,6 +93,27 @@ Parameters:
  * *frame* - Current frame to be rendered (starting from zero).
  * *frames* - Total number of frames to be rendered.
  * *config* - A custom configuration string passed via the `-u` flag.
+
+Returns:
+ * Reserved
+
+---
+
+A third function `scene_cleanup` is optional, but provides means to cleanup
+any memory or other persistent resources that a scene might use to maintain
+state between frames.
+
+**int scene_cleanup();**
+
+The `scene_cleanup` function should free any additional persistent memory or
+other resources that the scene setup function may have allocated to maintain
+inter-frame state.
+This function will only be called once, after all frames have been rendered.
+If the scene doesn't allocate any persistent resources, this function can
+be omitted.
+
+Returns:
+ * Reserved
 
 #### Vectors
 
