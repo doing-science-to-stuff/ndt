@@ -169,6 +169,9 @@ int camera_aim(camera *cam)
 
         /* clean up */
         camera_free(&tmp_cam);
+
+        vectNd_free(up);
+        free(up); up = NULL;
     }
 
     return camera_aim_naive(cam);
