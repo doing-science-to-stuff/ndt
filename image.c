@@ -29,6 +29,9 @@ int image_init(image_t *img)
 
 int image_set_size(image_t *img, int width, int height)
 {
+    if( img->pixels ) {
+        free(img->pixels); img->pixels=NULL;
+    }
     img->pixels = calloc(width*height,img->pixel_width);
     img->allocated = width*height*img->pixel_width;
     img->width = width;
@@ -790,6 +793,7 @@ int image_save_bg(image_t *img, char *fname, int format)
         return 0;
     }
     image_free(&info->img);
+    free(info); info = NULL;
     fprintf(stderr,"failed to launch background thread, saving %s in foreground.\n", fname);
 
     return image_save(img, fname, format);
@@ -805,7 +809,9 @@ int image_active_saves() {
 
 int image_free(image_t *img)
 {
-    free(img->pixels); img->pixels=NULL;
+    if( img->pixels ) {
+        free(img->pixels); img->pixels=NULL;
+    }
     memset(img,'\0',sizeof(image_t));
 
     return 0;
