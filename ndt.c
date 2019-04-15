@@ -14,6 +14,9 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <dlfcn.h>
+#ifdef WITH_VALGRIND
+#include <valgrind/valgrind.h>
+#endif /* WITH_VALGRIND */
 #include "vectNd.h"
 #include "image.h"
 #include "object.h"
@@ -846,6 +849,10 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             free(img); img=NULL;
         }
     }
+    if( img ) {
+        image_free(img);
+        free(img); img=NULL;
+    }
 
     return 1;
 }
@@ -1122,6 +1129,20 @@ int parallel_render_image(scene *scn, char *name, char *depth_name, int width, i
             image_free(img);
             free(img); img=NULL;
         }
+    }
+    if( actual_img ) {
+        image_free(actual_img);
+        free(actual_img); actual_img=NULL;
+    }
+    if( img ) {
+        image_free(img);
+        free(img); img=NULL;
+    }
+    if( info ) {
+        free(info); info=NULL;
+    }
+    if( thr ) {
+        free(thr); thr=NULL;
     }
 
     return 1;
@@ -1452,9 +1473,6 @@ int main(int argc, char **argv)
         /* set up scene */
         if( custom_scene!=NULL ) {
             (*custom_scene)(&scn,dimensions,i,frames,scene_config);
-            if( dl_handle ) {
-                dlclose(&dl_handle); dl_handle=NULL;
-            }
         } else {
             scene_setup(&scn,dimensions,i,frames,scene_config);
         }
@@ -1567,8 +1585,21 @@ int main(int argc, char **argv)
         printf("\r                                               \rdone.\n");
     }
 
+    /* free custom scene library */
+    if( dl_handle ) {
+        dlclose(dl_handle); dl_handle = NULL;
+    }
+
     /* free object type registry */
     unregister_objects();
+
+    #ifdef WITH_VALGRIND
+    if( RUNNING_ON_VALGRIND ) {
+        /* without this, valgrind may report non-existant memory leaks */
+        printf("Sleeping for a bit.\n");
+        sleep(1);
+    }
+    #endif /* 0 */
 
     return 0;
 }
