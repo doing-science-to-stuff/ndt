@@ -293,8 +293,8 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
     memset(&clr,'\0',sizeof(clr));
 
     /* trace from camera to possible object */
-    vectNd_alloc(&hit,dim);
-    vectNd_alloc(&hit_normal,dim);
+    vectNd_calloc(&hit,dim);
+    vectNd_calloc(&hit_normal,dim);
 
     obj_ptr = NULL;
     trace(src, look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr);
@@ -845,6 +845,10 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             image_free(img);
             free(img); img=NULL;
         }
+    }
+    if( img ) {
+        image_free(img);
+        free(img); img=NULL;
     }
 
     return 1;
@@ -1452,7 +1456,9 @@ int main(int argc, char **argv)
         /* set up scene */
         if( custom_scene!=NULL ) {
             (*custom_scene)(&scn,dimensions,i,frames,scene_config);
-            dlclose(&dl_handle); dl_handle=NULL;
+            if( dl_handle ) {
+                dlclose(&dl_handle); dl_handle=NULL;
+            }
         } else {
             scene_setup(&scn,dimensions,i,frames,scene_config);
         }
