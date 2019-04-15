@@ -119,6 +119,8 @@ static int cluster_do_clustering(object *clstr, int k)
         }
     } else {
         for(int i=0; i<k; ++i) {
+            /* prevent freeing of sub-objects in, now useless, clusters */
+            subs[i]->n_obj = 0;
             object_free(subs[i]); subs[i] = NULL;
         }
     }
