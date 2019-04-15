@@ -10,7 +10,7 @@ CFLAGS+=-O3
 CFLAGS+=-DWITH_PNG
 CFLAGS+=-DWITH_JPEG
 CFLAGS+=-DWITH_YAML
-#CFLAGS+=-DWITH_VALGRIND
+CFLAGS+=-DWITH_VALGRIND
 #CFLAGS+=-DWITHOUT_SSE
 #CFLAGS+=-DWITHOUT_INLINE
 #CFLAGS+=-msse -msse2 -msse3 -msse4
@@ -21,8 +21,8 @@ LDFLAGS+=-L/opt/local/lib -lpng
 LDFLAGS+=-L/opt/local/lib -ljpeg
 LDFLAGS+=-L/opt/local/lib -lyaml
 
-#CFLAGS+=-g 
-#LDFLAGS+=-g
+CFLAGS+=-g
+LDFLAGS+=-g
 
 .PHONY: clean all
 .SUFFIXES: .c .o .h .so
