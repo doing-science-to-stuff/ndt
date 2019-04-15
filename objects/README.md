@@ -82,6 +82,24 @@ Parameters:
 Returns:
  * 1 if an intersection occured, 0 otherwise.
 
+---
+
+**int cleanup(object \* obj);**
+
+The `cleanup` function frees any additional persistent memory or vectors that
+an object may have allocated for ray-invarient values that were pre-computed
+beyond the prepped_t structure.
+This function will only be called when an object is freed.
+
+*Note: Only required for objects that allocate additional memory or vectors
+utside the lists discussed in *params* functions.*
+
+Parameters:
+ * *obj* - The object being freed.
+
+Returns:
+ * Reserved
+
 ### Optional:
 
 The functions below are optional. If they are omitted, a default function will

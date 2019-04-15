@@ -55,8 +55,10 @@ typedef struct gen_object {
     /* opaque pointer to data computed in prepare method */
     void *prepped;
 
+    void *dl_handle;
     int (*type_name)(char *name, int size);
     int (*params)(struct gen_object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj);
+    int (*cleanup)(struct gen_object *obj);
     int (*get_bounds)(struct gen_object * obj);
     int (*intersect)(struct gen_object * obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, struct gen_object **obj_ptr);
     int (*get_color)(struct gen_object *obj, vectNd *at, double *red, double *green, double *blue);
@@ -66,7 +68,7 @@ typedef struct gen_object {
 } object;
 
 struct object_reg_entry {
-    char *type;
+    char type[OBJ_TYPE_MAX_LEN];
     object obj;
     struct object_reg_entry *next;
 };

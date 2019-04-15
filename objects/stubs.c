@@ -34,6 +34,20 @@ static int prepare(object *obj) {
     return 1;
 }
 
+int cleanup(object *obj) {
+    if( obj->prepared == 0 )
+        return -1;
+
+    /* free any buffers allocated (e.g., anything pointed to in prepped_t) */
+
+    /* Note: if obj->prepped is freed, you must set prepped to NULL. */
+    if( obj->prepped ) {
+        free(obj->prepped); obj->prepped = NULL;
+    }
+
+    return 0;
+}
+
 int type_name(char *name, int size) {
     strncpy(name,"stubs",size);
     return 0;

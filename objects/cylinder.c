@@ -36,6 +36,16 @@ static int prepare(object *cyl) {
     return 1;
 }
 
+int cleanup(object *cyl) {
+    if( cyl->prepared == 0 )
+        return -1;
+
+    prepped_t *prepped = cyl->prepped;
+    vectNd_free(&prepped->axis);
+
+    return 0;
+}
+
 int type_name(char *name, int size) {
     strncpy(name,"cylinder",size);
     return 0;

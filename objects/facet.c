@@ -22,6 +22,23 @@ typedef struct prepared_data {
     vectNd basis[2];    /* othogonal basis vectors for plane */
 } prepped_t;
 
+int cleanup(object *face) {
+    if( face->prepared == 0 )
+        return -1;
+
+    prepped_t *prepped = face->prepped;
+
+    for(int i=0; i<3; ++i) {
+        vectNd_free(&prepped->edge[i]);
+        vectNd_free(&prepped->unit_edge[i]);
+    }
+
+    vectNd_free(&prepped->basis[0]);
+    vectNd_free(&prepped->basis[1]);
+
+    return 0;
+}
+
 static int facet_prepare(object *face) {
     pthread_mutex_lock(&lock);
 

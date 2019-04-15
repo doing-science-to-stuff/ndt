@@ -22,6 +22,21 @@ typedef struct prepared_data {
     double length[3];    /* length of each 'edge' */
 } prepped_t;
 
+int cleanup(object *face) {
+    if( face->prepared == 0 )
+        return -1;
+
+    prepped_t *prepped = face->prepped;
+
+    for(int i=0; i<3; ++i) {
+        vectNd_free(&prepped->edge[i]);
+        vectNd_free(&prepped->unit_edge[i]);
+    }
+    vectNd_free(&prepped->edge_perp);
+
+    return 0;
+}
+
 static int prepare(object *face) {
     pthread_mutex_lock(&lock);
 
