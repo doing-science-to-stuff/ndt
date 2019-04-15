@@ -10,6 +10,9 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
+#ifdef WITH_VALGRIND
+#include <valgrind/valgrind.h>
+#endif /* WITH_VALGRIND */
 #include "bounding.h"
 #include "object.h"
 
@@ -91,7 +94,10 @@ int register_object(char *filename) {
     }
 
     if( error ) {
-        dlclose(dl_handle);
+        #ifdef WITH_VALGRIND
+        if( !RUNNING_ON_VALGRIND )
+        #endif /* WITH_VALGRIND */
+            dlclose(dl_handle);
         free(entry); entry = NULL;
         return -1;
     }
@@ -204,7 +210,16 @@ int unregister_objects() {
    while( curr ) {
        struct object_reg_entry *next = curr->next;
        printf("unregistering '%s'.\n", curr->type);
-       dlclose(curr->obj.dl_handle); curr->obj.dl_handle = NULL;
+       #ifdef WITH_VALGRIND
+       /* disable dlclose in valgrind:
+        * http://valgrind.org/docs/manual/faq.html#faq.unhelpful
+        */
+       if( !RUNNING_ON_VALGRIND ) {
+       #endif /* WITH_VALGRIND */
+           dlclose(curr->obj.dl_handle); curr->obj.dl_handle = NULL;
+       #ifdef WITH_VALGRIND
+       }
+       #endif /* WITH_VALGRIND */
        free(curr);
        curr = next;
    }
