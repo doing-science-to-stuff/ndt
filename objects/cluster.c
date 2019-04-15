@@ -117,6 +117,10 @@ static int cluster_do_clustering(object *clstr, int k)
                 object_add_obj(clstr, subs[i]);
             }
         }
+    } else {
+        for(int i=0; i<k; ++i) {
+            object_free(subs[i]); subs[i] = NULL;
+        }
     }
     free(subs); subs=NULL;
 
