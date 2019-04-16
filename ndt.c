@@ -1455,13 +1455,14 @@ int main(int argc, char **argv)
                 break;
         }
     }
-    if( last_frame < 0 )
-        last_frame = frames-1;
 
     if( custom_frame_count != NULL && !frames_given ) {
         frames = (*custom_frame_count)(dimensions,scene_config);
         printf("Scene requested %i frames. (override by adding a -f flag after the -s flag).\n", frames);
     }
+
+    if( last_frame < 0 )
+        last_frame = frames-1;
 
     /* load objects */
     register_objects(obj_dir);
