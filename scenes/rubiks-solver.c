@@ -1524,9 +1524,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     }
 
     /* apply in-progress rotation */
-    double progress = (frame % (FRAMES_PER_MOVE + FRAMES_INTER_MOVE)) /
-                        (double)(FRAMES_PER_MOVE + FRAMES_INTER_MOVE);
-    if( progress > 0.0 ) {
+    int start_frame = finished_moves * (FRAMES_PER_MOVE + FRAMES_INTER_MOVE);
+    double progress = (frame - start_frame) / (double)FRAMES_PER_MOVE;
+    if( progress > 0.0 && progress <= 1.0 ) {
         move_t *move = gen_list_item_ptr(&combined, finished_moves);
         apply_move_to_objects(puzzle, move, progress);
     }
