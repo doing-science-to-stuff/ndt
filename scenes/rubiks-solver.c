@@ -1083,18 +1083,129 @@ static int get_face_color(int face_id, double *red, double *green, double *blue)
     return 0;
 }
 
-static int add_cubie(scene *scn, vectNd *pos) {
+static int cubie_num = 0;
+static int sticker_num = 0;
+static int add_cubie(scene *scn, object *puzzle, vectNd *model_pos) {
+    ++cubie_num;
+    #if 0
+    printf("adding cubie %i at model position", cubie_num);
+    vectNd_print(model_pos,"");
+    #endif /* 0 */
+
     /* add cluster for cubie and stickers */
+    object *cubie = object_alloc(scn->dimensions, "cluster", "");
+    if( cubie == NULL )
+        return -1;
+    snprintf(cubie->name, sizeof(cubie->name), "cubie %i", cubie_num);
+    object_add_flag(cubie, scn->dimensions * 2);
+    object_add_obj(puzzle, cubie);
+
     /* add cubie body */
-    /* determine which stickers are needed */
-    /* add stickers */
+    object *body = object_alloc(scn->dimensions, "hcube", "");
+    if( cubie == NULL )
+        return -1;
+    snprintf(body->name, sizeof(body->name), "cubie body %i", cubie_num);
+    vectNd body_pos;
+    vectNd_calloc(&body_pos, scn->dimensions);
+    for(int i=0; i<scn->dimensions; ++i) {
+        object_add_size(body, CUBE_SIZE/3.0);
+        vectNd_set(&body_pos, i, (model_pos->v[i]+0.5) * (CUBE_SIZE / 3.0) - (CUBE_SIZE / 2.0));
+    }
+    #if 0
+    vectNd_print(&body_pos, "body_pos");
+    #endif /* 0 */
+    object_add_pos(body, &body_pos);
+    object_add_obj(cubie, body);
+
+    /* create all stickers */
+    double cubie_size = CUBE_SIZE / 3.0;
+    double sticker_thickness = 1e-2;
+    int num_faces = num_n_faces(scn->dimensions, 2);
+    for(int f=0; f<num_faces; ++f) {
+        int plane_id, offset_id;
+        plane_and_offset_ids(f, scn->dimensions, &plane_id, &offset_id);
+        int dim0, dim1;
+        plane_by_id(plane_id, scn->dimensions, &dim0, &dim1);
+
+        /* add stickers */
+        object *sticker = object_alloc(scn->dimensions, "hcube", "");
+        if( sticker == NULL )
+            return -1;
+        snprintf(sticker->name, sizeof(sticker->name), "cubie %i sticker %i", cubie_num, f);
+        get_face_color(f, &sticker->red, &sticker->green, &sticker->blue);
+        vectNd sticker_pos;
+        vectNd_calloc(&sticker_pos, scn->dimensions);
+        int needed = 0;
+        for(int d = 0; d<scn->dimensions; ++d) {
+            if( d == dim0 || d == dim1 ) {
+                object_add_size(sticker, cubie_size * .9);
+                vectNd_set(&sticker_pos, d, body_pos.v[d]);
+                continue;
+            }
+            object_add_size(sticker, sticker_thickness);
+
+            int value = offset_id % 2;
+            offset_id >>= 1;
+
+            if( value > 0 )
+                vectNd_set(&sticker_pos, d, body_pos.v[d] - (cubie_size + sticker_thickness) / 2.0);
+            else
+                vectNd_set(&sticker_pos, d, body_pos.v[d] + (cubie_size + sticker_thickness) / 2.0);
+
+            /* check if this sticker is needed */
+            if( fabs(sticker_pos.v[d]) >= CUBE_SIZE/2.0 )
+                needed = 1;
+        }
+        #if 0
+        if( needed )
+            vectNd_print(&sticker_pos, "sticker_pos");
+        #endif /* 0 */
+        object_add_pos(sticker, &sticker_pos);
+        vectNd_free(&sticker_pos);
+
+        /* add or destroy sticker as needed */
+        if( needed ) {
+            object_add_obj(cubie, sticker);
+            ++sticker_num;
+        } else {
+            object_free(sticker); sticker = NULL;
+        }
+    }
+
+    vectNd_free(&body_pos);
+
     return 0;
 }
 
 static int add_cubies(scene *scn, object *puzzle) {
+    /* enumerate all cubie locations */
+    vectNd model_pos;
+    vectNd_calloc(&model_pos, scn->dimensions);
+    int done = 0;
+    cubie_num = 0;
+    sticker_num = 0;
+    while( !done ) {
+        /* add cubie */
+        add_cubie(scn, puzzle, &model_pos);
+
+        int i=0;
+        while( model_pos.v[i] == (3-1) ) {
+            model_pos.v[i] = 0;
+            ++i;
+            if( i >= scn->dimensions )
+                done = 1;
+        }
+        if( i < scn->dimensions )
+            ++model_pos.v[i];
+    }
+    #if 1
+    printf("%i cubies; %i sticker\n", cubie_num, sticker_num);
+    #endif /* 0 */
+
     return 0;
 }
 
+#if 0
 static int add_faces(scene *scn, object *puzzle) {
     vectNd p0, p1, p2, p3;
     vectNd_calloc(&p0, scn->dimensions);
@@ -1203,6 +1314,7 @@ static int add_faces(scene *scn, object *puzzle) {
 
     return 0;
 }
+#endif /* 0 */
 
 static int add_puzzle(scene *scn, object **puzzle_ptr) {
     /* create cluster for entire puzzle */
@@ -1211,7 +1323,7 @@ static int add_puzzle(scene *scn, object **puzzle_ptr) {
     object_add_flag(puzzle, scn->dimensions * 2);
     *puzzle_ptr = puzzle;
 
-    #if 1
+    #if 0
     add_faces(scn, puzzle);
     #else
     add_cubies(scn, puzzle);
@@ -1231,9 +1343,17 @@ int puzzle_object_in_group(move_t *move, object *obj) {
         pos.v[i] += CUBE_SIZE/2.0;
         pos.v[i] = pos.v[i] * 3 / CUBE_SIZE;
     }
+    #if 0
+    printf("\tpos in model space");
+    vectNd_print(&pos, "");
+    #endif /* 0 */
 
     int ret = puzzle_piece_in_group(move, &pos);
     vectNd_free(&pos);
+    #if 0
+    if( ret )
+        printf("\t\tin move group\n");
+    #endif /* 0 */
 
     return ret;
 }
@@ -1247,6 +1367,7 @@ static int apply_move_to_objects(object *puzzle, move_t *move, double progress) 
     vectNd_calloc(&origin, puzzle->dimensions);
 
     /* loop through all sub-objects */
+    int num_moved = 0;
     for(int i=0; i<puzzle->n_obj; ++i) {
         if( puzzle->obj[i]->bounds.radius == 0 )
             puzzle->obj[i]->get_bounds(puzzle->obj[i]);
@@ -1259,9 +1380,12 @@ static int apply_move_to_objects(object *puzzle, move_t *move, double progress) 
                 angle = progress * (-M_PI) / 2.0;
             else
                 angle = progress * M_PI / 2.0;
+            printf("\trotating %s\n", puzzle->obj[i]->name);
             object_rotate(puzzle->obj[i], &origin, move->rot_dim_0, move->rot_dim_1, angle);
+            num_moved += 1;
         }
     }
+    printf("moved %i objects\n", num_moved);
 
     return 0;
 }
