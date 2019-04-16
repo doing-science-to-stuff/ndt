@@ -1044,23 +1044,23 @@ static int get_face_color(int face_id, double *red, double *green, double *blue)
              * https://en.wikipedia.org/wiki/Rubik%27s_Cube#/media/File:Rubik%27s_cube_colors.svg
              */
             switch(i) {
-                case 0: /* red */
-                    r[i] = 1.0; g[i] = 0.0; b[i] = 0.0;
-                    break;
-                case 1: /* yellow */
-                    r[i] = 1.0; g[i] = 1.0; b[i] = 0.0;
-                    break;
-                case 2: /* green */
-                    r[i] = 0.0; g[i] = 1.0; b[i] = 0.0;
-                    break;
-                case 3: /* orange */
+                case 0: /* orange */
                     r[i] = 1.0; g[i] = 0.5; b[i] = 0.0;
                     break;
-                case 4: /* white */
+                case 1: /* white */
                     r[i] = 1.0; g[i] = 1.0; b[i] = 1.0;
                     break;
-                case 5:/* blue */
+                case 2:/* blue */
                     r[i] = 0.0; g[i] = 0.0; b[i] = 1.0;
+                    break;
+                case 3: /* red */
+                    r[i] = 1.0; g[i] = 0.0; b[i] = 0.0;
+                    break;
+                case 4: /* yellow */
+                    r[i] = 1.0; g[i] = 1.0; b[i] = 0.0;
+                    break;
+                case 5: /* green */
+                    r[i] = 0.0; g[i] = 1.0; b[i] = 0.0;
                     break;
                 default:
                     r[i] = drand48();
@@ -1083,13 +1083,19 @@ static int get_face_color(int face_id, double *red, double *green, double *blue)
     return 0;
 }
 
-static int add_puzzle(scene *scn, object **puzzle_ptr) {
-    /* create cluster for entire puzzle */
-    object *puzzle = NULL;
-    scene_alloc_object(scn, scn->dimensions, &puzzle, "cluster");
-    object_add_flag(puzzle, scn->dimensions * 2);
-    *puzzle_ptr = puzzle;
+static int add_cubie(scene *scn, vectNd *pos) {
+    /* add cluster for cubie and stickers */
+    /* add cubie body */
+    /* determine which stickers are needed */
+    /* add stickers */
+    return 0;
+}
 
+static int add_cubies(scene *scn, object *puzzle) {
+    return 0;
+}
+
+static int add_faces(scene *scn, object *puzzle) {
     vectNd p0, p1, p2, p3;
     vectNd_calloc(&p0, scn->dimensions);
     vectNd_calloc(&p1, scn->dimensions);
@@ -1195,14 +1201,21 @@ static int add_puzzle(scene *scn, object **puzzle_ptr) {
     vectNd_free(&p2);
     vectNd_free(&p3);
 
-    vectNd origin;
-    vectNd_calloc(&origin, scn->dimensions);
-    #if 0
-    //object_rotate(puzzle, &origin, 0, 2, M_PI);
-    object_rotate(puzzle, &origin, 1, 2, M_PI);
-    object_rotate(puzzle, &origin, 0, 1, -M_PI/2.0);
+    return 0;
+}
+
+static int add_puzzle(scene *scn, object **puzzle_ptr) {
+    /* create cluster for entire puzzle */
+    object *puzzle = NULL;
+    scene_alloc_object(scn, scn->dimensions, &puzzle, "cluster");
+    object_add_flag(puzzle, scn->dimensions * 2);
+    *puzzle_ptr = puzzle;
+
+    #if 1
+    add_faces(scn, puzzle);
+    #else
+    add_cubies(scn, puzzle);
     #endif /* 0 */
-    vectNd_free(&origin);
 
     return 0;
 }
