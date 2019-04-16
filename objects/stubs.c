@@ -68,7 +68,8 @@ int get_bounds(object *obj)
 {
     double radius = 1.0;
     obj->bounds.radius = radius + EPSILON;
-    /* The bounding sphere's radius is allocated in object_alloc(). */
+
+    /* The bounding sphere's center is allocated in object_alloc(). */
 
     /* compute center and radius of (hyper)sphere that contains the object */
     /* For objects that are infinitely large, radius should be -1. */

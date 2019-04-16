@@ -50,7 +50,6 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
 }
 
 int get_bounds(object *obj) {
-    vectNd_alloc(&obj->bounds.center,obj->dimensions);
     vectNd_copy(&obj->bounds.center,&obj->pos[0]);
     obj->bounds.radius = obj->size[0] + EPSILON;
 

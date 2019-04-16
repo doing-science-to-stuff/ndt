@@ -64,7 +64,6 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
 
 int get_bounds(object *obj) {
     /* center is average of end points */
-    vectNd_alloc(&obj->bounds.center,obj->dimensions);
     vectNd_add(&obj->pos[1],&obj->pos[0],&obj->bounds.center);
     vectNd_scale(&obj->bounds.center,0.5,&obj->bounds.center);
 
@@ -143,6 +142,8 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_sub(o,&Be,&tmp);
     vectNd_scale(&A,BOaa,&sA);
     vectNd_add(&tmp,&sA,&X);
+    vectNd_free(&Be);
+    vectNd_free(&tmp);
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -153,11 +154,16 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&X,&X,&qc);
     qc -= cyl->size[0]*cyl->size[0];
+    vectNd_free(&Y);
+    vectNd_free(&X);
 
     /* solve for t */
     det = qb*qb - 4*qa*qc;
-    if( det <= 0 )
+    if( det <= 0 ) {
+        vectNd_free(&A);
+        vectNd_free(&sA);
         return 0;
+    }
     detRoot = sqrt(det);
     t1 = (-qb + detRoot) / (2*qa);
     t2 = (-qb - detRoot) / (2*qa);
@@ -180,6 +186,7 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         if( between_ends(cyl, res) )
             ret = 1;
     }
+    vectNd_free(&sA);
 
     /* find normal */
     if( ret != 0 ) {
@@ -192,7 +199,10 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         vectNd_alloc(&nB,dim);
         vectNd_scale(&A,nCdA/AdA,&nB);
         vectNd_sub(&nC,&nB,normal);
+        vectNd_free(&nC);
+        vectNd_free(&nB);
     }
+    vectNd_free(&A);
 
     if( ret )
         *ptr = cyl;

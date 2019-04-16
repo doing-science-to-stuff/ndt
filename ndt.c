@@ -244,6 +244,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                 vectNd_scale(look,-1,&rev_look);
                 vectNd_unitize(&rev_look);
                 vectNd_dot(&light_ref,&rev_look,&rv);
+                vectNd_free(&rev_look);
                 rv = MAX(0,rv);
                 double rvn = pow(rv,50);
 

@@ -182,6 +182,7 @@ __STATIC_INLINE__ void vectNd_dist(vectNd *v1, vectNd *v2, double *res)
     vectNd_alloc(&diff,v1->n);
     vectNd_sub(v1,v2,&diff);
     vectNd_l2norm(&diff,res);
+    vectNd_free(&diff);
 }
 
 __STATIC_INLINE__ void vectNd_copy(vectNd *dst, vectNd *src)

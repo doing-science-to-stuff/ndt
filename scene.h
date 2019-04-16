@@ -63,6 +63,7 @@ int scene_free(scene *scn);
 int scene_alloc_object(scene *scn, int dimensions, object **obj, char *type);
 int scene_remove_object(scene *scn, object *obj);
 int scene_alloc_light(scene *scn, light **lgt);
+int scene_free_light(light *lgt);
 int scene_aim_light(light *lgt, vectNd *target);
 int scene_prepare_light(light *lgt);
 int scene_validate_objects(scene *scn);

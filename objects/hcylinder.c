@@ -85,7 +85,6 @@ int get_bounds(object *obj) {
         fprintf(stderr,"Warning: hyper-cylinder with non-positive radius.\n");
 
     /* center is average of end points */
-    vectNd_alloc(&obj->bounds.center,dim);
 
     /* sum all axis vectors */
     double max_length = 0;

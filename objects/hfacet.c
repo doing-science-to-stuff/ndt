@@ -108,7 +108,6 @@ int get_bounds(object *obj) {
     int dim = obj->dimensions;
 
     /* center is average of end points */
-    vectNd_alloc(&obj->bounds.center,dim);
 
     /* average all vertices */
     vectNd sum;

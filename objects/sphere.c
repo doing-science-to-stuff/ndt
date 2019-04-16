@@ -51,7 +51,6 @@ int get_bounds(object *obj)
     /* bounding a sphere is silly, but do it anyway */
     double radius = obj->size[0];
     obj->bounds.radius = radius + EPSILON;
-    vectNd_alloc(&obj->bounds.center, obj->pos[0].n);
     vectNd_copy(&obj->bounds.center, &obj->pos[0]);
 
     return 1;

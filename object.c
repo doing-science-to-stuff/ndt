@@ -425,6 +425,7 @@ static int append_vector(vectNd **list, int *n, int *cap, vectNd *vec) {
         for(int i=0; i<*n; ++i) {
             vectNd_alloc(&tmp[i], (*list)[i].n);
             vectNd_copy(&tmp[i], &(*list)[i]);
+            vectNd_free(&(*list)[i]);
         }
         free(*list); *list = NULL;
         *list = tmp;

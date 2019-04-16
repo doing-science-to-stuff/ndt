@@ -197,6 +197,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
                     collision = 1;
             }
             if( collision ) {
+                vectNd_free(&balls[i].pos);
                 --i;
                 continue;
             }
@@ -323,6 +324,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
                 }
 
                 collision_update = k;
+
+                vectNd_free(&pos_dir);
+                vectNd_free(&v_u1);
+                vectNd_free(&v_u2);
             }
         }
     }
@@ -382,7 +387,6 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     lgt->red = lgt->green = lgt->blue = 0.2;
 
     /* setup camera */
-    camera_alloc(&scn->cam,dimensions);
     camera_reset(&scn->cam);
     camera_init(&scn->cam);
     vectNd up_vect;
@@ -392,9 +396,12 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd viewTarget;
     vectNd_calloc(&viewPoint,dimensions);
     vectNd_calloc(&viewTarget,dimensions);
-    vectNd_setStr(&viewPoint,"60,30,13");
-    vectNd_setStr(&viewTarget,"0,0,0");
+    vectNd_setStr(&viewPoint,"60,30,13,0");
+    vectNd_setStr(&viewTarget,"0,0,0,0");
     camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0);
+    vectNd_free(&viewPoint);
+    vectNd_free(&viewTarget);
+    vectNd_free(&up_vect);
 
     return 0;
 }

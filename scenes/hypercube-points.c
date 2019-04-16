@@ -20,8 +20,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     for(i=0; i<dimensions; ++i)
         vectNd_set(&cube_shift, i, -10);
 
-    /* create camera */
-    camera_alloc(&scn->cam, dimensions);
+    /* zero camera */
     camera_reset(&scn->cam);
 
     /* move camera into position */

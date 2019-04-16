@@ -48,6 +48,7 @@ int scene_free(scene *scn)
     }
     free(scn->object_ptrs); scn->object_ptrs=NULL;
     for(i=0; i<scn->num_lights; ++i) {
+        scene_free_light(scn->lights[i]);
         free(scn->lights[i]); scn->lights[i]=NULL;
     }
     free(scn->lights); scn->lights=NULL;
@@ -116,6 +117,30 @@ int scene_alloc_light(scene *scn, light **lgt)
     scn->num_lights+=1;
 
     return 1;
+}
+
+int scene_free_light(light *lgt) {
+    if( lgt->type == LIGHT_POINT
+        || lgt->type == LIGHT_SPOT 
+        || lgt->type == LIGHT_DISK 
+        || lgt->type == LIGHT_RECT ) {
+        vectNd_free(&lgt->pos);
+    }
+    if( lgt->type == LIGHT_DIRECTIONAL
+        || lgt->type == LIGHT_SPOT ) {
+        vectNd_free(&lgt->dir);
+    }
+    if( lgt->type == LIGHT_DISK
+        || lgt->type == LIGHT_RECT ) {
+        vectNd_free(&lgt->u);
+        vectNd_free(&lgt->v);
+        vectNd_free(&lgt->u1);
+        vectNd_free(&lgt->v1);
+    }
+    if( lgt->target.n > 0 )
+        vectNd_free(&lgt->target);
+
+    return 0;
 }
 
 int scene_aim_light(light *lgt, vectNd *target) {
@@ -418,8 +443,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     obj->refract_index = 1.33;
     #endif /* 0 */
 
-    /* create camera */
-    camera_alloc(&scn->cam,dimensions);
+    /* zero camera */
     camera_init(&scn->cam);
 
     /* move camera into position */
