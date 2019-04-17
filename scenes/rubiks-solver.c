@@ -283,7 +283,7 @@ typedef struct gen_list {
 } gen_list_t;
 
 int puzzle_print_move(move_t *move) {
-    printf("move: dir %i, plane %i,%i; dim %i, offset %i", move->dir, move->rot_dim_0, move->rot_dim_1, move->conn_dim, move->group_offset);
+    printf("move: dir %i, plane %i,%i; dim %i, offset %i, face %i", move->dir, move->rot_dim_0, move->rot_dim_1, move->conn_dim, move->group_offset, move->face_id);
     printf("\n");
 
     return 0;
@@ -292,6 +292,23 @@ int puzzle_print_move(move_t *move) {
 int move_copy(move_t *dst, move_t *src) {
     memcpy(dst,src,sizeof(move_t));
     dst->trans = NULL;
+    return 0;
+}
+
+int move_cmp(move_t *m1, move_t *m2) {
+    if( m1->rot_dim_0 != m2->rot_dim_0 )
+        return 1;
+    if( m1->rot_dim_1 != m2->rot_dim_1 )
+        return 1;
+    if( m1->conn_dim != m2->conn_dim )
+        return 1;
+    if( m1->face_id != m2->face_id )
+        return 1;
+    if( m1->group_offset != m2->group_offset )
+        return 1;
+    if( m1->dir != m2->dir )
+        return 1;
+
     return 0;
 }
 
@@ -956,6 +973,7 @@ int puzzle_simulate(puzzle_info_t *info, int dimensions, int perturb_steps) {
     #if 0
     perturb_steps = valid_moves.num;
     #endif /* 0 */
+    move_t *prev_move = NULL;
     for(int i=0; i<perturb_steps; ++i) {
         /* pick random move */
         int which = lrand48()%valid_moves.num;
@@ -965,6 +983,29 @@ int puzzle_simulate(puzzle_info_t *info, int dimensions, int perturb_steps) {
 
         /* fetch move from list of valid moves */
         move_t *move = gen_list_item_ptr(&valid_moves, which);
+
+        if( prev_move ) {
+            move_t rev_prev, move_cpy;
+            move_copy(&rev_prev, prev_move);
+            move_copy(&move_cpy, move);
+            rev_prev.dir = 1-rev_prev.dir;
+            rev_prev.trans = NULL;
+            move_cpy.trans = NULL;
+            #if 0
+            printf("comparing moves:\n");
+            puzzle_print_move(&rev_prev);
+            puzzle_print_move(&move_cpy);
+            #endif /* 0 */
+            if( memcmp(&rev_prev, &move_cpy, sizeof(move_t)) == 0 ) {
+                /* skip moved that just reverse the previous move */
+                #if 0
+                printf("rejecting move!\n");
+                #endif /* 0 */
+                --i;
+                continue;
+            }
+        }
+        prev_move = move;
 
         /* record move */
         gen_list_append(&info->perturb_moves, move);
@@ -1359,7 +1400,7 @@ int puzzle_object_in_group(move_t *move, object *obj) {
 }
 
 static int apply_move_to_objects(object *puzzle, move_t *move, double progress) {
-    printf("%s: applying %.2f%% of move.\n", __FUNCTION__, 100.0*progress);
+    printf("%s: applying %.2f%% of move.\n\t", __FUNCTION__, 100.0*progress);
     puzzle_print_move(move);
 
     /* center of rotation is the origin */
@@ -1380,12 +1421,16 @@ static int apply_move_to_objects(object *puzzle, move_t *move, double progress) 
                 angle = progress * (-M_PI) / 2.0;
             else
                 angle = progress * M_PI / 2.0;
+            #if 0
             printf("\trotating %s\n", puzzle->obj[i]->name);
+            #endif /* 0 */
             object_rotate(puzzle->obj[i], &origin, move->rot_dim_0, move->rot_dim_1, angle);
             num_moved += 1;
         }
     }
+    #if 0
     printf("moved %i objects\n", num_moved);
+    #endif /* 0 */
 
     return 0;
 }
