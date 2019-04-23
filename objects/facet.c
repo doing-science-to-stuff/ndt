@@ -254,7 +254,7 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     }
 
     double dist = qa*t*t + qb*t + qc;
-    if( dist > EPSILON ) {
+    if( fabs(dist) > EPSILON ) {
         /* closest point is too far from surface */
         return 0;
     }
