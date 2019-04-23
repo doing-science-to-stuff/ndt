@@ -33,6 +33,10 @@ static int prepare(object *sub) {
             vectNd_copy(&prepped->basis[i],&sub->dir[i]);
             vectNd_unitize(&prepped->basis[i]);
             vectNd_l2norm(&sub->dir[i],&prepped->lengths[i]);
+            #if 1
+            vectNd_print(&sub->dir[i], "sub->dir[i]");
+            vectNd_print(&prepped->basis[i], "prepped->basis[i]");
+            #endif /* 1 */
         }
 
         sub->prepped = prepped;
@@ -66,7 +70,10 @@ int type_name(char *name, int size) {
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
     /* report how many of each type of parameter is needed */
     *n_pos = 1;
-    *n_dir = obj->dimensions;
+    if( obj->n_flag > 0 )
+        *n_dir = obj->flag[0];
+    else
+        *n_dir = 1;
     *n_size = 0;
     *n_flags = 1;
     *n_obj = 0;
@@ -79,31 +86,23 @@ int get_bounds(object *obj) {
 
     /* sum all axis vectors */
     double max_length = 0;
-    vectNd sums;
-    vectNd halfsum;
-    vectNd diff;
-    vectNd_calloc(&sums,dim);
-    vectNd_calloc(&halfsum,dim);
-    vectNd_calloc(&diff,dim);
+    vectNd sum;
+    vectNd_calloc(&sum,dim);
     int i=0;
-    double sum_sq = 0.0;
-    for(i=0; i<dim-2; ++i) {
-        double length;
-        vectNd_l2norm(&obj->dir[i],&length);
-        sum_sq += (length/2.0)*(length/2.0);
-        if( length>max_length )
-            max_length = length;
-        vectNd_add(&sums,&diff,&sums);
+    for(i=0; i<obj->flag[0]; ++i) {
+        vectNd_add(&sum,&obj->dir[i],&sum);
     }
-    vectNd_free(&diff);
 
     /* divide sum by 2 and add to bottom point to get vector to centroid */
-    vectNd_scale(&sums,0.5,&sums);
-    vectNd_add(&obj->pos[0],&sums,&obj->bounds.center);
-    vectNd_free(&sums);
+    vectNd_scale(&sum,0.5,&sum);
+    vectNd_add(&obj->pos[0],&sum,&obj->bounds.center);
 
-    /* half distance from centroid to 'end' point + radius */
-    obj->bounds.radius = sqrt(sum_sq) + EPSILON;
+    /* pos[0] is a corner and center is the midpoint of a diagonal */
+    /* Note: this may only work when all basis vectors are the same length */
+    vectNd_l2norm(&sum,&obj->bounds.radius);
+    obj->bounds.radius += EPSILON;
+
+    vectNd_free(&sum);
 
     return 1;
 }
@@ -112,8 +111,8 @@ static int within_subspace(object *sub, vectNd *point) {
     int dim;
     int i=0;
     dim  = point->n;
-    vectNd nC;
-    vectNd_alloc(&nC,dim);
+
+    //return 1;
 
     /* check length of projection onto each axis against axis length */
     vectNd Bc;
@@ -124,6 +123,7 @@ static int within_subspace(object *sub, vectNd *point) {
         double AdA;
         prepped_t* prepped = (prepped_t*)sub->prepped;
         vectNd *basis = prepped->basis;
+        /* get scaling of basis[i] needed to project (point - pos[0]) onto basis[i] */
         vectNd_dot(&Bc,&basis[i],&scale);
         vectNd_dot(&basis[i],&basis[i],&AdA);
         scale = scale / AdA;
@@ -147,6 +147,11 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         prepare(sub);
     }
 
+    #if 0
+    vectNd_print(o, "\no");
+    vectNd_print(v, "v");
+    #endif /* 0 */
+
     prepped_t *prepped = (prepped_t*)sub->prepped;
     int dim = sub->dimensions;
 
@@ -161,12 +166,19 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_alloc(&sA,dim);
     vectNd_reset(&sum_A);
     for(i=0; i<sub->flag[0]; ++i) {
+        #if 0
+        vectNd_print(&basis[i], "basis[i]");
+        #endif /* 0 */
         vectNd_dot(v,&basis[i],&VdA);
         vectNd_dot(&basis[i],&basis[i],&AdA);
         vectNd_scale(&basis[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
-    }
+    }   /* sum_A is now \sum Y_i */
     vectNd_sub(&sum_A,v,&P);
+    #if 0
+    vectNd_print(&sum_A, "sum_A");
+    vectNd_print(&P, "P");
+    #endif /* 0 */
 
     vectNd Q;
     vectNd_alloc(&Q,dim);
@@ -178,9 +190,12 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         vectNd_dot(&basis[i],&basis[i],&AdA);
         vectNd_scale(&basis[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
-    }
+    }   /* sum_A is now \sum X_i */
     vectNd_sub(&sub->pos[0],o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
+    #if 0
+    vectNd_print(&P, "Q");
+    #endif /* 0 */
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -193,73 +208,84 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     #else
     qc -= EPSILON;
     #endif /* 0 */
-
     #if 0
+    printf("a,b,c = %g,%g,%g\n", qa, qb, qc);
+    #endif /* 0 */
+
     double t1, t2;
     double det, detRoot;
     /* solve for t */
     det = qb*qb - 4*qa*qc;
-    if( det <= EPSILON )
-        return 0;
-    detRoot = sqrt(det);
-    t1 = (-qb + detRoot) / (2*qa);
-    t2 = (-qb - detRoot) / (2*qa);
-
-    /* pick which (if any) point to return */
-    if( t2>EPSILON ) {
-        vectNd_scale(v,t2,&sA);
-        vectNd_add(o,&sA,res);
-
-        /* do end test */
-        if( within_subspace(sub, res) )
-            ret = 1;
-    }
-
-    if( ret==0 && t1>EPSILON ) {
-        vectNd_scale(v,t1,&sA);
-        vectNd_add(o,&sA,res);
-
-        /* do end test */
-        if( within_subspace(sub, res) )
-            ret = 1;
-    }
-    #else
-    //printf("a,b,c = %g,%g,%g\n", qa, qb, qc);
-    double t=-1.0;
-    /* find value of t where o+v*t is closest to plane */
-    if( fabs(qa) < EPSILON ) {
-        /* equation is essentially qb*t + qc = 0 */
-        if( fabs(qb) < EPSILON )
-            t = -qc / qb;
-        else
-            t = -1.0;
-    }
-    else
-    {
-        /* find minumum for qa*t^2 + qb*t + qc */
-        /* find d/dt = 2*qa*t + qb = 0 */
-        t = -qb / (2*qa);
-    }
-    if( t < EPSILON ) {
-        /* hit is behind the viewer */
-        return 0;
-    }
-    //printf("t = %g\n", t);
-
-    double dist = qa*t*t + qb*t + qc;
-    if( dist > EPSILON ) {
-        /* closest point is too far from surface */
-        return 0;
-    }
-
-    /* find intersection point */
-    vectNd_scale(v,t,&sA);
-    vectNd_add(o,&sA,res);
-
-    /* do end test */
-    if( within_subspace(sub, res) )
-        ret = 1;
+    #if 0
+    printf("det = %g\n", det);
     #endif /* 0 */
+    if( det >= 0.0 && fabs(qa)>EPSILON ) {
+        detRoot = sqrt(det);
+        t1 = (-qb + detRoot) / (2*qa);
+        t2 = (-qb - detRoot) / (2*qa);
+        #if 0
+        printf("t1,t2 = %g,%g\n", t1, t2);
+        #endif /* 0 */
+
+        /* pick which (if any) point to return */
+        if( t2>EPSILON ) {
+            vectNd_scale(v,t2,&sA);
+            vectNd_add(o,&sA,res);
+
+            /* do end test */
+            if( within_subspace(sub, res) )
+                ret = 1;
+        }
+
+        if( ret==0 && t1>EPSILON ) {
+            vectNd_scale(v,t1,&sA);
+            vectNd_add(o,&sA,res);
+
+            /* do end test */
+            if( within_subspace(sub, res) )
+                ret = 1;
+        }
+    }
+    
+    if( ret == 0 ) {
+        double t=-1.0;
+        /* find value of t where o+v*t is closest to plane */
+        if( fabs(qa) < EPSILON ) {
+            /* equation is essentially qb*t + qc = 0 */
+            if( fabs(qb) < EPSILON )
+                t = -qc / qb;
+            else
+                t = -1.0;
+        }
+        else
+        {
+            /* find minumum for qa*t^2 + qb*t + qc */
+            /* find d/dt = 2*qa*t + qb = 0 */
+            t = -qb / (2*qa);
+        }
+        if( t < EPSILON ) {
+            /* hit is behind the viewer */
+            return 0;
+        }
+        #if 0
+        printf("t = %g\n", t);
+        #endif /* 0 */
+
+        double dist = qa*t*t + qb*t + qc;
+        if( fabs(dist) > EPSILON ) {
+            /* closest point is too far from surface */
+            return 0;
+        }
+
+        /* find intersection point */
+        vectNd_scale(v,t,&sA);
+        vectNd_add(o,&sA,res);
+
+        /* do end test */
+        if( within_subspace(sub, res) )
+            ret = 1;
+    }
+    vectNd_free(&sA);
 
     /* find normal */
     if( ret != 0 ) {
