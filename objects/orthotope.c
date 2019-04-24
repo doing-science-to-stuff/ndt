@@ -42,10 +42,6 @@ static int prepare(object *sub) {
             vectNd_l2norm(&sub->dir[i], &prepped->lengths[i]);
             vectNd_dot(&prepped->basis[i], &prepped->basis[i], &prepped->BdB[i]);
             vectNd_dot(&sub->pos[0], &prepped->basis[i], &prepped->BdP[i]);
-            #if 0
-            vectNd_print(&sub->dir[i], "sub->dir[i]");
-            vectNd_print(&prepped->basis[i], "prepped->basis[i]");
-            #endif /* 1 */
         }
 
         sub->prepped = prepped;
@@ -122,8 +118,6 @@ static int within_orthotope(object *sub, vectNd *point) {
     int i=0;
     dim  = point->n;
 
-    //return 1;
-
     /* check length of projection onto each axis against axis length */
     vectNd Bc;
     vectNd_alloc(&Bc,dim);
@@ -157,11 +151,6 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         prepare(sub);
     }
 
-    #if 0
-    vectNd_print(o, "\no");
-    vectNd_print(v, "v");
-    #endif /* 0 */
-
     prepped_t *prepped = (prepped_t*)sub->prepped;
     int dim = sub->dimensions;
 
@@ -176,19 +165,12 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_alloc(&sA,dim);
     vectNd_reset(&sum_A);
     for(i=0; i<sub->flag[0]; ++i) {
-        #if 0
-        vectNd_print(&basis[i], "basis[i]");
-        #endif /* 0 */
         vectNd_dot(v,&basis[i],&VdA);
         AdA = prepped->BdB[i];
         vectNd_scale(&basis[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum Y_i */
     vectNd_sub(&sum_A,v,&P);
-    #if 0
-    vectNd_print(&sum_A, "sum_A");
-    vectNd_print(&P, "P");
-    #endif /* 0 */
 
     vectNd Q;
     vectNd_alloc(&Q,dim);
@@ -203,9 +185,6 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     }   /* sum_A is now \sum X_i */
     vectNd_sub(&sub->pos[0],o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
-    #if 0
-    vectNd_print(&P, "Q");
-    #endif /* 0 */
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -213,29 +192,16 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_dot(&P,&Q,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
-    #if 0
-    qc -= radius*radius;
-    #else
     qc -= EPSILON;
-    #endif /* 0 */
-    #if 0
-    printf("a,b,c = %g,%g,%g\n", qa, qb, qc);
-    #endif /* 0 */
 
     double t1, t2;
     double det, detRoot;
     /* solve for t */
     det = qb*qb - 4*qa*qc;
-    #if 0
-    printf("det = %g\n", det);
-    #endif /* 0 */
     if( det >= 0.0 && fabs(qa)>EPSILON ) {
         detRoot = sqrt(det);
         t1 = (-qb + detRoot) / (2*qa);
         t2 = (-qb - detRoot) / (2*qa);
-        #if 0
-        printf("t1,t2 = %g,%g\n", t1, t2);
-        #endif /* 0 */
 
         /* pick which (if any) point to return */
         if( t2>EPSILON ) {
@@ -277,9 +243,6 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
             /* hit is behind the viewer */
             return 0;
         }
-        #if 0
-        printf("t = %g\n", t);
-        #endif /* 0 */
 
         double dist = qa*t*t + qb*t + qc;
         if( fabs(dist) > EPSILON ) {
