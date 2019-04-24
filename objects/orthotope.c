@@ -16,6 +16,8 @@ typedef struct prepared_data {
     /* data that is ray invariant and can be pre-computed in prepare function */
     vectNd *basis;
     double *lengths;
+    double *BdP;
+    double *BdB;
 } prepped_t;
 
 static int prepare(object *sub) {
@@ -28,11 +30,18 @@ static int prepare(object *sub) {
         int dim = sub->flag[0];
         prepped->basis = calloc(dim,sizeof(vectNd));
         prepped->lengths = calloc(dim,sizeof(double));
+        prepped->BdP = calloc(dim,sizeof(double));
+        prepped->BdB = calloc(dim,sizeof(double));
         for(int i=0; i<dim; i++) {
+            /* get unitized basis vectors */
             vectNd_alloc(&prepped->basis[i],sub->dir[0].n);
             vectNd_copy(&prepped->basis[i],&sub->dir[i]);
             vectNd_unitize(&prepped->basis[i]);
-            vectNd_l2norm(&sub->dir[i],&prepped->lengths[i]);
+
+            /* pre-compute lengths and dot products */
+            vectNd_l2norm(&sub->dir[i], &prepped->lengths[i]);
+            vectNd_dot(&prepped->basis[i], &prepped->basis[i], &prepped->BdB[i]);
+            vectNd_dot(&sub->pos[0], &prepped->basis[i], &prepped->BdP[i]);
             #if 0
             vectNd_print(&sub->dir[i], "sub->dir[i]");
             vectNd_print(&prepped->basis[i], "prepped->basis[i]");
@@ -59,6 +68,8 @@ int cleanup(object *sub) {
     }
     free(prepped->basis); prepped->basis = NULL;
     free(prepped->lengths); prepped->lengths = NULL;
+    free(prepped->BdP); prepped->BdP = NULL;
+    free(prepped->BdB); prepped->BdB = NULL;
     return 0;
 }
 
@@ -124,7 +135,7 @@ static int within_orthotope(object *sub, vectNd *point) {
         vectNd *basis = prepped->basis;
         /* get scaling of basis[i] needed to project (point - pos[0]) onto basis[i] */
         vectNd_dot(&Bc,&basis[i],&scale);
-        vectNd_dot(&basis[i],&basis[i],&AdA);
+        AdA = prepped->BdB[i];
         scale = scale / AdA;
 
         if( scale < -EPSILON || scale > prepped->lengths[i]+EPSILON ) {
@@ -169,7 +180,7 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         vectNd_print(&basis[i], "basis[i]");
         #endif /* 0 */
         vectNd_dot(v,&basis[i],&VdA);
-        vectNd_dot(&basis[i],&basis[i],&AdA);
+        AdA = prepped->BdB[i];
         vectNd_scale(&basis[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum Y_i */
@@ -185,8 +196,8 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_reset(&sum_A);
     for(i=0; i<sub->flag[0]; ++i) {
         vectNd_dot(o,&basis[i],&OdA);
-        vectNd_dot(&sub->pos[0],&basis[i],&BdA);
-        vectNd_dot(&basis[i],&basis[i],&AdA);
+        BdA = prepped->BdP[i];
+        AdA = prepped->BdB[i];
         vectNd_scale(&basis[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum X_i */
