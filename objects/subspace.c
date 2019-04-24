@@ -33,7 +33,7 @@ static int prepare(object *sub) {
             vectNd_copy(&prepped->basis[i],&sub->dir[i]);
             vectNd_unitize(&prepped->basis[i]);
             vectNd_l2norm(&sub->dir[i],&prepped->lengths[i]);
-            #if 1
+            #if 0
             vectNd_print(&sub->dir[i], "sub->dir[i]");
             vectNd_print(&prepped->basis[i], "prepped->basis[i]");
             #endif /* 1 */
@@ -85,7 +85,6 @@ int get_bounds(object *obj) {
     int dim = obj->dimensions;
 
     /* sum all axis vectors */
-    double max_length = 0;
     vectNd sum;
     vectNd_calloc(&sum,dim);
     int i=0;
