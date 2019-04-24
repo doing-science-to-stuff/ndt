@@ -222,7 +222,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_DIRECTIONAL;
     vectNd_calloc(&lgt->dir,dimensions);
-    vectNd_setStr(&lgt->dir,"-40,-40,-40,-400");
+    vectNd_setStr(&lgt->dir,"-40,-40,-40,-40");
     lgt->red = 0.75;
     lgt->green = 0.75;
     lgt->blue = 0.75;
