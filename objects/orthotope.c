@@ -138,7 +138,7 @@ static int within_orthotope(object *sub, vectNd *point) {
         }
     }
     vectNd_free(&Bc);
-    
+
     return 1;   /* didn't violate any constraints */
 }
 
@@ -222,7 +222,7 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
                 ret = 1;
         }
     }
-    
+
     if( ret == 0 ) {
         double t=-1.0;
         /* find value of t where o+v*t is closest to plane */
