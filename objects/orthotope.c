@@ -1,5 +1,5 @@
 /*
- * subspace.c
+ * orthotope.c
  * ndt: n-dimensional tracer
  *
  * Copyright (c) 2019 Bryan Franklin. All rights reserved.
@@ -63,7 +63,7 @@ int cleanup(object *sub) {
 }
 
 int type_name(char *name, int size) {
-    strncpy(name,"subspace",size);
+    strncpy(name,"orthotope",size);
     return 0;
 }
 
@@ -106,7 +106,7 @@ int get_bounds(object *obj) {
     return 1;
 }
 
-static int within_subspace(object *sub, vectNd *point) {
+static int within_orthotope(object *sub, vectNd *point) {
     int dim;
     int i=0;
     dim  = point->n;
@@ -232,7 +232,7 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
             vectNd_add(o,&sA,res);
 
             /* do end test */
-            if( within_subspace(sub, res) )
+            if( within_orthotope(sub, res) )
                 ret = 1;
         }
 
@@ -241,7 +241,7 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
             vectNd_add(o,&sA,res);
 
             /* do end test */
-            if( within_subspace(sub, res) )
+            if( within_orthotope(sub, res) )
                 ret = 1;
         }
     }
@@ -281,7 +281,7 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         vectNd_add(o,&sA,res);
 
         /* do end test */
-        if( within_subspace(sub, res) )
+        if( within_orthotope(sub, res) )
             ret = 1;
     }
     vectNd_free(&sA);

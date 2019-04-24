@@ -86,8 +86,8 @@ static int add_faces(object *cube, int m) {
         object *obj = NULL;
         if( m > 1 ) {
             #if 1
-            /* add a subspace for face */
-            obj = object_alloc(cube->dimensions, "subspace", "");
+            /* add a orthotope for face */
+            obj = object_alloc(cube->dimensions, "orthotope", "");
             object_add_flag(obj, m);
             obj->red = 0.0;
             obj->green = 0.0;
@@ -123,8 +123,10 @@ static int add_faces(object *cube, int m) {
                 vectNd_set(&pos2, dir, pos2.v[dir] + CUBE_SIZE);
             }
             object_add_pos(obj, &pos2);
+            #if 0
             vectNd_print(&pos, "pos");
             vectNd_print(&pos2, "pos2");
+            #endif /* 0 */
             vectNd_free(&pos2);
         } else if( m == 0 ) {
             obj = object_alloc(cube->dimensions, "sphere", "");
