@@ -211,7 +211,7 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
 
     /* solve for t */
     det = qb*qb - 4*qa*qc;
-    if( det <= EPSILON )
+    if( det < 0.0 )
         return 0;
     detRoot = sqrt(det);
     t1 = (-qb + detRoot) / (2*qa);
