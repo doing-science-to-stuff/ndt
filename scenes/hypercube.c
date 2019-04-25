@@ -8,6 +8,7 @@
 #include "../scene.h"
 
 #define CUBE_SIZE 15
+#define EDGE_SIZE (0.0075 * (CUBE_SIZE))
 
 static int factorial(int n) {
     int ret = 1;
@@ -114,7 +115,7 @@ static int add_faces(object *cube, int m) {
         } else if( m == 2 ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "hcylinder", "");
-            object_add_size(obj, 0.0075 * CUBE_SIZE);
+            object_add_size(obj, EDGE_SIZE);
             object_add_flag(obj, m);
             obj->red = 0.8;
             obj->green = 0.8;
@@ -141,7 +142,7 @@ static int add_faces(object *cube, int m) {
             }
         } else if( m == 1 ) {
             obj = object_alloc(cube->dimensions, "cylinder", "");
-            object_add_size(obj, 0.015 * CUBE_SIZE);
+            object_add_size(obj, EDGE_SIZE + EPSILON);
             object_add_flag(obj, 1);
             object_add_pos(obj, &pos);
             obj->red = 0.0;
@@ -162,7 +163,7 @@ static int add_faces(object *cube, int m) {
             vectNd_free(&pos2);
         } else if( m == 0 ) {
             obj = object_alloc(cube->dimensions, "sphere", "");
-            object_add_size(obj, 0.03 * CUBE_SIZE);
+            object_add_size(obj, EDGE_SIZE + 2.0 * EPSILON);
             object_add_pos(obj, &pos);
             obj->red = 0.8;
             obj->green = 0.0;
@@ -219,7 +220,15 @@ int scene_frames(int dimensions, char *config) {
 int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 {
     double t = frame/(double)frames;
-    scene_init(scn, "hypercube", dimensions);
+    int use_hcube = 0;
+
+    if( config && !strcmp("hcube", config) )
+        use_hcube = 1;
+
+    if( use_hcube )
+        scene_init(scn, "hcube", dimensions);
+    else
+        scene_init(scn, "hypercube", dimensions);
 
     printf("Generating frame %i of %i scene '%s' (%.2f%% through animation).\n",
             frame, frames, scn->name, 100.0*t);
@@ -288,6 +297,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_calloc(&pos,dimensions);
     vectNd_calloc(&normal,dimensions);
     scene_alloc_object(scn,dimensions,&obj,"hplane");
+    snprintf(obj->name, sizeof(obj->name), "floor");
     obj->red = 0.8;
     obj->green = 0.8;
     obj->blue = 0.8;
@@ -308,10 +318,26 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     object_add_size(obj, CUBE_SIZE/2.0);
     #endif /* 0 */
 
-    /* add all of the faces for a (hyper)cube */
-    scene_alloc_object(scn,dimensions,&obj,"cluster");
-    object_add_flag(obj, 2*dimensions);
-    add_faces(obj, dimensions-1);
+    if( use_hcube ) {
+        /* add a single hcube object */
+        scene_alloc_object(scn,dimensions,&obj,"hcube");
+        snprintf(obj->name, sizeof(obj->name), "the hypercube");
+        for(int i=0; i<dimensions; ++i)
+            object_add_size(obj, CUBE_SIZE);
+        vectNd origin;
+        vectNd_calloc(&origin, dimensions);
+        object_add_pos(obj, &origin);
+        vectNd_free(&origin);
+        obj->red = 0.0;
+        obj->green = 0.0;
+        obj->blue = 0.8;
+        obj->get_bounds(obj);   /* this needs to be done before any rotations can happen */
+    } else {
+        /* add all of the faces for a (hyper)cube */
+        scene_alloc_object(scn,dimensions,&obj,"cluster");
+        object_add_flag(obj, 2*dimensions);
+        add_faces(obj, dimensions-1);
+    }
 
     /* rotate (hyper)cube */
     vectNd dir1, dir2, origin;
