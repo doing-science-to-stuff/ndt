@@ -84,11 +84,11 @@ static int add_faces(object *cube, int m) {
         }
 
         object *obj = NULL;
-        if( m > 2 ) {
+        if( m > 2 || (n == 3 && m == 2) ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "orthotope", "");
             object_add_flag(obj, m);
-            if( m == 3 ) {
+            if( m == 3 || n == 3 ) {
                 obj->red = 0.0;
                 obj->green = 0.0;
                 obj->blue = 0.8;
