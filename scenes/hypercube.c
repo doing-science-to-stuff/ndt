@@ -49,18 +49,6 @@ static int add_faces(object *cube, int m) {
     int offset_id = 0;
     int real_offset_id = 0;
     for(int f=0; f<num_faces; ++f) {
-        #if 0
-        printf("\ndirs_count: ");
-        for(int i=0; i<m; ++i) {
-            printf(" %i", dirs_count[i]);
-        }
-        printf("\npos_count: ");
-        for(int i=0; i<n-m; ++i) {
-            printf(" %i", pos_count[i]);
-        }
-        printf("\n");
-        printf("real_offset_id = %i\n", real_offset_id);
-        #endif /* 0 */
 
         vectNd_reset(&pos);
         vectNd_reset(&dir);
@@ -104,14 +92,8 @@ static int add_faces(object *cube, int m) {
                 vectNd_reset(&dir);
                 vectNd_set(&dir, dirs_count[i], CUBE_SIZE);
                 object_add_dir(obj, &dir);
-                #if 0
-                vectNd_print(&dir,"dir");
-                #endif /* 0 */
             }
             object_add_pos(obj, &pos);
-            #if 0
-            vectNd_print(&pos,"pos");
-            #endif /* 0 */
         } else if( m == 2 ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "hcylinder", "");
@@ -123,22 +105,13 @@ static int add_faces(object *cube, int m) {
 
             for(int i=0; i<m; ++i) {
                 vectNd_set(&pos, dirs_count[i], -CUBE_SIZE/2.0);
-                #if 0
-                vectNd_print(&dir,"dir");
-                #endif /* 0 */
             }
             object_add_pos(obj, &pos);
-            #if 0
-            vectNd_print(&pos,"pos");
-            #endif /* 0 */
             for(int i=0; i<m; ++i) {
                 vectNd_reset(&dir);
                 vectNd_copy(&dir, &pos);
                 vectNd_set(&dir, dirs_count[i], CUBE_SIZE/2.0);
                 object_add_pos(obj, &dir);
-                #if 0
-                vectNd_print(&dir,"dir");
-                #endif /* 0 */
             }
         } else if( m == 1 ) {
             obj = object_alloc(cube->dimensions, "cylinder", "");
@@ -156,10 +129,6 @@ static int add_faces(object *cube, int m) {
                 vectNd_set(&pos2, dir, pos2.v[dir] + CUBE_SIZE);
             }
             object_add_pos(obj, &pos2);
-            #if 0
-            vectNd_print(&pos, "pos");
-            vectNd_print(&pos2, "pos2");
-            #endif /* 0 */
             vectNd_free(&pos2);
         } else if( m == 0 ) {
             obj = object_alloc(cube->dimensions, "sphere", "");
@@ -269,11 +238,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_DIRECTIONAL;
     vectNd_calloc(&lgt->dir,dimensions);
-    #if 0
-    vectNd_setStr(&lgt->dir,"0,-1,0,0");
-    #else
     vectNd_setStr(&lgt->dir,"-1,-1,-1,0");
-    #endif /* 0 */
     lgt->red = 0.75;
     lgt->green = 0.75;
     lgt->blue = 0.75;
