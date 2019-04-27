@@ -198,14 +198,26 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 {
     double t = frame/(double)frames;
     int use_hcube = 0;
+    int with_walls = 0;
 
-    if( config && !strcmp("hcube", config) )
+    /* process options */
+    if( config && !strstr("hcube", config) )
         use_hcube = 1;
+    if( config && !strstr("walls", config) )
+        with_walls = 1;
 
+    /* determine name of scene */
+    char *prefix = "hypercube";
+    char *suffix = "";
+    char scene_name[64];
     if( use_hcube )
-        scene_init(scn, "hcube-reflect", dimensions);
-    else
-        scene_init(scn, "hypercube-reflect", dimensions);
+        prefix = "hcube";
+    if( with_walls )
+        suffix = "-reflect";
+    snprintf(scene_name, sizeof(scene_name), "%s%s", prefix, suffix);
+
+    /* create scene */
+    scene_init(scn, scene_name, dimensions);
 
     printf("Generating frame %i of %i scene '%s' (%.2f%% through animation).\n",
             frame, frames, scn->name, 100.0*t);
@@ -247,7 +259,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_DIRECTIONAL;
     vectNd_calloc(&lgt->dir,dimensions);
-    vectNd_setStr(&lgt->dir,"0,-1,0,0");
+    if( with walls )
+        vectNd_setStr(&lgt->dir,"0,-1,0,0");
+    else
+        vectNd_setStr(&lgt->dir,"-1,-1,-1,-1");
     lgt->red = 0.75;
     lgt->green = 0.75;
     lgt->blue = 0.75;
@@ -262,58 +277,6 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     lgt->green = 600;
     lgt->blue = 600;
     #endif /* 1 */
-
-    #if 0
-    /* add some lights */
-    double brightness = 1200.0;
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"100,0,0,100");
-    lgt->red = brightness;
-    lgt->green = 0;
-    lgt->blue = 0;
-
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"100,0,0,0");
-    lgt->red = 0;
-    lgt->green = brightness;
-    lgt->blue = 0;
-
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"100,0,0,-100");
-    lgt->red = 0;
-    lgt->green = 0;
-    lgt->blue = brightness;
-
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"0,0,100,100");
-    lgt->red = brightness;
-    lgt->green = 0;
-    lgt->blue = 0;
-
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"0,0,100,0");
-    lgt->red = 0;
-    lgt->green = brightness;
-    lgt->blue = 0;
-
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"0,0,100,-100");
-    lgt->red = 0;
-    lgt->green = 0;
-    lgt->blue = brightness;
-    #endif /* 0 */
 
     /* create objects array */
     object *obj = NULL;
@@ -336,29 +299,31 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_set(&normal,1,1);
     object_add_dir(obj, &normal);
 
-    /* add some walls for shadows be be on */
-    double wall_dist = CUBE_SIZE*1.5;
-    scene_alloc_object(scn,dimensions,&obj,"hplane");
-    snprintf(obj->name, sizeof(obj->name), "wall 1");
-    obj->red = obj->green = obj->blue = 0.0;
-    obj->red_r = obj->green_r = obj->blue_r = 0.95;
-    vectNd_reset(&pos);
-    vectNd_reset(&normal);
-    vectNd_set(&pos, 0, -wall_dist);
-    vectNd_set(&normal, 0, 1.0);
-    object_add_pos(obj, &pos);
-    object_add_dir(obj, &normal);
+    if( with_walls ) {
+        /* add some walls for shadows be be on */
+        double wall_dist = CUBE_SIZE*1.5;
+        scene_alloc_object(scn,dimensions,&obj,"hplane");
+        snprintf(obj->name, sizeof(obj->name), "wall 1");
+        obj->red = obj->green = obj->blue = 0.0;
+        obj->red_r = obj->green_r = obj->blue_r = 0.95;
+        vectNd_reset(&pos);
+        vectNd_reset(&normal);
+        vectNd_set(&pos, 0, -wall_dist);
+        vectNd_set(&normal, 0, 1.0);
+        object_add_pos(obj, &pos);
+        object_add_dir(obj, &normal);
 
-    scene_alloc_object(scn,dimensions,&obj,"hplane");
-    snprintf(obj->name, sizeof(obj->name), "wall 2");
-    obj->red = obj->green = obj->blue = 0.0;
-    obj->red_r = obj->green_r = obj->blue_r = 0.95;
-    vectNd_reset(&pos);
-    vectNd_reset(&normal);
-    vectNd_set(&pos, 2, -wall_dist);
-    vectNd_set(&normal, 2, 1.0);
-    object_add_pos(obj, &pos);
-    object_add_dir(obj, &normal);
+        scene_alloc_object(scn,dimensions,&obj,"hplane");
+        snprintf(obj->name, sizeof(obj->name), "wall 2");
+        obj->red = obj->green = obj->blue = 0.0;
+        obj->red_r = obj->green_r = obj->blue_r = 0.95;
+        vectNd_reset(&pos);
+        vectNd_reset(&normal);
+        vectNd_set(&pos, 2, -wall_dist);
+        vectNd_set(&normal, 2, 1.0);
+        object_add_pos(obj, &pos);
+        object_add_dir(obj, &normal);
+    }
 
     #if 0
     /* add sphere where cube should be */
@@ -400,6 +365,8 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     for(int i=0; i<dimensions; ++i) {
         vectNd_set(&dir2, i, 1);
     }
+
+    /* alter the plane of rotation based on phase of the animation */
     switch( frame / frames_per_rotation ) {
         case 0:
             break;
