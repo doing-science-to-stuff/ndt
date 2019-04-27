@@ -1022,7 +1022,7 @@ int parallel_render_image(scene *scn, char *name, char *depth_name, int width, i
     for(i=0; i<threads; ++i) {
         pthread_join(thr[i],NULL);
     }
-    printf("\r              \r");
+    printf("\r                          \r");
     timer_elapsed(&timer,&seconds);
     printf("rendering took %.3fs\n", seconds);
 
