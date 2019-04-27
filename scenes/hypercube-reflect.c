@@ -191,7 +191,7 @@ static int add_faces(object *cube, int m) {
 /* scene_frames is optional, but gives the total number of frames to render
  * for an animated scene. */
 int scene_frames(int dimensions, char *config) {
-    return 300;
+    return 1500;
 }
 
 int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
