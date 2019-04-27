@@ -259,7 +259,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_DIRECTIONAL;
     vectNd_calloc(&lgt->dir,dimensions);
-    if( with walls )
+    if( with_walls )
         vectNd_setStr(&lgt->dir,"0,-1,0,0");
     else
         vectNd_setStr(&lgt->dir,"-1,-1,-1,-1");
