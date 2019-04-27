@@ -30,20 +30,16 @@ static int bounding_sphere_prepare(bounding_sphere *sph) {
 int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, double min_dist)
 {
     /* see: http://en.wikipedia.org/wiki/Line–bounding_sphere_intersection */
-    vectNd oc;
-    double d;
-    double voc;
-    double oc_len2;
-    double desc;
-    vectNd *center;
 
     if( !sph->prepared ) {
         bounding_sphere_prepare(sph);
     }
 
     /* compute d */
-    center = &sph->center;
+    vectNd *center = &sph->center;
 
+    vectNd oc;
+    double oc_len2;
     vectNd_alloc(&oc,o->n);
     vectNd_sub(o,center,&oc); /* (o-c) */
     /* no point in taking a sqrt if it will just be squared again */
@@ -58,26 +54,28 @@ int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, d
         }
     }
 
+    double voc;
     vectNd_dot(v,&oc,&voc); /* v . (o-c) */
     vectNd_free(&oc);
 
     double r_sqr = sph->radius_sqr;
-    desc = (voc*voc) - oc_len2 + r_sqr;
-    if( desc < EPSILON ) {
-        /* ray misses the bounding_sphere */
+    double voc2 = voc*voc;
+    double desc = voc2 - oc_len2 + r_sqr;
+
+    /* desc_root = sqrt(desc); */
+    /* d = -(voc +/- desc_root); // and d must be non-negative */
+    /* either d non-negative (perhaps > EPSILON)? */
+    /* 0 <= -(voc + desc_root)  or  0 <= -(voc - desc_root) */
+    /* 0 <= -voc - desc_root)  or  0 <= -voc + desc_root) */
+    /* voc + desc_root >= 0  or  voc - desc_root >= 0 */
+    /* desc_root >= -voc  or  -desc_root >= -voc */
+    /* +/- desc_root >= -voc */
+    /* voc < +/- desc_root */
+    /* voc^2 < desc */
+
+    /* check to see if bounding sphere is behind us */
+    if( desc < 0.0 || desc > voc2 ) {
         return 0;
-    }
-    double desc_root = sqrt( desc );
-    d = -(voc + desc_root);
-
-    /* can't hit something behind us */
-    if( d < EPSILON ) {
-        /* try far side of the bounding_sphere, in case we're inside it */
-        d = desc_root - voc;
-
-        if( d < EPSILON ) {
-            return 0;
-        }
     }
 
     return 1;
