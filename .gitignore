@@ -6,3 +6,5 @@ yaml/
 *.so
 .DS_Store
 *.swp
+divx2pass.log*
+videos/

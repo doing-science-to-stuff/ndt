@@ -83,7 +83,7 @@ static int add_faces(object *cube, int m) {
             offset_id >>= 1;
 
             /* determine location of 'face' */
-            vectNd_set(&pos, i, cube->size[i] * (value-0.5));
+            vectNd_set(&pos, i, cube->pos[0].v[i] + cube->size[i] * (value-0.5));
         }
 
         object *obj = NULL;
