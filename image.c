@@ -397,6 +397,7 @@ static int image_save_jpeg(image_t *img, char *fname)
         for(i=0;i<img->width;++i)
         {
             pixel_t clr;
+            memset(&clr, '\0', sizeof(clr));
 
             image_get_pixel(img,i,cinfo.next_scanline,&clr);
 
@@ -649,6 +650,7 @@ static int image_save_png(image_t *img, char *fname)
         for(int i=0;i<img->width;i++)
         {
             pixel_t clr;
+            memset(&clr, '\0', sizeof(clr));
             image_get_pixel(img,i,j,&clr);
             row_pointers[j][pixel_size*i+0] = clr.r;
             row_pointers[j][pixel_size*i+1] = clr.g;

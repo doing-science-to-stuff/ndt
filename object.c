@@ -415,9 +415,8 @@ static int append_vector(vectNd **list, int *n, int *cap, vectNd *vec) {
     if( *n >= *cap ) {
         int new_cap = *cap * 2 + 1;
         vectNd *tmp = NULL;
-        posix_memalign((void**)&tmp, 16, new_cap*sizeof(vectNd));
-        if( tmp == NULL ) {
-            perror("malloc");
+        if( posix_memalign((void**)&tmp, 16, new_cap*sizeof(vectNd)) ) {
+            perror("posix_memalign");
             return -1;
         }
         *cap = new_cap;
