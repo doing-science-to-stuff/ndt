@@ -185,6 +185,7 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     }   /* sum_A is now \sum X_i */
     vectNd_sub(&sub->pos[0],o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
+    vectNd_free(&sum_A);
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -192,6 +193,8 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_dot(&P,&Q,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
+    vectNd_free(&P);
+    vectNd_free(&Q);
     qc -= EPSILON;
 
     double t1, t2;
@@ -241,12 +244,14 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         }
         if( t < EPSILON ) {
             /* hit is behind the viewer */
+            vectNd_free(&sA);
             return 0;
         }
 
         double dist = qa*t*t + qb*t + qc;
         if( fabs(dist) > EPSILON ) {
             /* closest point is too far from surface */
+            vectNd_free(&sA);
             return 0;
         }
 

@@ -289,11 +289,15 @@ int scene_cluster(scene *scn, int k)
         printf("adding cluster of %i finite objects.\n", finite->n_obj);
         scn->object_ptrs[scn->num_objects] = finite;
         scn->num_objects += 1;
+    } else {
+        object_free(finite); finite = NULL;
     }
     if( infinite->n_obj > 0 ) {
         printf("adding cluster of %i infinite objects.\n", infinite->n_obj);
         scn->object_ptrs[scn->num_objects] = infinite;
         scn->num_objects += 1;
+    } else {
+        object_free(infinite); infinite = NULL;
     }
 
     return 0;

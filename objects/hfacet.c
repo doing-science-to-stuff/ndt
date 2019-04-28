@@ -34,6 +34,9 @@ int cleanup(object *face) {
     }
     vectNd_free(&prepped->edge_perp);
 
+    vectNd_free(&ones);
+    ones_set = 0;
+
     return 0;
 }
 

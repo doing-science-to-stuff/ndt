@@ -198,6 +198,7 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     }
     vectNd_sub(&cyl->pos[0],o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
+    vectNd_free(&sum_A);
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -208,11 +209,15 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
     qc -= radius*radius;
+    vectNd_free(&Q);
+    vectNd_free(&P);
 
     /* solve for t */
     det = qb*qb - 4*qa*qc;
-    if( det < 0.0 )
+    if( det < 0.0 ) {
+        vectNd_free(&sA);
         return 0;
+    }
     detRoot = sqrt(det);
     t1 = (-qb + detRoot) / (2*qa);
     t2 = (-qb - detRoot) / (2*qa);
@@ -235,6 +240,7 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         if( between_ends(cyl, res) )
             ret = 1;
     }
+    vectNd_free(&sA);
 
     /* find normal */
     if( ret != 0 ) {

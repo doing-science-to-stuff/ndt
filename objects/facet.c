@@ -225,6 +225,7 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     }
     vectNd_sub(&face->pos[1],o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
+    vectNd_free(&sum_A);
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -232,6 +233,8 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     vectNd_dot(&P,&Q,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
+    vectNd_free(&P);
+    vectNd_free(&Q);
 
     double t=-1.0;
     /* find value of t where o+v*t is closest to plane */
@@ -250,18 +253,21 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     }
     if( t < EPSILON ) {
         /* hit is behind the viewer */
+        vectNd_free(&sA);
         return 0;
     }
 
     double dist = qa*t*t + qb*t + qc;
     if( fabs(dist) > EPSILON ) {
         /* closest point is too far from surface */
+        vectNd_free(&sA);
         return 0;
     }
 
     /* find intersection point */
     vectNd_scale(v,t,&sA);
     vectNd_add(o,&sA,res);
+    vectNd_free(&sA);
 
     /* do end test */
     if( inside_edges(face, res) )

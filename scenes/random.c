@@ -1,3 +1,9 @@
+/*
+ * random.c
+ * ndt: n-dimensional tracer
+ *
+ * Copyright (c) 2019 Bryan Franklin. All rights reserved.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include "../scene.h"
@@ -54,6 +60,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
             printf("\tskipping...\n");
             i -= 1;
             scene_remove_object(scn, obj);
+            object_free(obj); obj=NULL;
             continue;
         }
 
@@ -88,60 +95,17 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
             object_add_flag(obj, 1);
         }
 
+        vectNd_free(&temp);
+
         obj->get_bounds(obj);
 
         if( obj->bounds.radius < 0 ) {
             printf("removing infinite object...\n");
             i -= 1;
             scene_remove_object(scn, obj);
+            object_free(obj); obj=NULL;
             continue;
         }
-
-        #if 0
-        switch(type) {
-            case 0:
-                /* create random facet */
-                obj->shape=HFACET;
-                for(int k=0; k<3; ++k) {
-                    vectNd_calloc(&obj->obj.hface.vertex[k],dimensions);
-                    for(int j=0; j<3; ++j) {
-                        vectNd_set(&obj->obj.hface.vertex[k],j,20*drand48()-10);
-                    }
-                    printf("vertex %i: ", k);
-                    vectNd_print(&obj->obj.hface.vertex[k],"vertex");
-                }
-                break;
-            case 1:
-                /* create random sphere */
-                obj->shape=SPHERE;
-                obj->obj.sphere.radius = 3*drand48()+1;
-                vectNd_calloc(&obj->obj.sphere.center,dimensions);
-                for(int j=0; j<dimensions; ++j) {
-                    vectNd_set(&obj->obj.sphere.center,j,10*drand48()+2);
-                }
-                break;
-            case 2:
-                /* create random cylinder */
-                obj->shape=HCYLINDER;
-                obj->obj.hcyl.top = (vectNd*)calloc(dimensions-1,sizeof(vectNd));
-                for(int k=0; k<dimensions-1; ++k) {
-                    vectNd_calloc(&obj->obj.hcyl.top[k],dimensions);
-                }
-                vectNd_calloc(&obj->obj.hcyl.bottom,dimensions);
-                obj->obj.hcyl.radius = 4*drand48()+1;
-                obj->obj.hcyl.end = OPEN;
-                for(int j=0; j<dimensions; ++j) {
-                    for(int k=0; k<dimensions-1; ++k) {
-                        vectNd_set(&obj->obj.hcyl.top[k],j,10*drand48()+2);
-                    }
-                    vectNd_set(&obj->obj.hcyl.bottom,j,10*drand48()+2);
-                }
-                break;
-            default:
-                printf("unsupported type %i", type);
-                break;
-        }
-        #endif /* 0 */
 
         obj->red = 0.5*drand48()+0.5;
         obj->green = 0.5*drand48()+0.5;
@@ -155,7 +119,6 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     registered_types_free(types); types=NULL;
 
     /* create camera */
-    camera_alloc(&scn->cam,dimensions);
     camera_init(&scn->cam);
 
     /* move camera into position */
@@ -166,15 +129,17 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_setStr(&viewPoint,"30,30,-30,30");
     vectNd_setStr(&viewTarget,"5,5,5,5");
     camera_set_aim(&scn->cam, &viewPoint, &viewTarget, NULL, 0.0);
+    vectNd_free(&viewPoint);
+    vectNd_free(&viewTarget);
 
     /* setup lighting */
-    vectNd_calloc(&scn->ambient.pos,dimensions);
-    scn->ambient.red = .1;
-    scn->ambient.green = .1;
-    scn->ambient.blue = .1;
-
-    /* create lights array */
     light *lgt = NULL;
+
+    scene_alloc_light(scn,&lgt);
+    lgt->type = LIGHT_AMBIENT;
+    lgt->red = 0.1;
+    lgt->green = 0.1;
+    lgt->blue = 0.1;
 
     scene_alloc_light(scn,&lgt);
     vectNd_calloc(&lgt->pos,dimensions);
