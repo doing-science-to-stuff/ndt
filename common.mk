@@ -31,7 +31,7 @@ LDFLAGS+=-g
 # see: https://stackoverflow.com/questions/714100/os-detecting-makefile
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-    CFLAGS+=-D_GNU_SOURCE
+    CFLAGS+=-D_GNU_SOURCE -std=c99
     LDFLAGS+=-lpthread -ldl -export-dynamic
     DEP_CMD=sudo apt-get install
     DEPS=libjpeg-dev libpng-dev libyaml-dev
