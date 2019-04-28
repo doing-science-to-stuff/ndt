@@ -190,8 +190,9 @@ static int add_faces(object *cube, int m) {
 
 /* scene_frames is optional, but gives the total number of frames to render
  * for an animated scene. */
+static int frames_per_rotation = 300;
 int scene_frames(int dimensions, char *config) {
-    return 1500;
+    return 8 * frames_per_rotation;
 }
 
 int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
@@ -233,8 +234,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_calloc(&viewTarget,dimensions);
     vectNd_calloc(&up_vect,dimensions);
 
-    vectNd_setStr(&viewPoint,"65.7,22.25,55,0");
-    vectNd_setStr(&viewTarget,"3,-2.5,0,0");
+    if( with_walls ) {
+        vectNd_setStr(&viewPoint,"65.7,22.25,55,0");
+        vectNd_setStr(&viewTarget,"3,-2.5,0,0");
+    } else {
+        vectNd_setStr(&viewPoint,"60,10,30,20");
+        vectNd_setStr(&viewTarget,"0,-1.5,0,0");
+    }
+
     vectNd_set(&up_vect,1,10);  /* 0,10,0,0... */
     #if 0
     if( dimensions > 3 ) {
@@ -356,7 +363,6 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     }
 
     /* rotate (hyper)cube */
-    int frames_per_rotation = frames / 5;
     vectNd dir1, dir2, origin;
     vectNd_calloc(&dir1, dimensions);
     vectNd_calloc(&dir2, dimensions);
@@ -367,27 +373,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     }
 
     /* alter the plane of rotation based on phase of the animation */
-    switch( frame / frames_per_rotation ) {
-        case 0:
-            break;
-        case 1:
-            vectNd_set(&dir2, 0, -1);
-            break;
-        case 2:
-            vectNd_set(&dir2, 0, 0);
-            break;
-        case 3:
-            vectNd_set(&dir2, 2, 0);
-            break;
-        case 4:
-            vectNd_set(&dir2, 1, 0);
-            break;
-        default:
-            break;
-    }
+    int which_rotation = frame / frames_per_rotation;
+    vectNd_rotate(&dir2, NULL, 0, 2, which_rotation * (M_PI / 4.0), &dir2);
 
-    double angle = frame * (2 * M_PI) / (double)frames_per_rotation;
+    /* rotate (hyper)cube */
+    double angle = ((2 * M_PI) * (frame % frames_per_rotation)) / (frames_per_rotation-1);
     object_rotate2(obj, &origin, &dir1, &dir2, angle);
+
+    printf("Rotating %6.2 degress through plane %i.\n", angle * 180.0 / M_PI, which_rotation);
 
     return 1;
 }
