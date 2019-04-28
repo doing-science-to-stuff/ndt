@@ -446,7 +446,10 @@ static int image_load_png(image_t *img, char *fname)
     png_size_t num_to_check=8;
     header = calloc(1, num_to_check*sizeof(png_byte));
 
-    fread(header, 1, num_to_check, fp);
+    if( fread(header, 1, num_to_check, fp) < num_to_check ) {
+        printf("%s: Short read trying to get PNG header.\n", fname);
+        return -1;
+    }
     int is_png = !png_sig_cmp(header, 0, num_to_check);
     free(header);   header=NULL;
 
