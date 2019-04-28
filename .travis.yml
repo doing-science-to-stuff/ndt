@@ -1,5 +1,8 @@
 language: c
 install:
 - make get-deps
+- dpkg -L libpng12-dev
+- dpkg -L libjpeg-dev
+- dpkg -L libyaml-dev
 script:
 - make && make test
