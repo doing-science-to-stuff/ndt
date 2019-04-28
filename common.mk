@@ -24,11 +24,11 @@ ifeq ($(UNAME_S),Linux)
     DEPS=libjpeg-dev libpng-dev libyaml-dev
 endif
 ifeq ($(UNAME_S),Darwin)
-    CCFLAGS+=-D OSX
+    CFLAGS+=-I/opt/local/include
+    LDFLAGS+=-L/opt/local/lib
+    CFLAGS+=-DOSX
     DEP_CMD=sudo port install
     DEPS=jpeg libpng libyaml
-    LDFLAGS+=-L/opt/local/lib
-    CFLAGS+=-I/opt/local/include
 endif
 
 LDFLAGS+=-lm
@@ -40,7 +40,7 @@ LDFLAGS+=-lyaml
 CFLAGS+=-g
 LDFLAGS+=-g
 
-.PHONY: clean all
+.PHONY: clean all get-deps
 .SUFFIXES: .c .o .h .so
 .PRECIOUS: %.c %.o %.h
 

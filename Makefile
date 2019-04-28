@@ -8,11 +8,10 @@ include common.mk
 
 .PHONY: clean scenes objects test valgrind
 
+all: ndt objects scenes 
 
 get-deps:
 	$(DEP_CMD) $(DEPS)
-
-all: ndt objects scenes 
 
 ndt: ndt.o vectNd.o image.o scene.o camera.o matrix.o kmeans.o timing.o map.o object.o bounding.o
 	gcc -o ndt $(LDFLAGS) $% $^ 
