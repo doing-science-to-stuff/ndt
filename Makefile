@@ -20,7 +20,7 @@ objects:
 	make -C objects
 
 valgrind: ndt objects scenes
-	valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -w 60 -h 45 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -d 5 -s scenes/balls.so
+	valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -w 60 -h 45 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -d 5 -s scenes/random.so
 
 test: scenes ndt objects
 	./ndt -w 640 -h 480 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -s scenes/balls.so -d 3
