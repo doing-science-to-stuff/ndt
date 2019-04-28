@@ -380,7 +380,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     double angle = ((2 * M_PI) * (frame % frames_per_rotation)) / (frames_per_rotation-1);
     object_rotate2(obj, &origin, &dir1, &dir2, angle);
 
-    printf("Rotating %6.2 degress through plane %i.\n", angle * 180.0 / M_PI, which_rotation);
+    printf("Rotating %6.2f degrees through plane %i.\n", angle * 180.0 / M_PI, which_rotation);
 
     return 1;
 }
