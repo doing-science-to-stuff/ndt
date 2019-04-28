@@ -234,7 +234,7 @@ object *obj = NULL;
 scene_alloc_object(scn, 4, &obj, "sphere");
 vectNd center;
 vectNd_calloc(&center, 4);
-vectNd_setStr(&center, "0,5,0,0");  /* centered at <1,2,3,4> */
+vectNd_setStr(&center, "0,5,0,0");  /* centered at <0,5,0,0> */
 object_add_pos(obj, &center);
 object_add_size(obj, 5.0);  /* radius of 5 */
 /* set color */
