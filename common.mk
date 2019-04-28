@@ -33,7 +33,11 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     CFLAGS+=-D_GNU_SOURCE
     LDFLAGS+=-lpthread -ldl -export-dynamic
+    DEP_CMD=sudo apt-get install
+    DEPS=libjpeg-dev libpng-dev libyaml-dev
 endif
 ifeq ($(UNAME_S),Darwin)
     CCFLAGS += -D OSX
+    DEP_CMD=sudo port install
+    DEPS=jpeg libpng libyaml
 endif
