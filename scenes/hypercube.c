@@ -238,7 +238,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         vectNd_setStr(&viewPoint,"65.7,22.25,55,0");
         vectNd_setStr(&viewTarget,"3,-2.5,0,0");
     } else {
-        vectNd_setStr(&viewPoint,"60,10,30,20");
+        vectNd_setStr(&viewPoint,"60,10,50,0");
         vectNd_setStr(&viewTarget,"0,-1.5,0,0");
     }
 
@@ -269,20 +269,22 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     if( with_walls )
         vectNd_setStr(&lgt->dir,"0,-1,0,0");
     else
-        vectNd_setStr(&lgt->dir,"-1,-1,-1,-1");
+        vectNd_setStr(&lgt->dir,"-1,-1,-1,0");
     lgt->red = 0.75;
     lgt->green = 0.75;
     lgt->blue = 0.75;
     #endif /* 0 */
 
     #if 0
-    scene_alloc_light(scn,&lgt);
-    lgt->type = LIGHT_POINT;
-    vectNd_calloc(&lgt->pos,dimensions);
-    vectNd_setStr(&lgt->pos,"60,10,30,20");
-    lgt->red = 600;
-    lgt->green = 600;
-    lgt->blue = 600;
+    if( !with_wall ) {
+        scene_alloc_light(scn,&lgt);
+        lgt->type = LIGHT_POINT;
+        vectNd_calloc(&lgt->pos,dimensions);
+        vectNd_setStr(&lgt->pos,"60,10,30,0");
+        lgt->red = 600;
+        lgt->green = 600;
+        lgt->blue = 600;
+    }
     #endif /* 1 */
 
     /* create objects array */
