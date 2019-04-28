@@ -46,7 +46,7 @@ static int add_faces(object *cube, int m) {
     int *dirs_count, *pos_count;
     dirs_count = calloc(m, sizeof(int));
     pos_count = calloc(n-m, sizeof(int));
-    for(int i=0; i<n; ++i)
+    for(int i=0; i<m; ++i)
         dirs_count[i] = m-i-1;
     int offset_id = 0;
     int real_offset_id = 0;
@@ -125,7 +125,7 @@ static int add_faces(object *cube, int m) {
         /* update counters */
         ++real_offset_id;
         int i=0;
-        while(pos_count[i] == 1) {
+        while( i<(n-m) && pos_count[i] == 1 ) {
             pos_count[i] = 0;
             ++i;
         }
@@ -134,7 +134,7 @@ static int add_faces(object *cube, int m) {
         } else {
             /* pos counter reached end, so update dirs_counter */
             int j=0;
-            while(dirs_count[j] == n-j-1 ) {
+            while( j < m && dirs_count[j] == n-j-1 ) {
                 if( j < m-1 ) {
                     dirs_count[j] = dirs_count[j+1]+1;
                 } else {
@@ -154,6 +154,8 @@ static int add_faces(object *cube, int m) {
     }
     free(dirs_count); dirs_count=NULL;
     free(pos_count); pos_count=NULL;
+    vectNd_free(&pos);
+    vectNd_free(&dir);
 
     return 0;
 }
