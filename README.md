@@ -276,7 +276,7 @@ If the custom scene needs any additional configuration information passed into
 it, the `-u` option can be used.
 
 ```text
-$ ./ndt -s scenes/custom.so -u `configuration string`
+$ ./ndt -s scenes/custom.so -u 'configuration string'
 ```
 
 ### YAML
