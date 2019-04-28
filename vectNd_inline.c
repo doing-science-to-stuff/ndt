@@ -22,7 +22,10 @@ __STATIC_INLINE__ int vectNd_alloc(vectNd *v, int dim)
         #endif /* __SSE__ */
         #ifdef __SSE__
         void *ptr=NULL;
-        posix_memalign(&ptr, 16, alloc_dim*sizeof(double));
+        if( posix_memalign(&ptr, 16, alloc_dim*sizeof(double)) ) {
+            v->v = NULL;
+            return VECTND_FAIL;
+        }
         v->v = ptr;
         #else
         v->v = (double*)malloc(alloc_dim*sizeof(double));
