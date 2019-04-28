@@ -19,7 +19,7 @@ CFLAGS+=-DWITH_YAML
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     CFLAGS+=-D_GNU_SOURCE -std=c99
-    LDFLAGS+=-L/lib -L/usr/lib -L/usr/local/lib -lm -lyaml -lpthread -ldl -export-dynamic
+    LDFLAGS+=-L/lib/x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu -lm -lyaml -lpthread -ldl -export-dynamic
     DEP_CMD=sudo apt-get install
     DEPS=libjpeg-dev libpng-dev libyaml-dev
 endif
