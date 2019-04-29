@@ -9,7 +9,6 @@
 #include "vectNd.h"
 #include "object.h"
 #include "camera.h"
-#include "map.h"
 
 /* see:
  * https://stackoverflow.com/questions/9907160/how-to-convert-enum-names-to-string-in-c
