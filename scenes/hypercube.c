@@ -202,10 +202,13 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     int with_walls = 0;
 
     /* process options */
-    if( config && !strstr("hcube", config) )
+    if( config && strstr("hcube", config) )
         use_hcube = 1;
-    if( config && !strstr("walls", config) )
+    if( config && strstr("walls", config) )
         with_walls = 1;
+
+    printf("config: %s; use_hcube: %i, with_walls: %i\n",
+        config?config:"null", use_hcube, with_walls);
 
     /* determine name of scene */
     char *prefix = "hypercube";
