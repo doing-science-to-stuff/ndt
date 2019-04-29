@@ -17,12 +17,14 @@ compiler:
 addons:
   apt:
     packages:
+      - cmake
       - libpng-dev
       - libjpeg-dev
       - libyaml-dev
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install cmake || brew upgrade cmake; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install jpeg || brew upgrade jpeg; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install libpng || brew upgrade libpng; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install libyaml || brew upgrade libyaml; fi
