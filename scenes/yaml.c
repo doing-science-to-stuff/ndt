@@ -16,7 +16,11 @@ int scene_frames(int dimensions, char *config) {
     char *fname = config;
     if( fname == NULL )
         return 0;
+    #ifdef WITH_YAML
     return scene_yaml_count_frames(fname);
+    #else
+    return 1;
+    #endif /* WITH_YAML */
 }
 
 #ifdef WITH_YAML
