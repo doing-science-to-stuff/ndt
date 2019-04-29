@@ -18,20 +18,27 @@ are available via [macports](https://www.macports.org) on macOS.
 
 In [Debian](https://www.debian.org/) Linux:
 ```text
-$ sudo apt-get install libjpeg-dev libpng-dev libyaml-dev
+$ sudo apt-get install cmake libjpeg-dev libpng-dev libyaml-dev
 ```
 
 In macOS using [macports](https://www.macports.org):
 ```text
-$ sudo port install jpeg libpng libyaml
+$ sudo port install cmake jpeg libpng libyaml
 ```
 
 ### Linux or macOS
 
-Build from source:
+Build from source with `cmake`:
 ```text
 $ cd ndt
+$ cmake .
 $ make
+```
+
+Build from source without `cmake`:
+```text
+$ cd ndt
+$ make -f Makefile.unix
 ```
 *Note: If not all dependencies are met, manual editing of `common.mk` will be needed.*
 

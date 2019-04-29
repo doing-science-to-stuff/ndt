@@ -8,3 +8,8 @@ yaml/
 *.swp
 divx2pass.log*
 videos/
+CMakeFiles/
+cmake_install.cmake
+CMakeCache.txt
+*.dylib
+Makefile

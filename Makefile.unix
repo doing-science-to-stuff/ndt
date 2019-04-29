@@ -17,10 +17,10 @@ ndt: ndt.o vectNd.o image.o scene.o camera.o matrix.o kmeans.o timing.o map.o ob
 	gcc -o ndt $(LDFLAGS) $% $^ 
 
 scenes:
-	make -C scenes
+	make -C scenes -f Makefile.unix
 
 objects:
-	make -C objects
+	make -C objects -f Makefile.unix
 
 valgrind: ndt objects scenes
 	valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -w 60 -h 45 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -d 5 -s scenes/random.so
@@ -30,5 +30,5 @@ test: scenes ndt objects
 
 clean:
 	rm -f *.o
-	make -C scenes clean
-	make -C objects clean
+	make -C scenes -f Makefile.unix clean
+	make -C objects -f Makefile.unix clean
