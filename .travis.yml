@@ -1,6 +1,33 @@
+#
+# .travis.yml
+# ndt: n-dimensional tracer
+#
+# Copyright (c) 2019 Bryan Franklin. All rights reserved.
+#
 language: c
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - gcc
+  - clang
+
+addons:
+  apt:
+    packages:
+      - libpng-dev
+      - libjpeg-dev
+      - libyaml-dev
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install jpeg libpng libyaml; fi
+
 install:
 - make -f Makefile.unix get-deps
+
 script:
 - cmake .
 - make
