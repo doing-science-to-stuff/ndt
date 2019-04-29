@@ -1,3 +1,9 @@
+#
+# common.mk
+# ndt: n-dimensional tracer
+#
+# Copyright (c) 2019 Bryan Franklin. All rights reserved.
+#
 cmake_minimum_required(VERSION 3.7)
 project (ndt)
 
