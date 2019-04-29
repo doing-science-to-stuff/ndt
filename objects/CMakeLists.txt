@@ -11,7 +11,11 @@ project (ndt)
 set(CMAKE_SHARED_MODULE_PREFIX "")
 
 if(${CMAKE_C_COMPILER_ID} MATCHES "Clang" )
-    add_link_options("SHELL:-undefined dynamic_lookup")
+    if( CMAKE_MAJOR_VERSION GREATER_EQUAL 3 AND CMAKE_MINOR_VERSION GREATER_EQUAL 13 )
+        add_link_options("SHELL:-undefined dynamic_lookup")
+    else()
+        set(CMAKE_MODULE_LINKER_FLAGS "-undefined dynamic_lookup")
+    endif()
 endif()
 
 AUX_SOURCE_DIRECTORY(. SOURCE_FILES)
