@@ -27,8 +27,8 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install libpng || brew upgrade libpng; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install libyaml || brew upgrade libyaml; fi
 
-install:
-- make -f Makefile.unix get-deps
+#install:
+#- make -f Makefile.unix get-deps
 
 script:
 - cmake .
