@@ -38,6 +38,7 @@ add_subdirectory (scenes)
 
 AUX_SOURCE_DIRECTORY(. SOURCE_FILES)
 add_executable(ndt ${SOURCE_FILES})
+set_property(TARGET ndt PROPERTY C_STANDARD 99)
 
 # create a make clean rule
 add_custom_command(OUTPUT clean
