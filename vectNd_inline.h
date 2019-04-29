@@ -1,5 +1,5 @@
 /*
- * vectNd_inline.c
+ * vectNd_inline.h
  * ndt: n-dimensional tracer
  *
  * Copyright (c) 2019 Bryan Franklin. All rights reserved.

@@ -98,7 +98,7 @@ int vectNd_orthogonalize(vectNd *in1, vectNd *in2, vectNd *out1, vectNd *out2)
 }
 
 #ifdef WITHOUT_INLINE
-#include "vectNd_inline.c"
+#include "vectNd_inline.h"
 #endif /* WITHOUT_INLINE */
 
 int vectNd_angle(vectNd *v1, vectNd *v2, double *angle)

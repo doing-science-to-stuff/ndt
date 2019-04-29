@@ -73,7 +73,7 @@ int vectNd_print(vectNd *v, char *name);
 
 #ifndef WITHOUT_INLINE
 #define __STATIC_INLINE__ static inline
-#include "vectNd_inline.c"
+#include "vectNd_inline.h"
 #else
 #define __STATIC_INLINE__
 #endif /* WITHOUT_INLINE */
