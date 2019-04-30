@@ -22,13 +22,8 @@ configure_file (
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # add the binary tree to the search path for include files
-# so that we will find TutorialConfig.h
+# so that we will find ndt_config.h
 include_directories("${PROJECT_BINARY_DIR}")
-
-#if(${CMAKE_C_COMPILER_ID} MATCHES "GNU")
-#    # this allows dlopen'ed files to find symbols in the executable
-#    set (CMAKE_EXE_LINKER_FLAGS "-export-dynamic")
-#endif()
 
 # this allows dlopen'ed files to find symbols in the executable
 set(CMAKE_ENABLE_EXPORTS TRUE)
@@ -57,8 +52,18 @@ add_custom_target(docker-run
                   DEPENDS docker
                   )
 
+# add a debug build target
+add_custom_target(debug-build
+                  COMMAND bash -c 'cmake -DCMAKE_BUILD_TYPE=Debug . && make'
+                  )
+
+# add a valgrind testing target
+add_custom_target(valgrind
+                  COMMAND valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -w 60 -h 45 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -d 5 -s scenes/random.so
+                  DEPENDS debug-build
+                  )
+
 # add common system libraries
-#target_link_libraries(ndt ${CMAKE_DL_LIBS})
 target_link_libraries(ndt dl)
 target_link_libraries(ndt m)
 target_link_libraries(ndt pthread)
