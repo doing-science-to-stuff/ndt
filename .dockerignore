@@ -1,0 +1,15 @@
+.git/
+divx2pass.log*
+CMakeCache.txt
+*/CMakeCache.txt
+cmake_install.cmake
+*/cmake_install.cmake
+CMakeFiles/
+*/CMakeFiles/
+videos/
+images/
+*.o
+*.so
+.DS_Store
+*.dylib
+*/*.dylib
