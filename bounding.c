@@ -62,6 +62,11 @@ int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, d
     double voc2 = voc*voc;
     double desc = voc2 - oc_len2 + r_sqr;
 
+    #if 1
+    double desc_root = sqrt(desc);
+    if( desc < 0.0 || (desc_root - voc) < 0 )
+        return 0;
+    #else
     /* desc_root = sqrt(desc); */
     /* d = -(voc +/- desc_root); // and d must be non-negative */
     /* either d non-negative (perhaps > EPSILON)? */
@@ -74,9 +79,11 @@ int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, d
     /* voc^2 < desc */
 
     /* check to see if bounding sphere is behind us */
+    #error "This can leave holes allowing rays to miss targets they would otherwise hit!"
     if( desc < 0.0 || desc > voc2 ) {
         return 0;
     }
+    #endif /* 0 */
 
     return 1;
 }
