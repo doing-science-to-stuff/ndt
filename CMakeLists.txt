@@ -41,10 +41,10 @@ add_executable(ndt ${SOURCE_FILES})
 set_property(TARGET ndt PROPERTY C_STANDARD 99)
 
 # create a make clean rule
-add_custom_target(clean
-                  COMMAND find . -name \*.o | xargs rm -v
-                  COMMAND find . -name \*.so | xargs rm -v
-                  )
+add_custom_command(OUTPUT clean
+                   COMMAND find . -name \*.o | xargs rm -v
+                   COMMAND find . -name \*.so | xargs rm -v
+                   )
 
 # add a docker image building target
 add_custom_target(docker
