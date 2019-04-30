@@ -73,7 +73,7 @@ int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, d
     /* voc^2 > desc and voc > 0 */
 
     /* check to see if bounding sphere is behind us */
-    if( desc < 0.0 || (voc > 0 && voc2 > desc) ) {
+    if( desc < 0.0 || (voc > 0.0 && voc2 > desc) ) {
         return 0;
     }
 
