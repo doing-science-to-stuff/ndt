@@ -21,6 +21,12 @@ configure_file (
 
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+# check for optional libraries
+find_package(PNG REQUIRED)
+find_package(JPEG)
+find_package(YAML)
+find_package(MPI)
+
 # add the binary tree to the search path for include files
 # so that we will find ndt_config.h
 include_directories("${PROJECT_BINARY_DIR}")
@@ -68,15 +74,13 @@ target_link_libraries(ndt dl)
 target_link_libraries(ndt m)
 target_link_libraries(ndt pthread)
 
-# check for optional libraries
-find_package(PNG REQUIRED)
+# Deal with optional libaries
 if( PNG_FOUND )
     include_directories(${PNG_INCLUDE_DIR})
     target_link_libraries(ndt ${PNG_LIBRARY})
     add_definitions(-DWITH_PNG)
 endif()
 
-find_package(JPEG)
 if( JPEG_FOUND )
     include_directories(${JPEG_INCLUDE_DIR})
     target_link_libraries(ndt ${JPEG_LIBRARY})
@@ -88,10 +92,25 @@ if( NOT JPEG_FOUND AND NOT PNG_FOUND )
     message( FATAL_ERROR "Unable to find a usable image library.  Either libpng or libjpeg must be installed.")
 endif()
 
-find_package(YAML)
 if( YAML_FOUND )
     include_directories(${YAML_INCLUDE_DIR})
     target_link_libraries(ndt ${YAML_LIBRARY})
     add_definitions(-DWITH_YAML)
 endif()
 
+if( MPI_FOUND AND YAML_FOUND )
+    # see: https://cmake.org/pipermail/cmake/2011-June/045037.html
+    include_directories(${MPI_CXX_INCLUDE_DIRS})
+    target_link_libraries(ndt ${MPI_CXX_LIBRARIES})
+    add_definitions(-DWITH_MPI)
+
+    if(MPI_COMPILE_FLAGS)
+        set_target_properties(ndt PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+    endif()
+
+    if(MPI_LINK_FLAGS)
+        set_target_properties(ndt PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+    endif()
+elseif( MPI_FOUND AND NOT YAML_FOUND )
+    message("MPI support in ndt requires YAML, but YAML not found, leaving MPI disabled.")
+endif()
