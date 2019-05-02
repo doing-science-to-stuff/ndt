@@ -17,6 +17,9 @@
 #ifdef WITH_VALGRIND
 #include <valgrind/valgrind.h>
 #endif /* WITH_VALGRIND */
+#ifdef WITH_MPI
+#include <mpi.h>
+#endif /* WITH_MPI */
 #include "vectNd.h"
 #include "image.h"
 #include "object.h"
@@ -44,6 +47,22 @@ typedef enum stereo_mode_t {
     MONO, SIDE_SIDE_3D, OVER_UNDER_3D, ANAGLYPH_3D, HIDEF_3D
 } stereo_mode;
     
+#ifdef WITH_MPI
+typedef enum mpi_mode {
+    MPI_MODE_NONE,
+    MPI_MODE_PIXEL, /* not supported, yet! */
+    MPI_MODE_ROW,
+    MPI_MODE_FRAME,     /* rank 0 just manages other ranks */
+    MPI_MODE_FRAME2,    /* rank 0 also renders frames */
+} mpi_mode_t;
+
+static int mpiRank = -1;
+static int mpiSize = -1;
+static mpi_mode_t mpi_mode = MPI_MODE_NONE;
+
+int mpi_collect_image(image_t*);
+#endif /* WITH_MPI */
+
 static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src, vectNd *look, vectNd *hit, vectNd *hit_normal, dbl_pixel_t *color) {
     dbl_pixel_t clr;
     double hit_r, hit_g, hit_b;
@@ -694,7 +713,7 @@ int resample_line(scene *scn, int width, double x_scale, int height, double y_sc
     return ret;
 }
 
-int render_image(scene *scn, char *name, char *depth_name, int width, int height, int samples, stereo_mode mode, int aa_diff, int aa_depth, int aa_cache_frame, int max_optic_depth)
+int serial_render_image(scene *scn, char *name, char *depth_name, int width, int height, int samples, stereo_mode mode, int aa_diff, int aa_depth, int aa_cache_frame, int max_optic_depth)
 {
     image_t *img = NULL;
     image_t *depth_map = NULL;
@@ -702,6 +721,8 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     static image_t *prev_aa = NULL;
     double x_scale = 1.0;
     double y_scale = 1.0;
+    struct timeval timer;
+    double seconds;
     int aa_pad = 0;
 
     if( mode == SIDE_SIDE_3D )
@@ -716,7 +737,6 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     /* make image one larger in each dimension (Whitted’s method) */
     if( recursive_aa )
         aa_pad = 1;
-
     image_set_size(img,width+aa_pad,height+aa_pad);
     if( mode != HIDEF_3D ) {
         vectNd_scale(&scn->cam.dirX,width/(double)height,&scn->cam.dirX);
@@ -733,20 +753,22 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
 
     /* loop through all pixels performing trace */
     int j=0;
-    struct timeval timer;
     timer_start(&timer);
     for(j=0; j<height+aa_pad; ++j) {
         render_line(scn, width+aa_pad, x_scale, height+aa_pad, y_scale, j, mode, samples, img, depth_map, max_optic_depth);
         if( (j%10) == 0 ) {
             double remaining = timer_remaining(&timer, j, height+aa_pad);
-            printf("\r% 6.2f%% (%.2fs remaining)", 100.0*j/(height+aa_pad),remaining);
+            #ifdef WITH_MPI
+            printf("\r% 6.2f%% (%.2fs remaining) [rank %i]", 100.0*j/(height+aa_pad), remaining, mpiRank);
+            #else /* WITH_MPI */
+            printf("\r% 6.2f%% (%.2fs remaining)", 100.0*j/(height+aa_pad), remaining);
+            #endif /* WITH_MPI */
             fflush(stdout);
         }
     }
     printf("\r              \r");
 
     /* write initial image */
-    double seconds;
     if( name != NULL ) {
         timer_start(&timer);
         printf("\tsaving %s", name);
@@ -889,7 +911,14 @@ void *render_lines_thread(void *arg)
     struct timeval timer;
     if( info.thr_offset==0 )
         timer_start(&timer);
-    for(j=info.thr_offset; j<info.height; j+=info.threads) {
+    int row_start = info.thr_offset;
+    int row_step = info.threads;
+    #ifdef WITH_MPI
+    row_start += mpiRank;
+    row_step *= mpiSize;
+    #endif /* WITH_MPI */
+    printf("rank %i: row_step = %i\n", mpiRank, row_step);
+    for(j=row_start; j<info.height; j+=row_step) {
         render_line(info.scn, info.width, info.x_scale,
                     info.height, info.y_scale, j, info.mode, info.samples,
                     info.img, info.depth_map, info.max_optic_depth);
@@ -945,7 +974,7 @@ void *resample_lines_thread(void *arg)
     return 0;
 }
 
-int parallel_render_image(scene *scn, char *name, char *depth_name, int width, int height, int samples, stereo_mode mode, int threads, int aa_diff, int aa_depth, int aa_cache_frame, int max_optic_depth)
+int render_image(scene *scn, char *name, char *depth_name, int width, int height, int samples, stereo_mode mode, int threads, int aa_diff, int aa_depth, int aa_cache_frame, int max_optic_depth, image_t *img_copy, image_t *depth_copy)
 {
     image_t *img = NULL;
     image_t *actual_img = NULL;
@@ -965,15 +994,14 @@ int parallel_render_image(scene *scn, char *name, char *depth_name, int width, i
     if( mode == OVER_UNDER_3D )
         y_scale = 0.5;
 
-    if( recursive_aa )
-        aa_pad = 1;
-
     /* create output image */
     img = calloc(1,sizeof(image_t));
     dbl_image_init(img);
     image_set_format(img,IMAGE_FORMAT);
+    /* make image one larger in each dimension (Whitted’s method) */
+    if( recursive_aa )
+        aa_pad = 1;
     image_set_size(img,width+aa_pad,height+aa_pad);
-    image_set_format(depth_map,IMAGE_FORMAT);
     if( mode != HIDEF_3D ) {
         vectNd_scale(&scn->cam.dirX,width/(double)height,&scn->cam.dirX);
     } else {
@@ -1016,11 +1044,16 @@ int parallel_render_image(scene *scn, char *name, char *depth_name, int width, i
         info[i].depth_map = depth_map;
         info[i].max_optic_depth = max_optic_depth;
 
-        pthread_create(&thr[i],NULL,render_lines_thread,&info[i]);
+        if( threads > 1 )
+            pthread_create(&thr[i],NULL,render_lines_thread,&info[i]);
+        else
+            render_lines_thread(&info[i]);
     }
 
-    for(i=0; i<threads; ++i) {
-        pthread_join(thr[i],NULL);
+    if( threads > 1 ) {
+        for(i=0; i<threads; ++i) {
+            pthread_join(thr[i],NULL);
+        }
     }
     printf("\r                          \r");
     timer_elapsed(&timer,&seconds);
@@ -1028,32 +1061,67 @@ int parallel_render_image(scene *scn, char *name, char *depth_name, int width, i
 
     /* write initial image */
     if( name != NULL ) {
-        if( image_active_saves() == 0 ) {
-            timer_start(&timer);
-            printf("\tsaving %s", name);
-            image_save_bg(img,name,IMAGE_FORMAT);
-            timer_elapsed(&timer,&seconds);
-            printf(" (took %.3fs)\n", seconds);
+        #ifdef WITH_MPI
+        if( !img_copy ) {
+            mpi_collect_image(img);
+            if( depth_name )
+                mpi_collect_image(depth_map);
         }
 
-        if( depth_name != NULL ) {
-            image_t norm;
-            dbl_image_init(&norm);
-            dbl_image_normalize(&norm,depth_map);
-            image_save(&norm,depth_name,IMAGE_FORMAT);
-            image_free(&norm);
-        }
+        if( mpiRank == 0 ) {
+        #endif /* WITH_MPI */
 
-        if( recursive_aa && aa_cache_frame ) {
-            timer_start(&timer);
-            if( prev_raw!=NULL )
-                image_save_bg(prev_raw,"prev_raw.png",IMAGE_FORMAT);
-            if( prev_aa!=NULL )
-                image_save_bg(prev_aa,"prev_aa.png",IMAGE_FORMAT);
-            timer_elapsed(&timer,&seconds);
-            printf("saving anti-aliasing cache images (took %.3fs)\n", seconds);
+            if( image_active_saves() == 0 ) {
+                timer_start(&timer);
+                printf("\tsaving %s", name);
+                image_save_bg(img,name,IMAGE_FORMAT);
+                timer_elapsed(&timer,&seconds);
+                printf(" (took %.3fs)\n", seconds);
+            }
+
+            if( depth_name != NULL ) {
+                image_t norm;
+                dbl_image_init(&norm);
+                dbl_image_normalize(&norm,depth_map);
+                image_save(&norm,depth_name,IMAGE_FORMAT);
+                image_free(&norm);
+            }
+
+            if( recursive_aa && aa_cache_frame ) {
+                timer_start(&timer);
+                if( prev_raw!=NULL )
+                    image_save_bg(prev_raw,"prev_raw.png",IMAGE_FORMAT);
+                if( prev_aa!=NULL )
+                    image_save_bg(prev_aa,"prev_aa.png",IMAGE_FORMAT);
+                timer_elapsed(&timer,&seconds);
+                printf("saving anti-aliasing cache images (took %.3fs)\n", seconds);
+            }
+
+        #ifdef WITH_MPI
         }
+        #endif /* WITH_MPI */
     }
+
+    if( img_copy ) {
+        /* make a copy that will be visible by the colling function */
+        image_copy(img_copy, img);
+    }
+    if( depth_copy ) {
+        /* make a copy that will be visible by the colling function */
+        image_copy(depth_copy, depth_map);
+    }
+
+    #if 0
+    char fname[PATH_MAX];
+    snprintf(fname, sizeof(fname), "mpi_rank_%i.%s", mpiRank, "png");
+    image_save(img, fname, IMAGE_FORMAT);
+    #endif /* 1 */
+
+    #ifdef WITH_MPI
+    if( mpi_mode == MPI_MODE_ROW ) {
+        /* combine partial images */
+    }
+    #endif /* WITH_MPI */
 
     if( recursive_aa ) {
         if( aa_depth >= 0 && aa_diff < 256 ) {
@@ -1149,12 +1217,184 @@ int parallel_render_image(scene *scn, char *name, char *depth_name, int width, i
     return 1;
 }
 
+#ifdef WITH_MPI
+static int mpi_broadcast_scene(scene *scn) {
+    int source_rank = 0;
+
+    size_t length = -1;
+    unsigned char *scene_buffer = NULL;
+
+    if( mpiRank == source_rank ) {
+        /* serialize scene on source */
+        scene_write_yaml_buffer(scn, &scene_buffer, &length);
+    }
+
+    /* send size */
+    int safe_len = (int)length;
+    MPI_Bcast(&safe_len, 1, MPI_INT, source_rank, MPI_COMM_WORLD);
+    length = (size_t)safe_len;
+
+    if( mpiRank != source_rank ) {
+        scene_buffer = calloc(length, sizeof(char));
+    }
+
+    /* send name */
+    MPI_Bcast(scn->name, sizeof(scn->name), MPI_CHAR, source_rank, MPI_COMM_WORLD);
+
+    /* send dimensions */
+    MPI_Bcast(&scn->dimensions, 1, MPI_INT, source_rank, MPI_COMM_WORLD);
+
+    /* send scene */
+    MPI_Bcast(scene_buffer, length, MPI_CHAR, source_rank, MPI_COMM_WORLD);
+
+    #if 0
+    sleep(mpiRank);
+    printf("rank %i:\n%s\n", mpiRank, scene_buffer);
+    #endif /* 0 */
+
+    if( mpiRank != source_rank ) {
+        /* parse scene_buffer on destination */
+        scene_init(scn, scn->name, scn->dimensions);
+        scene_read_yaml_buffer(scn, scene_buffer, length, 0);
+    }
+
+    free(scene_buffer); scene_buffer = NULL;
+
+    return 0;
+}
+
+static int mpi_send_scene(scene *scn, int source_rank, int dest_rank) {
+    size_t length = -1;
+    unsigned char *scene_buffer = NULL;
+    MPI_Status status;
+
+    if( mpiRank == source_rank ) {
+        /* serialize scene on source */
+        scene_write_yaml_buffer(scn, &scene_buffer, &length);
+    }
+
+    /* send size */
+    int safe_len = (int)length;
+    if( mpiRank == source_rank ) {
+        MPI_Send(&safe_len, 1, MPI_INT, dest_rank, 0, MPI_COMM_WORLD);
+    } else {
+        MPI_Recv(&safe_len, 1, MPI_INT, source_rank, 0, MPI_COMM_WORLD, &status);
+    }
+    length = (size_t)safe_len;
+
+    if( mpiRank != source_rank ) {
+        scene_buffer = calloc(length, sizeof(char));
+    }
+
+    /* send name */
+    if( mpiRank == source_rank ) {
+        MPI_Send(scn->name, sizeof(scn->name), MPI_CHAR, dest_rank, 0, MPI_COMM_WORLD);
+    } else {
+        MPI_Recv(scn->name, sizeof(scn->name), MPI_CHAR, source_rank, 0, MPI_COMM_WORLD, &status);
+    }
+
+    /* send dimensions */
+    if( mpiRank == source_rank ) {
+        MPI_Send(&scn->dimensions, 1, MPI_INT, dest_rank, 0, MPI_COMM_WORLD);
+    } else {
+        MPI_Recv(&scn->dimensions, 1, MPI_INT, source_rank, 0, MPI_COMM_WORLD, &status);
+    }
+
+    /* send scene */
+    if( mpiRank == source_rank ) {
+        MPI_Send(scene_buffer, length, MPI_CHAR, dest_rank, 0, MPI_COMM_WORLD);
+    } else {
+        MPI_Recv(scene_buffer, length, MPI_CHAR, source_rank, 0, MPI_COMM_WORLD, &status);
+    }
+
+    if( mpiRank != source_rank ) {
+        /* parse scene_buffer on destination */
+        scene_init(scn, scn->name, scn->dimensions);
+        scene_read_yaml_buffer(scn, scene_buffer, length, 0);
+    }
+
+    free(scene_buffer); scene_buffer = NULL;
+
+    return 0;
+}
+
+int mpi_send_image(image_t *img, int dest_rank) {
+    /* send meta-data */
+    MPI_Send(img, sizeof(image_t), MPI_BYTE, dest_rank, 0, MPI_COMM_WORLD);
+
+    /* send pixel data */
+    int pixels_size = img->width * img->height * img->pixel_width;
+    MPI_Send(img->pixels, pixels_size, MPI_BYTE, dest_rank, 0, MPI_COMM_WORLD);
+
+    return 0;
+}
+
+int mpi_recv_image(image_t *img, int source_rank) {
+    MPI_Status status;
+
+    /* recv meta-data */
+    MPI_Recv(img, sizeof(image_t), MPI_BYTE, source_rank, 0, MPI_COMM_WORLD, &status);
+
+    /* resize image, as needed */
+    img->allocated = 0;
+    img->pixels = NULL;
+    image_set_size(img, img->width, img->height);
+
+    /* recv pixel data */
+    int pixels_size = img->width * img->height * img->pixel_width;
+    MPI_Recv(img->pixels, pixels_size, MPI_BYTE, source_rank, 0, MPI_COMM_WORLD, &status);
+
+    return 0;
+}
+
+int mpi_collect_image(image_t *img) {
+    /* use heap rules to induce a tree rooted at rank 0 */
+    int left = mpiRank * 2 + 1;
+    int right = mpiRank * 2 + 2;
+    int parent = (mpiRank-1) / 2;
+
+    /* read from children */
+    if( right < mpiSize ) {
+        image_t right_img;
+        mpi_recv_image(&right_img, right);
+        image_add(img, &right_img, img);
+        image_free(&right_img);
+    }
+    if( left < mpiSize ) {
+        image_t left_img;
+        mpi_recv_image(&left_img, left);
+        image_add(img, &left_img, img);
+        image_free(&left_img);
+    }
+
+    /* send combined results to parent */
+    if( parent != mpiRank ) {
+        mpi_send_image(img, parent);
+    }
+
+    return 0;
+}
+#endif /* WITH_MPI */
+
 int print_help_info(int argc, char **argv)
 {
+    #ifdef WITH_MPI
+    /* only rank 0 should print this */
+    if( mpiRank != 0 )
+        return 0;
+    #endif /* WITH_MPI */
+
     printf("Usage\n"
            "\t%s [options]\n"
            "\n"
            "\t-a diff,depth\tAnti-aliasing options\n"
+           #ifdef WITH_MPI
+           "\t-b mode\t\tmpi render granularity mode (p,t,f,F)\n"
+           "\t\t\t\tp: pixel level granularity\n"
+           "\t\t\t\tr: row level granularity\n"
+           "\t\t\t\tf: frame level granularity\n"
+           "\t\t\t\tF: frame level with rendering by rank 0\n"
+           #endif /* WITH_MPI */
            "\t-c\t\tEnable anti-aliasing cache\n"
            "\t-d dimension\tNumber of spacial dimension to use\n"
            "\t-e num\t\tLast frame number to render\n"
@@ -1178,8 +1418,12 @@ int print_help_info(int argc, char **argv)
            "\t-t threads\tThreads to use\n"
            "\t-u scene_config\tScene specific options string\n"
            "\t-w width\tWidth of output image (in pixels)\n"
+           #ifdef WITH_YAML
+           "\t-y\t\tWrite YAML file(s)\n"
+           #endif /* WITH_YAML */
            "\t-?\t\tPrint this help message\n",
            argv[0]);
+    fflush(stdout);
 
     return 0;
 }
@@ -1229,10 +1473,18 @@ int main(int argc, char **argv)
     int write_yaml = 0;
     #endif /* WITH_YAML */
 
+    #ifdef WITH_MPI
+    MPI_Init(&argc, &argv);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpiRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
+    printf("mpiRank: %i; mpiSize: %i\n", mpiRank, mpiSize);
+    #endif /* WITH_MPI */
+
     /* process command-line options */
     int ch = '\0';
     /* unused: b,j,x,z */
-    while( (ch=getopt(argc, argv, ":a:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:vw:y3:?"))!=-1 ) {
+    while( (ch=getopt(argc, argv, ":a:b:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:vw:y3:?"))!=-1 ) {
         switch(ch) {
             case 'a':
                 aa_str = strdup(optarg);
@@ -1245,6 +1497,42 @@ int main(int argc, char **argv)
                 free(aa_str); aa_str=NULL;
                 printf("anti-aliasing = diff=%i,depth=%i\n", aa_diff, aa_depth);
                 break;
+            case 'b':
+                #ifdef WITH_MPI
+                switch( optarg[0] ) {
+                    case 'p':
+                        /* pixel cyclic */
+                        printf("Pixel cyclic not supported, yet.\n");
+                        printf("Falling back to row cyclic.\n");
+                    case 'r':
+                        /* row cyclic */
+                        mpi_mode = MPI_MODE_ROW;
+                        break;
+                    case 'f':
+                        /* frame cyclic */
+                        mpi_mode = MPI_MODE_FRAME;
+                        break;
+                    case 'F':
+                        /* frame cyclic */
+                        #if 0
+                        mpi_mode = MPI_MODE_FRAME2;
+                        #else
+                        printf("mpi mode F not fully supported, yet, using f instead.\n");
+                        mpi_mode = MPI_MODE_FRAME;
+                        #endif /* 1 */
+                        break;
+                    default:
+                        fprintf(stderr, "Unknown MPI blocking mode '%s'.\n", optarg);
+                        #ifdef WITH_MPI
+                        MPI_Finalize();
+                        #endif /* WITH_MPI */
+                        exit(1);
+                        break;
+                }
+                #else
+                fprintf(stderr,"Not compiled with MPI support.\n");
+                exit(1);
+                #endif /* WITH_MPI */
             case 'c':
                 aa_cache_frame = 1;
                 printf("inter-frame anti-aliasing cache enabled\n");
@@ -1399,6 +1687,9 @@ int main(int argc, char **argv)
                         printf("PANO = enabled\n");
                     } else {
                         fprintf(stderr,"Unrecognized radial mode: %s\n", radial_mode);
+                        #ifdef WITH_MPI
+                        MPI_Finalize();
+                        #endif /* WITH_MPI */
                         exit(1);
                     }
                 }
@@ -1416,6 +1707,9 @@ int main(int argc, char **argv)
                 dl_handle = dlopen(optarg,RTLD_NOW);
                 if( !dl_handle ) {
                     fprintf(stderr, "%s\n", dlerror());
+                    #ifdef WITH_MPI
+                    MPI_Finalize();
+                    #endif /* WITH_MPI */
                     exit(1);
                 } else {
                     *(void **) (&custom_scene) = dlsym(dl_handle, "scene_setup");
@@ -1440,17 +1734,26 @@ int main(int argc, char **argv)
                 write_yaml = 1;
                 #else
                 fprintf(stderr, "%s not compiled with YAML support.  Needs to be compiled with -DWITH_YAML.", argv[0]);
+                #ifdef WITH_MPI
+                MPI_Finalize();
+                #endif /* WITH_MPI */
                 exit(1);
                 #endif /* WITH_YAML */
                 break;
             case '?':
             case ':':
                 print_help_info(argc,argv);
+                #ifdef WITH_MPI
+                MPI_Finalize();
+                #endif /* WITH_MPI */
                 exit(1);
                 break;
             default:
                 printf("Unknown option '%c' (%d)\n", ch, ch);
                 printf("Try the -? option\n");
+                #ifdef WITH_MPI
+                MPI_Finalize();
+                #endif /* WITH_MPI */
                 exit(1);
                 break;
         }
@@ -1474,26 +1777,35 @@ int main(int argc, char **argv)
     for(i=0; i<frames && i<=last_frame; ++i) {
         printf("rendering frame %i/%i \n", i, frames);
 
-        /* set up scene */
-        if( custom_scene!=NULL ) {
-            (*custom_scene)(&scn,dimensions,i,frames,scene_config);
-        } else {
-            scene_setup(&scn,dimensions,i,frames,scene_config);
-        }
+        #ifdef WITH_MPI
+        if( mpi_mode != MPI_MODE_ROW || mpiRank == 0 ) {
+            /* for row cyclic mode, only rank 0 computes the scene */
+        #endif /* WITH_MPI */
 
-        #ifdef WITH_YAML
-        if( write_yaml ) {
-            char *output_dir = "yaml";
-            char yaml_fname[PATH_MAX];
-            mkdir(output_dir,0700);
-            utimes(output_dir, NULL);
-            snprintf(dname,sizeof(dname),"%s/%s_%id", output_dir, scn.name, dimensions);
-            mkdir(dname,0700);
-            utimes(dname, NULL);
-            snprintf(yaml_fname, sizeof(yaml_fname), "%s/%s_%05i.yaml", dname, scn.name, i);
-            scene_write_yaml(&scn, yaml_fname);
+            /* set up scene */
+            if( custom_scene!=NULL ) {
+                (*custom_scene)(&scn,dimensions,i,frames,scene_config);
+            } else {
+                scene_setup(&scn,dimensions,i,frames,scene_config);
+            }
+
+            #ifdef WITH_YAML
+            if( write_yaml ) {
+                char *output_dir = "yaml";
+                char yaml_fname[PATH_MAX];
+                mkdir(output_dir,0700);
+                utimes(output_dir, NULL);
+                snprintf(dname,sizeof(dname),"%s/%s_%id", output_dir, scn.name, dimensions);
+                mkdir(dname,0700);
+                utimes(dname, NULL);
+                snprintf(yaml_fname, sizeof(yaml_fname), "%s/%s_%05i.yaml", dname, scn.name, i);
+                scene_write_yaml(&scn, yaml_fname);
+            }
+            #endif /* WITH_YAML */
+
+        #ifdef WITH_MPI
         }
-        #endif /* WITH_YAML */
+        #endif /* WITH_MPI */
 
         if( i < initial_frame ) {
             printf("Skipping frame %i (less than inital frame %i) \n", i, initial_frame);
@@ -1501,10 +1813,35 @@ int main(int argc, char **argv)
             continue;
         }
 
-        printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
-        scene_cluster(&scn, cluster_k);
+        #ifdef WITH_MPI
+        if( mpi_mode == MPI_MODE_ROW || mpi_mode == MPI_MODE_PIXEL ) {
+            /* broadcast scene */
+            mpi_broadcast_scene(&scn);
+        } else if( mpi_mode == MPI_MODE_FRAME && i%mpiSize != 0 ) {
+            /* send scene to appropriate rank */
+            mpi_send_scene(&scn, 0, i%mpiSize);
+        }
+        #endif /* WITH_MPI */
 
+        #ifdef WITH_MPI
+        if( mpi_mode == MPI_MODE_FRAME ) {
+            /* skip certain frames when in frames mode */
+            if( (i%mpiSize) != mpiRank ) {
+                continue;
+            }
+        }
+        sleep(1);
+        printf("rank %i: starting frame %i\n", mpiRank, i);
+        #endif /* WITH_MPI */
+
+        printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
+        printf("rank %i calling scene_cluster\n", mpiRank);
+        scene_cluster(&scn, cluster_k);
+        sleep(1);
+
+        printf("rank %i calling scene_validate_objects\n", mpiRank);
         scene_validate_objects(&scn);
+        sleep(1);
 
         /* setup camera, as requested */
         if( enable_vr ) {
@@ -1549,13 +1886,41 @@ int main(int argc, char **argv)
             snprintf(depth_fname,PATH_MAX,"%s/%s_%s_%04i.%s", depth_dname, scn.name, res_str, i, ext);
         }
 
-        /* do actual rendering */
+        /* start timer for render */
         struct timeval timer;
         timer_start(&timer);
-        if( threads <= 1 )
-            render_image(&scn, fname, depth_fname, width, height, samples, stereo, aa_diff, aa_depth, aa_cache_frame, max_optic_depth);
-        else
-            parallel_render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, aa_cache_frame, max_optic_depth);
+
+        image_t *img = NULL;
+        image_t *depth_img = NULL;
+        #ifdef WITH_MPI
+        if( mpi_mode == MPI_MODE_FRAME ) {
+            img = calloc(1, sizeof(image_t));
+            image_init(img);
+            depth_img = calloc(1, sizeof(image_t));
+            image_init(depth_img);
+        }
+        #endif /* WITH_MPI */
+
+        #ifdef WITH_MPI
+        if( mpi_mode != MPI_MODE_FRAME || mpiRank != 0 ) {
+        #endif /* WITH_MPI */
+            /* do actual rendering */
+            render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, aa_cache_frame, max_optic_depth, img, depth_img);
+        #ifdef WITH_MPI
+        }
+
+        if( img ) {
+            image_save_bg(img, fname, IMAGE_FORMAT);
+            image_free(img);
+            free(img); img = NULL;
+        }
+        if( depth_img ) {
+            image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
+            image_free(depth_img);
+            free(depth_img); depth_img = NULL;
+        }
+        #endif /* WITH_MPI */
+
 
         /* cleanup */
         scene_free(&scn);
@@ -1574,6 +1939,13 @@ int main(int argc, char **argv)
         int remaining_frames = frames - i - 1;
         printf("\t%0.2fs remaining.\n", (seconds/total_frames) * remaining_frames);
     }
+
+    #ifdef WITH_MPI
+    if( mpi_mode == MPI_MODE_FRAME ) {
+        /* wait for all frames to finish */
+    }
+    #endif  /* WITH_MPI */
+
     timer_elapsed(&global_timer,&seconds);
     printf("\n%i frame%s took %0.2fs (avg. %0.3fs)\n",
         (last_frame+1)-initial_frame,(((last_frame+1)-initial_frame)!=1)?"s":"",
@@ -1613,6 +1985,12 @@ int main(int argc, char **argv)
         sleep(1);
     }
     #endif /* WITH_VALGRIND */
+
+    #ifdef WITH_MPI
+    printf("rank %i finalizing.\n", mpiRank);
+    fflush(stdout);
+    MPI_Finalize();
+    #endif /* WITH_MPI */
 
     return 0;
 }
