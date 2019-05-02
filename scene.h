@@ -74,7 +74,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
 #ifdef WITH_YAML
 int scene_write_yaml(scene *scn, char *fname);
+int scene_write_yaml_buffer(scene *scn, unsigned char **buffer, size_t *length);
 int scene_read_yaml(scene *scn, char *fname, int frame);
+int scene_read_yaml_buffer(scene *scn, unsigned char *buffer, size_t length, int frame);
 int scene_yaml_count_frames(char *fname);
 #endif /* WITH_YAML */
 

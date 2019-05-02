@@ -508,7 +508,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
  ************************/
 static int scene_yaml_error(yaml_emitter_t *emitter, yaml_event_t *event) {
     fprintf(stderr, "yaml error occured: %sn", emitter->problem);
+    #if 0
     exit(1);
+    #endif /* 1 */
 
     return 0;
 }
@@ -939,6 +941,42 @@ int scene_write_yaml(scene *scn, char *fname) {
 
     yaml_emitter_delete(&emitter);
     fclose(fp); fp=NULL;
+
+    return ret;
+}
+
+int scene_write_yaml_buffer(scene *scn, unsigned char **buffer, size_t *length) {
+    printf("%s writing to buffer.\n", __FUNCTION__);
+
+    /* un-prepare all objects */
+    for(int i=0; i< scn->num_objects; ++i) {
+        object *obj = scn->object_ptrs[i];
+        if( obj->cleanup )
+            obj->cleanup(obj);
+        obj->prepared = 0;
+    }
+
+    int ret = -1;
+    size_t allocated;
+    *length = 1024*1024;
+    *buffer = NULL;
+    do {
+        /* initialize YAML emitter */
+        yaml_emitter_t emitter;
+        yaml_emitter_initialize(&emitter);
+
+        /* resize buffer in-case previous iteration was too small */
+        if( *buffer != NULL ) { free(*buffer); *buffer = NULL; }
+        *length = 2 * (*length) + 1;
+        *buffer = calloc(*length, sizeof(char));
+        allocated = *length;
+
+        yaml_emitter_set_output_string(&emitter, *buffer, *length, length);
+        ret = scene_yaml_emit_scene(&emitter, scn);
+
+        yaml_emitter_delete(&emitter);
+
+    } while( *length == allocated );    /* loop until buffer isn't filled */
 
     return ret;
 }
@@ -1925,14 +1963,14 @@ static int scene_yaml_skip_to_frame(yaml_parser_t *parser, int frame) {
 int scene_read_yaml(scene *scn, char *fname, int frame) {
     printf("%s reading from '%s'.\n", __FUNCTION__, fname);
 
-    /* create output file */
+    /* open input file */
     FILE *fp = fopen(fname, "rb");
     if( fp == NULL ) {
         perror("fopen");
         exit(1);
     }
     
-    /* initialize YAML emitter */
+    /* initialize YAML parser */
     yaml_parser_t parser;
     yaml_parser_initialize(&parser);
     yaml_parser_set_input_file(&parser, fp);
@@ -1944,6 +1982,24 @@ int scene_read_yaml(scene *scn, char *fname, int frame) {
 
     yaml_parser_delete(&parser);
     fclose(fp); fp=NULL;
+
+    return ret;
+}
+
+int scene_read_yaml_buffer(scene *scn, unsigned char *buffer, size_t size, int frame) {
+    printf("%s reading from buffer.\n", __FUNCTION__);
+
+    /* initialize YAML parser */
+    yaml_parser_t parser;
+    yaml_parser_initialize(&parser);
+    yaml_parser_set_input_string(&parser, buffer, size);
+
+    /* skip to requested frame */
+    scene_yaml_skip_to_frame(&parser, frame);
+
+    int ret = scene_yaml_parse_scene(&parser, scn);
+
+    yaml_parser_delete(&parser);
 
     return ret;
 }
