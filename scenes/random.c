@@ -21,6 +21,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     int num_objs = 40;
     int num_lights = 5;
 
+    if( config )
+        num_objs = atoi(config);
+
     scn->bg_red = 0.3;
     scn->bg_green = 0.5;
     scn->bg_blue = 0.75;
