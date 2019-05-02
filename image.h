@@ -68,12 +68,11 @@ typedef enum image_edge_type_t {
 typedef struct image
 {
     int width, height;
-    void *pixels;
     int pixel_width;
     int allocated;
-    char *comment;
     image_type type;
     image_edge_style edge_style;
+    void *pixels;
 } image_t;
 
 /* image basics */
@@ -97,6 +96,7 @@ int image_convolve(image_t*,image_t*,matrix_t*);
 int image_greyscale(image_t *img);
 int image_fill_gauss_matrix(matrix_t *gauss,int mat_size,double std_dev);
 int image_subtract(image_t *a, image_t *b, image_t *diff);
+int image_add(image_t *a, image_t *b, image_t *sum);
 int bilinear_pixel(int x1, int y1, int x2, int y2, dbl_pixel_t *s1, dbl_pixel_t *s2, dbl_pixel_t *s3, dbl_pixel_t *s4, double x, double y, dbl_pixel_t *p);
 double bilinear(int x1, int y1, int x2, int y2, double v11, double v21, double v12, double v22, double x, double y);
 int image_scale_bilinear(image_t *dst, image_t *src, double scaleX, double scaleY);

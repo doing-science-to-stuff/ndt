@@ -268,11 +268,6 @@ int image_copy(image_t *dst, image_t *src)
     return 0;
 }
 
-static int image_get_jpeg_comment(image_t *img, j_decompress_ptr cinfo)
-{
-    return 0;
-}
-
 static int image_load_jpeg(image_t *img, char *fname)
 {
     struct jpeg_decompress_struct cinfo;
@@ -308,11 +303,6 @@ static int image_load_jpeg(image_t *img, char *fname)
     jpeg_stdio_src(&cinfo, infile);
     cinfo.out_color_space = JCS_RGB;
     jpeg_read_header(&cinfo, FALSE);
-
-    /* print markers */
-    image_get_jpeg_comment(img,&cinfo);
-    if( img->comment )
-        printf("Comment: %s\n", img->comment);
 
     /* start decoding */
     jpeg_start_decompress(&cinfo);
@@ -925,7 +915,8 @@ int image_subtract(image_t *a, image_t *b, image_t *diff)
     int i=0, j=0;
     dbl_pixel_t ap, bp;
 
-    image_set_size(diff,a->width,a->height);
+    if( a != diff )
+        image_set_size(diff,a->width,a->height);
     for(j=0; j<a->height; ++j) {
         for(i=0; i<a->width; ++i) {
             dbl_image_get_pixel(a,i,j,&ap);
@@ -935,6 +926,28 @@ int image_subtract(image_t *a, image_t *b, image_t *diff)
             ap.b = fabs(ap.b-bp.b);
             ap.a = fabs(ap.a-bp.a);
             dbl_image_set_pixel(diff,i,j,&ap);
+        }
+    }
+
+    return 0;
+}
+
+int image_add(image_t *a, image_t *b, image_t *sum)
+{
+    int i=0, j=0;
+    dbl_pixel_t ap, bp;
+
+    if( a != sum )
+        image_set_size(sum,a->width,a->height);
+    for(j=0; j<a->height; ++j) {
+        for(i=0; i<a->width; ++i) {
+            dbl_image_get_pixel(a,i,j,&ap);
+            dbl_image_get_pixel(b,i,j,&bp);
+            ap.r = ap.r+bp.r;
+            ap.g = ap.g+bp.g;
+            ap.b = ap.b+bp.b;
+            ap.a = ap.a+bp.a;
+            dbl_image_set_pixel(sum,i,j,&ap);
         }
     }
 
