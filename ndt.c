@@ -919,7 +919,7 @@ void *render_lines_thread(void *arg)
     int row_step = info.threads;
     #ifdef WITH_MPI
     if( mpi_mode != MPI_MODE_FRAME && mpi_mode != MPI_MODE_FRAME2 ) {
-        row_start += mpiRank;
+        row_start += mpiRank*info.threads;
         row_step *= mpiSize;
     }
     #endif /* WITH_MPI */
@@ -1795,17 +1795,18 @@ int main(int argc, char **argv)
     for(i=0; i<frames && i<=last_frame; ++i) {
 
         #ifdef WITH_MPI
-        if( mpi_mode == MPI_MODE_FRAME ) {
-            /* skip certain frames when in frames mode */
-            if( mpiRank!=0 && ((i%(mpiSize-1))+1) != mpiRank ) {
-                continue;
-            }
+        int render_rank = ((i%(mpiSize-1))+1);
+        if( mpi_mode == MPI_MODE_FRAME2 )
+            render_rank = i%mpiSize;
+        /* skip certain frames when in frames mode */
+        if( mpi_mode==MPI_MODE_FRAME && mpiRank!=0 && mpiRank!=render_rank ) {
+            continue;
         }
         sleep(1);
         printf("rank %i: starting frame %i\n", mpiRank, i);
 
-        if( mpi_mode != MPI_MODE_ROW || mpiRank == 0 ) {
-            /* for row cyclic mode, only rank 0 computes the scene */
+        if( mpiRank == 0 ) {
+            /* only rank 0 computes the scene */
         #endif /* WITH_MPI */
             printf("rendering frame %i/%i \n", i, frames);
 
@@ -1846,35 +1847,14 @@ int main(int argc, char **argv)
             mpi_broadcast_scene(&scn);
         } else if( mpi_mode == MPI_MODE_FRAME ) {
             /* send scene to appropriate rank */
-            int dest_rank = (i%(mpiSize-1))+1;
-            if( mpi_mode == MPI_MODE_FRAME2 )
-                dest_rank = i%mpiSize;
-
-            if( dest_rank != mpiRank ) {
-                sleep(dest_rank);
-                printf("sending frame %i to rank %i\n", i, dest_rank);
-                mpi_send_scene(&scn, 0, (i%(mpiSize-1))+1);
+            if( mpiRank == 0 || mpiRank == render_rank ) {
+                sleep(1);
+                printf("\n\nrank %i: calling mpi_send_scene for frame %i, sending to rank %i\n", mpiRank, i, render_rank);
+                mpi_send_scene(&scn, 0, render_rank);
             }
             ++frames_running;
         }
         #endif /* WITH_MPI */
-
-        printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
-        printf("rank %i calling scene_cluster\n", mpiRank);
-        scene_cluster(&scn, cluster_k);
-        sleep(1);
-
-        printf("rank %i calling scene_validate_objects\n", mpiRank);
-        scene_validate_objects(&scn);
-        sleep(1);
-
-        /* setup camera, as requested */
-        if( enable_vr ) {
-            scn.cam.type = CAMERA_VR;
-        } else if( enable_pano ) {
-            scn.cam.type = CAMERA_PANO;
-        }
-        camera_aim(&scn.cam);
 
         /* construct output image filename */
         char *output_dir = "images";
@@ -1911,10 +1891,6 @@ int main(int argc, char **argv)
             snprintf(depth_fname,PATH_MAX,"%s/%s_%s_%04i.%s", depth_dname, scn.name, res_str, i, ext);
         }
 
-        /* start timer for render */
-        struct timeval timer;
-        timer_start(&timer);
-
         image_t *img = NULL;
         image_t *depth_img = NULL;
         #ifdef WITH_MPI
@@ -1926,13 +1902,34 @@ int main(int argc, char **argv)
         }
         #endif /* WITH_MPI */
 
+        /* start timer for render */
+        struct timeval timer;
+        timer_start(&timer);
+
         #ifdef WITH_MPI
         if( mpi_mode != MPI_MODE_FRAME || mpiRank != 0 ) {
         #endif /* WITH_MPI */
+            printf("rank %i: Scene has %i objects and %i lights\n", mpiRank, scn.num_objects, scn.num_lights);
+            printf("rank %i calling scene_cluster\n", mpiRank);
+            scene_cluster(&scn, cluster_k);
+            sleep(1);
+
+            printf("rank %i calling scene_validate_objects\n", mpiRank);
+            scene_validate_objects(&scn);
+            sleep(1);
+
+            /* setup camera, as requested */
+            if( enable_vr ) {
+                scn.cam.type = CAMERA_VR;
+            } else if( enable_pano ) {
+                scn.cam.type = CAMERA_PANO;
+            }
+            camera_aim(&scn.cam);
+
             /* do actual rendering */
             render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, aa_cache_frame, max_optic_depth, img, depth_img);
-        #ifdef WITH_MPI
 
+        #ifdef WITH_MPI
             printf("mpiRank: %i; img: %p; depth_img: %p\n", mpiRank, img, depth_img);
             if( mpiRank!=0 && (mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2) ) {
                 if( img ) {
@@ -1948,7 +1945,7 @@ int main(int argc, char **argv)
             }
         }
 
-        printf("frames_running: %i\n", frames_running);
+        printf("rank %i: frames_running: %i\n", mpiRank, frames_running);
         if( mpiRank==0 && (frames_running >= (mpiSize-1) || i == last_frame) ) {
             for(int rank=1; rank<=frames_running; ++rank) {
                 MPI_Status status;
@@ -1986,16 +1983,22 @@ int main(int argc, char **argv)
             free(depth_fname); depth_fname = NULL;
         }
 
-        /* record frame time */
-        timer_elapsed(&timer,&seconds);
-        printf("%s took %0.2fs to render\n", fname, seconds);
-        timer_elapsed(&global_timer,&seconds);
-        int total_frames = i-initial_frame+1;
-        printf("\t%i frame%s took %0.2fs (avg. %0.3fs)\n",
-            total_frames, (total_frames!=1)?"s":"",
-            seconds, seconds/total_frames);
-        int remaining_frames = frames - i - 1;
-        printf("\t%0.2fs remaining.\n", (seconds/total_frames) * remaining_frames);
+        #ifdef WITH_MPI
+        if( mpi_mode != MPI_MODE_FRAME || mpiRank == 0 ) {
+        #endif /* WITH_MPI */
+            /* record frame time */
+            timer_elapsed(&timer,&seconds);
+            printf("%s took %0.2fs to render\n", fname, seconds);
+            timer_elapsed(&global_timer,&seconds);
+            int total_frames = i-initial_frame+1;
+            printf("\t%i frame%s took %0.2fs (avg. %0.3fs)\n",
+                total_frames, (total_frames!=1)?"s":"",
+                seconds, seconds/total_frames);
+            int remaining_frames = frames - i - 1;
+            printf("\t%0.2fs remaining.\n", (seconds/total_frames) * remaining_frames);
+        #ifdef WITH_MPI
+        }
+        #endif /* WITH_MPI */
     }
 
     #ifdef WITH_MPI
@@ -2020,7 +2023,11 @@ int main(int argc, char **argv)
     }
 
     /* cleanup after scene */
-    if( custom_scene_cleanup != NULL ) {
+    if( custom_scene_cleanup != NULL
+        #ifdef WITH_MPI
+        && mpiRank == 0
+        #endif /* WITH_MPI */
+        ) {
         (*custom_scene_cleanup)();
     }
 
