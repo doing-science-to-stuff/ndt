@@ -816,7 +816,11 @@ int serial_render_image(scene *scn, char *name, char *depth_name, int width, int
 
                 if( (j%10) == 0 ) {
                     double remaining = timer_remaining(&timer, j, height+1);
-                    printf("\r% 6.2f%% (%.2fs remaining)", 100.0*j/(height+1),remaining);
+                    #ifdef WITH_MPI
+                    printf("\r% 6.2f%% (%.2fs remaining) [rank %i]", 100.0*j/(height+aa_pad), remaining, mpiRank);
+                    #else /* WITH_MPI */
+                    printf("\r% 6.2f%% (%.2fs remaining)", 100.0*j/(height+aa_pad), remaining);
+                    #endif /* WITH_MPI */
                     fflush(stdout);
                 }
             }
@@ -914,8 +918,10 @@ void *render_lines_thread(void *arg)
     int row_start = info.thr_offset;
     int row_step = info.threads;
     #ifdef WITH_MPI
-    row_start += mpiRank;
-    row_step *= mpiSize;
+    if( mpi_mode != MPI_MODE_FRAME && mpi_mode != MPI_MODE_FRAME2 ) {
+        row_start += mpiRank;
+        row_step *= mpiSize;
+    }
     #endif /* WITH_MPI */
     printf("rank %i: row_step = %i\n", mpiRank, row_step);
     for(j=row_start; j<info.height; j+=row_step) {
@@ -926,17 +932,28 @@ void *render_lines_thread(void *arg)
         if( info.thr_offset==0 && (j%10) == 0 ) {
             int num = image_active_saves();
             double remaining = timer_remaining(&timer, j, info.height+1);
-            if( num <= 0 )
-                printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
-            else if( num == 1 )
-                printf("\r% 6.2f%%  (%i active save)   ", 100.0*j/info.height, num);
-            else
-                printf("\r% 6.2f%%  (%i active saves)  ", 100.0*j/info.height, num);
+            #ifdef WITH_MPI
+            if( mpiRank == 0 ) {
+            #endif /* WITH_MPI */
+                if( num <= 0 )
+                    printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
+                else if( num == 1 )
+                    printf("\r% 6.2f%%  (%i active save)   ", 100.0*j/info.height, num);
+                else
+                    printf("\r% 6.2f%%  (%i active saves)  ", 100.0*j/info.height, num);
 
-            fflush(stdout);
+                fflush(stdout);
+            #ifdef WITH_MPI
+            }
+            #endif /* WITH_MPI */
         }
     }
     memcpy(arg,&info,sizeof(info));
+
+    #ifdef WITH_MPI
+    if( mpi_mode == MPI_MODE_FRAME )
+        printf("rank %i: %s finished.\n", mpiRank, info.name);
+    #endif /* WITH_MPI */
 
     return 0;
 }
@@ -1102,11 +1119,13 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
         #endif /* WITH_MPI */
     }
 
-    if( img_copy ) {
+    printf("name: %p; img_copy: %p; img: %p\n", name, img_copy, img);
+    if( name && img_copy && img ) {
         /* make a copy that will be visible by the colling function */
         image_copy(img_copy, img);
     }
-    if( depth_copy ) {
+    printf("depth_name: %p; depth_copy: %p; depth_map: %p\n", depth_name, depth_copy, depth_map);
+    if( depth_name && depth_copy && depth_map ) {
         /* make a copy that will be visible by the colling function */
         image_copy(depth_copy, depth_map);
     }
@@ -1116,12 +1135,6 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     snprintf(fname, sizeof(fname), "mpi_rank_%i.%s", mpiRank, "png");
     image_save(img, fname, IMAGE_FORMAT);
     #endif /* 1 */
-
-    #ifdef WITH_MPI
-    if( mpi_mode == MPI_MODE_ROW ) {
-        /* combine partial images */
-    }
-    #endif /* WITH_MPI */
 
     if( recursive_aa ) {
         if( aa_depth >= 0 && aa_diff < 256 ) {
@@ -1533,6 +1546,7 @@ int main(int argc, char **argv)
                 fprintf(stderr,"Not compiled with MPI support.\n");
                 exit(1);
                 #endif /* WITH_MPI */
+                break;
             case 'c':
                 aa_cache_frame = 1;
                 printf("inter-frame anti-aliasing cache enabled\n");
@@ -1770,17 +1784,30 @@ int main(int argc, char **argv)
     /* load objects */
     register_objects(obj_dir);
 
+    #ifdef WITH_MPI
+    int frames_running = 0;
+    #endif /* WITH_MPI */
+
     struct timeval global_timer;
     double seconds;
     timer_start(&global_timer);
     int i=0;
     for(i=0; i<frames && i<=last_frame; ++i) {
-        printf("rendering frame %i/%i \n", i, frames);
 
         #ifdef WITH_MPI
+        if( mpi_mode == MPI_MODE_FRAME ) {
+            /* skip certain frames when in frames mode */
+            if( mpiRank!=0 && ((i%(mpiSize-1))+1) != mpiRank ) {
+                continue;
+            }
+        }
+        sleep(1);
+        printf("rank %i: starting frame %i\n", mpiRank, i);
+
         if( mpi_mode != MPI_MODE_ROW || mpiRank == 0 ) {
             /* for row cyclic mode, only rank 0 computes the scene */
         #endif /* WITH_MPI */
+            printf("rendering frame %i/%i \n", i, frames);
 
             /* set up scene */
             if( custom_scene!=NULL ) {
@@ -1817,21 +1844,19 @@ int main(int argc, char **argv)
         if( mpi_mode == MPI_MODE_ROW || mpi_mode == MPI_MODE_PIXEL ) {
             /* broadcast scene */
             mpi_broadcast_scene(&scn);
-        } else if( mpi_mode == MPI_MODE_FRAME && i%mpiSize != 0 ) {
+        } else if( mpi_mode == MPI_MODE_FRAME ) {
             /* send scene to appropriate rank */
-            mpi_send_scene(&scn, 0, i%mpiSize);
-        }
-        #endif /* WITH_MPI */
+            int dest_rank = (i%(mpiSize-1))+1;
+            if( mpi_mode == MPI_MODE_FRAME2 )
+                dest_rank = i%mpiSize;
 
-        #ifdef WITH_MPI
-        if( mpi_mode == MPI_MODE_FRAME ) {
-            /* skip certain frames when in frames mode */
-            if( (i%mpiSize) != mpiRank ) {
-                continue;
+            if( dest_rank != mpiRank ) {
+                sleep(dest_rank);
+                printf("sending frame %i to rank %i\n", i, dest_rank);
+                mpi_send_scene(&scn, 0, (i%(mpiSize-1))+1);
             }
+            ++frames_running;
         }
-        sleep(1);
-        printf("rank %i: starting frame %i\n", mpiRank, i);
         #endif /* WITH_MPI */
 
         printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
@@ -1907,17 +1932,50 @@ int main(int argc, char **argv)
             /* do actual rendering */
             render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, aa_cache_frame, max_optic_depth, img, depth_img);
         #ifdef WITH_MPI
+
+            printf("mpiRank: %i; img: %p; depth_img: %p\n", mpiRank, img, depth_img);
+            if( mpiRank!=0 && (mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2) ) {
+                if( img ) {
+                    printf("%s: rank %i sending main image %s to 0.\n", __FUNCTION__, mpiRank, fname);
+                    MPI_Send(fname, sizeof(fname), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+                    mpi_send_image(img, 0);
+                }
+                if( depth_img && depth_fname ) {
+                    printf("%s: rank %i sending depth image %s to 0.\n", __FUNCTION__, mpiRank, depth_fname);
+                    MPI_Send(depth_fname, sizeof(depth_fname), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+                    mpi_send_image(depth_img, 0);
+                }
+            }
         }
 
-        if( img ) {
-            image_save_bg(img, fname, IMAGE_FORMAT);
-            image_free(img);
-            free(img); img = NULL;
-        }
-        if( depth_img ) {
-            image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
-            image_free(depth_img);
-            free(depth_img); depth_img = NULL;
+        printf("frames_running: %i\n", frames_running);
+        if( mpiRank==0 && (frames_running >= (mpiSize-1) || i == last_frame) ) {
+            for(int rank=1; rank<=frames_running; ++rank) {
+                MPI_Status status;
+
+                if( img ) {
+                    printf("%s: recving main image from rank %i\n", __FUNCTION__, rank);
+                    MPI_Recv(fname, sizeof(fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
+                    mpi_recv_image(img, rank);
+                    image_save_bg(img, fname, IMAGE_FORMAT);
+                }
+                if( depth_img && depth_fname ) {
+                    printf("%s: recving depth image from rank %i\n", __FUNCTION__, rank);
+                    MPI_Recv(depth_fname, sizeof(depth_fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
+                    mpi_recv_image(depth_img, rank);
+                    image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
+                }
+            }
+            frames_running = 0;
+
+            if( img ) {
+                image_free(img);
+                free(img); img = NULL;
+            }
+            if( depth_img ) {
+                image_free(depth_img);
+                free(depth_img); depth_img = NULL;
+            }
         }
         #endif /* WITH_MPI */
 
@@ -1951,7 +2009,7 @@ int main(int argc, char **argv)
         (last_frame+1)-initial_frame,(((last_frame+1)-initial_frame)!=1)?"s":"",
         seconds,seconds/((last_frame+1)-initial_frame));
 
-    if( threads > 1 ) {
+    if( 1 || threads > 1 ) {
         int num = 0;
         while( (num = image_active_saves()) > 0 ) {
             printf("\rPausing to allow %i I/O thread%s to finish. ", num, ((num==1)?"":"s"));
