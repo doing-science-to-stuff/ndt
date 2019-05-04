@@ -923,7 +923,7 @@ void *render_lines_thread(void *arg)
         row_step *= mpiSize;
     }
     #endif /* WITH_MPI */
-    printf("rank %i: row_step = %i\n", mpiRank, row_step);
+    printf("rank %i: row_start = %i; row_step = %i\n", mpiRank, row_start, row_step);
     for(j=row_start; j<info.height; j+=row_step) {
         render_line(info.scn, info.width, info.x_scale,
                     info.height, info.y_scale, j, info.mode, info.samples,
@@ -1527,7 +1527,7 @@ int main(int argc, char **argv)
                         break;
                     case 'F':
                         /* frame cyclic */
-                        #if 0
+                        #if 1
                         mpi_mode = MPI_MODE_FRAME2;
                         #else
                         printf("mpi mode F not fully supported, yet, using f instead.\n");
@@ -1796,14 +1796,20 @@ int main(int argc, char **argv)
 
         #ifdef WITH_MPI
         int render_rank = ((i%(mpiSize-1))+1);
-        if( mpi_mode == MPI_MODE_FRAME2 )
-            render_rank = i%mpiSize;
+        if( mpi_mode == MPI_MODE_FRAME2 ) {
+            /* shift by one so rank zero can create scened before it starts
+             * rendering. */
+            render_rank = (i+1)%mpiSize;
+        }
         /* skip certain frames when in frames mode */
         if( mpi_mode==MPI_MODE_FRAME && mpiRank!=0 && mpiRank!=render_rank ) {
             continue;
         }
+        if( mpi_mode==MPI_MODE_FRAME2 && mpiRank!=0 && mpiRank!=render_rank ) {
+            continue;
+        }
         sleep(1);
-        printf("rank %i: starting frame %i\n", mpiRank, i);
+        printf("rank %i: starting frame %i (render_rank=%i)\n", mpiRank, i, render_rank);
 
         if( mpiRank == 0 ) {
             /* only rank 0 computes the scene */
@@ -1845,9 +1851,9 @@ int main(int argc, char **argv)
         if( mpi_mode == MPI_MODE_ROW || mpi_mode == MPI_MODE_PIXEL ) {
             /* broadcast scene */
             mpi_broadcast_scene(&scn);
-        } else if( mpi_mode == MPI_MODE_FRAME ) {
+        } else if( mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2 ) {
             /* send scene to appropriate rank */
-            if( mpiRank == 0 || mpiRank == render_rank ) {
+            if( render_rank != 0 ) {
                 sleep(1);
                 printf("\n\nrank %i: calling mpi_send_scene for frame %i, sending to rank %i\n", mpiRank, i, render_rank);
                 mpi_send_scene(&scn, 0, render_rank);
@@ -1894,11 +1900,13 @@ int main(int argc, char **argv)
         image_t *img = NULL;
         image_t *depth_img = NULL;
         #ifdef WITH_MPI
-        if( mpi_mode == MPI_MODE_FRAME ) {
+        if( mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2 ) {
             img = calloc(1, sizeof(image_t));
             image_init(img);
-            depth_img = calloc(1, sizeof(image_t));
-            image_init(depth_img);
+            if( depth_fname ) {
+                depth_img = calloc(1, sizeof(image_t));
+                image_init(depth_img);
+            }
         }
         #endif /* WITH_MPI */
 
@@ -1907,7 +1915,7 @@ int main(int argc, char **argv)
         timer_start(&timer);
 
         #ifdef WITH_MPI
-        if( mpi_mode != MPI_MODE_FRAME || mpiRank != 0 ) {
+        if( mpi_mode == MPI_MODE_ROW || mpi_mode == MPI_MODE_PIXEL || mpiRank == render_rank ) {
         #endif /* WITH_MPI */
             printf("rank %i: Scene has %i objects and %i lights\n", mpiRank, scn.num_objects, scn.num_lights);
             printf("rank %i calling scene_cluster\n", mpiRank);
@@ -1946,8 +1954,20 @@ int main(int argc, char **argv)
         }
 
         printf("rank %i: frames_running: %i\n", mpiRank, frames_running);
-        if( mpiRank==0 && (frames_running >= (mpiSize-1) || i == last_frame) ) {
-            for(int rank=1; rank<=frames_running; ++rank) {
+        if( mpiRank==0
+            && ((mpi_mode == MPI_MODE_FRAME && frames_running >= (mpiSize-1))
+                || (mpi_mode == MPI_MODE_FRAME2 && frames_running >= mpiSize)
+                || i == last_frame) ) {
+            if( mpi_mode == MPI_MODE_FRAME2 ) {
+                /* save locally rendered frame */
+                if( img )
+                    image_save_bg(img, fname, IMAGE_FORMAT);
+                if( depth_img )
+                    image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
+            }
+
+            /* fetch and save remotely rendered frames */
+            for(int rank=1; rank<=frames_running && rank < mpiSize; ++rank) {
                 MPI_Status status;
 
                 if( img ) {
