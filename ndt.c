@@ -1816,8 +1816,6 @@ int main(int argc, char **argv)
         if( mpi_mode==MPI_MODE_FRAME2 && mpiRank!=0 && mpiRank!=render_rank ) {
             continue;
         }
-        sleep(1);
-        printf("rank %i: starting frame %i (render_rank=%i)\n", mpiRank, i, render_rank);
 
         if( mpiRank == 0 ) {
             /* only rank 0 computes the scene */
@@ -1923,14 +1921,10 @@ int main(int argc, char **argv)
         #ifdef WITH_MPI
         if( mpi_mode == MPI_MODE_ROW || mpi_mode == MPI_MODE_PIXEL || mpiRank == render_rank ) {
         #endif /* WITH_MPI */
-            printf("rank %i: Scene has %i objects and %i lights\n", mpiRank, scn.num_objects, scn.num_lights);
-            printf("rank %i calling scene_cluster\n", mpiRank);
+            printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
             scene_cluster(&scn, cluster_k);
-            sleep(1);
 
-            printf("rank %i calling scene_validate_objects\n", mpiRank);
             scene_validate_objects(&scn);
-            sleep(1);
 
             /* setup camera, as requested */
             if( enable_vr ) {
