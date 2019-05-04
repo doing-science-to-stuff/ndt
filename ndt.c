@@ -688,7 +688,15 @@ int render_line(scene *scn, int width, double x_scale, int height, double y_scal
     double depth;
     int i=0;
     depth_clr.a = 1.0;
-    for(i=0; i<width; ++i) {
+    int row_start = 0;
+    int row_step = 1;
+    #ifdef WITH_MPI
+    if( mpi_mode == MPI_MODE_PIXEL && mpiSize > 0 ) {
+        row_start = (width * j + mpiRank) % mpiSize;
+        row_step = mpiSize;
+    }
+    #endif /* WITH_MPI */
+    for(i=row_start; i<width; i+=row_step) {
         render_pixel(scn,width,x_scale,height,y_scale,i,j,mode,samples,&clr, &depth, max_optic_depth);
         dbl_image_set_pixel(img,i,j,&clr);
         if( depth_map != NULL ) {
@@ -918,7 +926,7 @@ void *render_lines_thread(void *arg)
     int row_start = info.thr_offset;
     int row_step = info.threads;
     #ifdef WITH_MPI
-    if( mpi_mode != MPI_MODE_FRAME && mpi_mode != MPI_MODE_FRAME2 ) {
+    if( mpi_mode == MPI_MODE_ROW ) {
         row_start += mpiRank*info.threads;
         row_step *= mpiSize;
     }
@@ -1260,11 +1268,6 @@ static int mpi_broadcast_scene(scene *scn) {
     /* send scene */
     MPI_Bcast(scene_buffer, length, MPI_CHAR, source_rank, MPI_COMM_WORLD);
 
-    #if 0
-    sleep(mpiRank);
-    printf("rank %i:\n%s\n", mpiRank, scene_buffer);
-    #endif /* 0 */
-
     if( mpiRank != source_rank ) {
         /* parse scene_buffer on destination */
         scene_init(scn, scn->name, scn->dimensions);
@@ -1365,6 +1368,12 @@ int mpi_collect_image(image_t *img) {
     int left = mpiRank * 2 + 1;
     int right = mpiRank * 2 + 2;
     int parent = (mpiRank-1) / 2;
+
+    #if 0
+    char fname[PATH_MAX];
+    snprintf(fname, sizeof(fname), "img_%i.png", mpiRank);
+    image_save(img, fname, IMG_TYPE_PNG);
+    #endif /* 0 */
 
     /* read from children */
     if( right < mpiSize ) {
@@ -1515,8 +1524,8 @@ int main(int argc, char **argv)
                 switch( optarg[0] ) {
                     case 'p':
                         /* pixel cyclic */
-                        printf("Pixel cyclic not supported, yet.\n");
-                        printf("Falling back to row cyclic.\n");
+                        mpi_mode = MPI_MODE_PIXEL;
+                        break;
                     case 'r':
                         /* row cyclic */
                         mpi_mode = MPI_MODE_ROW;
@@ -1548,6 +1557,10 @@ int main(int argc, char **argv)
                 break;
             case 'd':
                 dimensions = atoi(optarg);
+                if( dimensions < 3 ) {
+                    fprintf(stderr, "Number of dimensions %i(flag 'd') is invalid, must be 3 or greated.\n", dimensions);
+                    exit(1);
+                }
                 printf("rendering in %id\n", dimensions);
                 break;
             case 'e':
@@ -1849,8 +1862,6 @@ int main(int argc, char **argv)
         } else if( mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2 ) {
             /* send scene to appropriate rank */
             if( render_rank != 0 ) {
-                sleep(1);
-                printf("\n\nrank %i: calling mpi_send_scene for frame %i, sending to rank %i\n", mpiRank, i, render_rank);
                 mpi_send_scene(&scn, 0, render_rank);
             }
             ++frames_running;
