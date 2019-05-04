@@ -1527,12 +1527,7 @@ int main(int argc, char **argv)
                         break;
                     case 'F':
                         /* frame cyclic */
-                        #if 1
                         mpi_mode = MPI_MODE_FRAME2;
-                        #else
-                        printf("mpi mode F not fully supported, yet, using f instead.\n");
-                        mpi_mode = MPI_MODE_FRAME;
-                        #endif /* 1 */
                         break;
                     default:
                         fprintf(stderr, "Unknown MPI blocking mode '%s'.\n", optarg);
