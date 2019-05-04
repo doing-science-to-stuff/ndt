@@ -1814,14 +1814,15 @@ int main(int argc, char **argv)
             }
             frames_running = 0;
 
-            if( img ) {
-                image_free(img);
-                free(img); img = NULL;
-            }
-            if( depth_img ) {
-                image_free(depth_img);
-                free(depth_img); depth_img = NULL;
-            }
+        }
+
+        if( img ) {
+            image_free(img);
+            free(img); img = NULL;
+        }
+        if( depth_img ) {
+            image_free(depth_img);
+            free(depth_img); depth_img = NULL;
         }
         #endif /* WITH_MPI */
 
