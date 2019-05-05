@@ -10,11 +10,15 @@ CFLAGS+=-O3
 CFLAGS+=-DWITH_PNG
 CFLAGS+=-DWITH_JPEG
 CFLAGS+=-DWITH_YAML
-CFLAGS+=-DWITH_MPI
 #CFLAGS+=-DWITH_VALGRIND
 #CFLAGS+=-DWITHOUT_SSE
 #CFLAGS+=-DWITHOUT_INLINE
 #CFLAGS+=-msse -msse2 -msse3 -msse4
+
+# Uncomment for MPI support
+CC=mpicc
+LD=mpicc
+CFLAGS+=-DWITH_MPI
 
 # see: https://stackoverflow.com/questions/714100/os-detecting-makefile
 UNAME_S := $(shell uname -s)
@@ -33,13 +37,11 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 LDFLAGS+=-lm
-LDFLAGS+=-Wall
 LDFLAGS+=-lpng
 LDFLAGS+=-ljpeg
 LDFLAGS+=-lyaml
 
 CFLAGS+=-g
-LDFLAGS+=-g
 
 .PHONY: clean all get-deps
 .SUFFIXES: .c .o .h .so
