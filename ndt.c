@@ -760,7 +760,6 @@ void *render_lines_thread(void *arg)
         row_step *= mpiSize;
     }
     #endif /* WITH_MPI */
-    printf("rank %i: row_start = %i; row_step = %i\n", mpiRank, row_start, row_step);
     for(j=row_start; j<info.height; j+=row_step) {
         render_line(info.scn, info.width, info.x_scale,
                     info.height, info.y_scale, j, info.mode, info.samples,
@@ -786,11 +785,6 @@ void *render_lines_thread(void *arg)
         }
     }
     memcpy(arg,&info,sizeof(info));
-
-    #ifdef WITH_MPI
-    if( mpi_mode == MPI_MODE_FRAME )
-        printf("rank %i: %s finished.\n", mpiRank, info.name);
-    #endif /* WITH_MPI */
 
     return 0;
 }
@@ -841,7 +835,7 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     double seconds;
     int aa_pad = 0;
 
-    printf("using %i threads to render image\n", threads);
+    printf("using %i thread%s to render image\n", threads, threads!=1?"s":"");
 
     if( mode == SIDE_SIDE_3D )
         x_scale = 0.5;
@@ -851,7 +845,6 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     /* create output image */
     img = calloc(1,sizeof(image_t));
     dbl_image_init(img);
-    image_set_format(img,IMAGE_FORMAT);
     /* make image one larger in each dimension (Whitted’s method) */
     if( recursive_aa )
         aa_pad = 1;
@@ -866,13 +859,11 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     if( depth_name != NULL ) {
         depth_map = calloc(1,sizeof(image_t));
         dbl_image_init(depth_map);
-        image_set_format(depth_map,IMAGE_FORMAT);
         image_set_size(depth_map,width,height);
     }
 
     actual_img = calloc(1,sizeof(image_t));
     image_init(actual_img);
-    image_set_format(actual_img,IMAGE_FORMAT);
     image_set_size(actual_img,width,height);
 
     struct thr_info *info;
@@ -880,7 +871,6 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     info = calloc(threads,sizeof(struct thr_info));
     thr = calloc(threads,sizeof(pthread_t));
 
-    printf("rendering image\n");
     timer_start(&timer);
     int i=0;
     for(i=0; i<threads; ++i) {
@@ -929,7 +919,10 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             if( image_active_saves() == 0 ) {
                 timer_start(&timer);
                 printf("\tsaving %s", name);
-                image_save_bg(img,name,IMAGE_FORMAT);
+                if( threads > 1 )
+                    image_save_bg(img,name,IMAGE_FORMAT);
+                else
+                    image_save(img,name,IMAGE_FORMAT);
                 timer_elapsed(&timer,&seconds);
                 printf(" (took %.3fs)\n", seconds);
             }
@@ -945,9 +938,9 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             if( recursive_aa && aa_cache_frame ) {
                 timer_start(&timer);
                 if( prev_raw!=NULL )
-                    image_save_bg(prev_raw,"prev_raw.png",IMAGE_FORMAT);
+                    image_save(prev_raw,"prev_raw.png",IMAGE_FORMAT);
                 if( prev_aa!=NULL )
-                    image_save_bg(prev_aa,"prev_aa.png",IMAGE_FORMAT);
+                    image_save(prev_aa,"prev_aa.png",IMAGE_FORMAT);
                 timer_elapsed(&timer,&seconds);
                 printf("saving anti-aliasing cache images (took %.3fs)\n", seconds);
             }
@@ -957,14 +950,12 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
         #endif /* WITH_MPI */
     }
 
-    printf("name: %p; img_copy: %p; img: %p\n", name, img_copy, img);
     if( name && img_copy && img ) {
-        /* make a copy that will be visible by the colling function */
+        /* make a copy that will be visible by the calling function */
         image_copy(img_copy, img);
     }
-    printf("depth_name: %p; depth_copy: %p; depth_map: %p\n", depth_name, depth_copy, depth_map);
     if( depth_name && depth_copy && depth_map ) {
-        /* make a copy that will be visible by the colling function */
+        /* make a copy that will be visible by the calling function */
         image_copy(depth_copy, depth_map);
     }
 
@@ -1023,7 +1014,10 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
         if( name != NULL ) {
             timer_start(&timer);
             printf("\tsaving %s", name);
-            image_save_bg(actual_img,name,IMAGE_FORMAT);
+            if( threads > 1 )
+                image_save_bg(actual_img,name,IMAGE_FORMAT);
+            else
+                image_save(actual_img,name,IMAGE_FORMAT);
             timer_elapsed(&timer,&seconds);
             printf(" (took %.3fs)\n", seconds);
         }
@@ -1330,7 +1324,9 @@ int main(int argc, char **argv)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &mpiRank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
-    printf("mpiRank: %i; mpiSize: %i\n", mpiRank, mpiSize);
+
+    if( mpiSize > 1 )
+        mpi_mode = MPI_MODE_ROW;
     #endif /* WITH_MPI */
 
     /* process command-line options */
@@ -1389,6 +1385,9 @@ int main(int argc, char **argv)
                 dimensions = atoi(optarg);
                 if( dimensions < 3 ) {
                     fprintf(stderr, "Number of dimensions %i(flag 'd') is invalid, must be 3 or greated.\n", dimensions);
+                    #ifdef WITH_MPI
+                    MPI_Finalize();
+                    #endif /* WITH_MPI */
                     exit(1);
                 }
                 printf("rendering in %id\n", dimensions);
@@ -1633,7 +1632,9 @@ int main(int argc, char **argv)
     for(i=0; i<frames && i<=last_frame; ++i) {
 
         #ifdef WITH_MPI
-        int render_rank = (((i-initial_frame)%(mpiSize-1))+1);
+        int render_rank = 0;
+        if( mpiSize > 1 )
+            render_rank = (((i-initial_frame)%(mpiSize-1))+1);
         if( mpi_mode == MPI_MODE_FRAME2 ) {
             /* shift by one so rank zero can create scened before it starts
              * rendering. */
@@ -1650,8 +1651,6 @@ int main(int argc, char **argv)
         if( mpiRank == 0 ) {
             /* only rank 0 computes the scene */
         #endif /* WITH_MPI */
-            printf("rendering frame %i/%i \n", i, frames);
-
             /* set up scene */
             if( custom_scene!=NULL ) {
                 (*custom_scene)(&scn,dimensions,i,frames,scene_config);
@@ -1770,35 +1769,38 @@ int main(int argc, char **argv)
             camera_aim(&scn.cam);
 
             /* do actual rendering */
+            #ifdef WITH_MPI
+            printf("rank %i: rendering frame %i/%i \n", mpiRank, i, frames);
+            #else
+            printf("rendering frame %i/%i \n", i, frames);
+            #endif /* WITH_MPI */
             render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, aa_cache_frame, max_optic_depth, img, depth_img);
 
         #ifdef WITH_MPI
-            printf("mpiRank: %i; img: %p; depth_img: %p\n", mpiRank, img, depth_img);
             if( mpiRank!=0 && (mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2) ) {
                 if( img ) {
-                    printf("%s: rank %i sending main image %s to 0.\n", __FUNCTION__, mpiRank, fname);
                     MPI_Send(fname, sizeof(fname), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
                     mpi_send_image(img, 0);
                 }
                 if( depth_img && depth_fname ) {
-                    printf("%s: rank %i sending depth image %s to 0.\n", __FUNCTION__, mpiRank, depth_fname);
                     MPI_Send(depth_fname, sizeof(depth_fname), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
                     mpi_send_image(depth_img, 0);
                 }
             }
         }
 
-        printf("rank %i: frames_running: %i\n", mpiRank, frames_running);
         if( mpiRank==0
             && ((mpi_mode == MPI_MODE_FRAME && frames_running >= (mpiSize-1))
                 || (mpi_mode == MPI_MODE_FRAME2 && frames_running >= mpiSize)
                 || i == last_frame) ) {
+            /* Use the non-background saves here, to reduce memory usage. */
+
             if( mpi_mode == MPI_MODE_FRAME2 ) {
                 /* save locally rendered frame */
                 if( img )
-                    image_save_bg(img, fname, IMAGE_FORMAT);
+                    image_save(img, fname, IMAGE_FORMAT);
                 if( depth_img )
-                    image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
+                    image_save(depth_img, depth_fname, IMAGE_FORMAT);
             }
 
             /* fetch and save remotely rendered frames */
@@ -1808,20 +1810,19 @@ int main(int argc, char **argv)
                 if( img ) {
                     MPI_Recv(fname, sizeof(fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
                     mpi_recv_image(img, rank);
-                    image_save_bg(img, fname, IMAGE_FORMAT);
+                    image_save(img, fname, IMAGE_FORMAT);
                     image_free(img);
                     image_init(img);    /* prepare for next iteration */
                 }
                 if( depth_img && depth_fname ) {
                     MPI_Recv(depth_fname, sizeof(depth_fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
                     mpi_recv_image(depth_img, rank);
-                    image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
+                    image_save(depth_img, depth_fname, IMAGE_FORMAT);
                     image_free(depth_img);
                     image_init(depth_img);  /* prepare for next iteration */
                 }
             }
             frames_running = 0;
-
         }
 
         /* free images for ranks other than 0 */
@@ -1842,7 +1843,8 @@ int main(int argc, char **argv)
         }
 
         #ifdef WITH_MPI
-        if( mpi_mode != MPI_MODE_FRAME || mpiRank == 0 ) {
+        if( (mpi_mode != MPI_MODE_FRAME || mpiRank == 0)
+            && frames_running == 0 ) {
         #endif /* WITH_MPI */
             /* record frame time */
             timer_elapsed(&timer,&seconds);
@@ -1864,15 +1866,13 @@ int main(int argc, char **argv)
         (last_frame+1)-initial_frame,(((last_frame+1)-initial_frame)!=1)?"s":"",
         seconds,seconds/((last_frame+1)-initial_frame));
 
-    if( 1 || threads > 1 ) {
-        int num = 0;
-        while( (num = image_active_saves()) > 0 ) {
-            printf("\rPausing to allow %i I/O thread%s to finish. ", num, ((num==1)?"":"s"));
-            fflush(stdout);
-            usleep(100);
-        }
-        printf("\r                                               \rdone.\n");
+    int active_saves = 0;
+    while( (active_saves = image_active_saves()) > 0 ) {
+        printf("\rPausing to allow %i I/O thread%s to finish. ", active_saves, ((active_saves==1)?"":"s"));
+        fflush(stdout);
+        usleep(100);
     }
+    printf("\r                                               \rdone.\n");
 
     /* cleanup after scene */
     if( custom_scene_cleanup != NULL
