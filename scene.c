@@ -509,6 +509,8 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 static int scene_yaml_error(yaml_emitter_t *emitter, yaml_event_t *event) {
     fprintf(stderr, "yaml error occured: %sn", emitter->problem);
     #if 0
+    /* the write errors that occur in scene_write_yaml_buffer when the buffer
+     * is too small shouldn't be treated as fatal. */
     exit(1);
     #endif /* 1 */
 
