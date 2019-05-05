@@ -1236,9 +1236,9 @@ int print_help_info(int argc, char **argv)
            "\t-a diff,depth\tAnti-aliasing options\n"
            #ifdef WITH_MPI
            "\t-b mode\t\tmpi render granularity mode (p,t,f,F)\n"
-           "\t\t\t\tp: pixel level granularity\n"
-           "\t\t\t\tr: row level granularity\n"
-           "\t\t\t\tf: frame level granularity\n"
+           "\t\t\t\tp: pixel level parallelism\n"
+           "\t\t\t\tr: row level parallelism\n"
+           "\t\t\t\tf: frame level parallelism\n"
            "\t\t\t\tF: frame level with rendering by rank 0\n"
            #endif /* WITH_MPI */
            "\t-c\t\tEnable anti-aliasing cache\n"
