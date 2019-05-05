@@ -1365,7 +1365,7 @@ int main(int argc, char **argv)
                         mpi_mode = MPI_MODE_FRAME2;
                         break;
                     default:
-                        fprintf(stderr, "Unknown MPI blocking mode '%s'.\n", optarg);
+                        fprintf(stderr, "Unknown MPI blocking mode '%s' (Valid values: p,b,f,F).\n", optarg);
                         #ifdef WITH_MPI
                         MPI_Finalize();
                         #endif /* WITH_MPI */
@@ -1373,7 +1373,7 @@ int main(int argc, char **argv)
                         break;
                 }
                 #else
-                fprintf(stderr,"Not compiled with MPI support.\n");
+                fprintf(stderr,"Not compiled with MPI support, remove the -b option.\n");
                 exit(1);
                 #endif /* WITH_MPI */
                 break;
