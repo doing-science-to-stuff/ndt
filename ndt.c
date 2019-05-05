@@ -770,7 +770,7 @@ void *render_lines_thread(void *arg)
             int num = image_active_saves();
             double remaining = timer_remaining(&timer, j, info.height+1);
             #ifdef WITH_MPI
-            if( mpiRank == 0 ) {
+            if( mpiRank == 0 || (mpiRank == 1 && mpi_mode == MPI_MODE_FRAME) ) {
             #endif /* WITH_MPI */
                 if( num <= 0 )
                     printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
@@ -1677,6 +1677,8 @@ int main(int argc, char **argv)
         }
         #endif /* WITH_MPI */
 
+        /* This has to happen after the call to scene setup function, in case
+         * there is persistent interframe data that needs to be updated. */
         if( i < initial_frame ) {
             printf("Skipping frame %i (less than inital frame %i) \n", i, initial_frame);
             #ifdef WITH_MPI
@@ -1804,20 +1806,18 @@ int main(int argc, char **argv)
                 MPI_Status status;
 
                 if( img ) {
-                    printf("%s: recving main image from rank %i\n", __FUNCTION__, rank);
                     MPI_Recv(fname, sizeof(fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
                     mpi_recv_image(img, rank);
                     image_save_bg(img, fname, IMAGE_FORMAT);
                     image_free(img);
-                    free(img); img = NULL;
+                    image_init(img);    /* prepare for next iteration */
                 }
                 if( depth_img && depth_fname ) {
-                    printf("%s: recving depth image from rank %i\n", __FUNCTION__, rank);
                     MPI_Recv(depth_fname, sizeof(depth_fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
                     mpi_recv_image(depth_img, rank);
                     image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
                     image_free(depth_img);
-                    free(depth_img); depth_img = NULL;
+                    image_init(depth_img);  /* prepare for next iteration */
                 }
             }
             frames_running = 0;
