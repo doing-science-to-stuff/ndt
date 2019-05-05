@@ -1632,11 +1632,11 @@ int main(int argc, char **argv)
     for(i=0; i<frames && i<=last_frame; ++i) {
 
         #ifdef WITH_MPI
-        int render_rank = ((i%(mpiSize-1))+1);
+        int render_rank = (((i-initial_frame)%(mpiSize-1))+1);
         if( mpi_mode == MPI_MODE_FRAME2 ) {
             /* shift by one so rank zero can create scened before it starts
              * rendering. */
-            render_rank = (i+1)%mpiSize;
+            render_rank = ((i-initial_frame)+1)%mpiSize;
         }
         /* skip certain frames when in frames mode */
         if( mpi_mode==MPI_MODE_FRAME && mpiRank!=0 && mpiRank!=render_rank ) {
@@ -1678,7 +1678,10 @@ int main(int argc, char **argv)
 
         if( i < initial_frame ) {
             printf("Skipping frame %i (less than inital frame %i) \n", i, initial_frame);
-            scene_free(&scn);
+            #ifdef WITH_MPI
+            if( mpiRank == 0 )
+            #endif /* WITH_MPI */
+                scene_free(&scn);
             continue;
         }
 
