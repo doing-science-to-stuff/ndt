@@ -866,6 +866,7 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     if( depth_name != NULL ) {
         depth_map = calloc(1,sizeof(image_t));
         dbl_image_init(depth_map);
+        image_set_format(depth_map,IMAGE_FORMAT);
         image_set_size(depth_map,width,height);
     }
 
@@ -1834,7 +1835,6 @@ int main(int argc, char **argv)
         }
         #endif /* WITH_MPI */
 
-
         /* cleanup */
         scene_free(&scn);
         if( depth_fname != NULL ) {
@@ -1857,13 +1857,7 @@ int main(int argc, char **argv)
         #ifdef WITH_MPI
         }
         #endif /* WITH_MPI */
-    }
-
-    #ifdef WITH_MPI
-    if( mpi_mode == MPI_MODE_FRAME ) {
-        /* wait for all frames to finish */
-    }
-    #endif  /* WITH_MPI */
+    }   /* frames */
 
     timer_elapsed(&global_timer,&seconds);
     printf("\n%i frame%s took %0.2fs (avg. %0.3fs)\n",
