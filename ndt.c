@@ -1804,18 +1804,23 @@ int main(int argc, char **argv)
                     MPI_Recv(fname, sizeof(fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
                     mpi_recv_image(img, rank);
                     image_save_bg(img, fname, IMAGE_FORMAT);
+                    image_free(img);
+                    free(img); img = NULL;
                 }
                 if( depth_img && depth_fname ) {
                     printf("%s: recving depth image from rank %i\n", __FUNCTION__, rank);
                     MPI_Recv(depth_fname, sizeof(depth_fname), MPI_CHAR, rank, 0, MPI_COMM_WORLD, &status);
                     mpi_recv_image(depth_img, rank);
                     image_save_bg(depth_img, depth_fname, IMAGE_FORMAT);
+                    image_free(depth_img);
+                    free(depth_img); depth_img = NULL;
                 }
             }
             frames_running = 0;
 
         }
 
+        /* free images for ranks other than 0 */
         if( img ) {
             image_free(img);
             free(img); img = NULL;
