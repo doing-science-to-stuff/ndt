@@ -14,7 +14,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <dlfcn.h>
-#include <fcntl.h>
 #ifdef WITH_VALGRIND
 #include <valgrind/valgrind.h>
 #endif /* WITH_VALGRIND */
