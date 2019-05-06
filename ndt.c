@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #ifdef WITH_VALGRIND
 #include <valgrind/valgrind.h>
 #endif /* WITH_VALGRIND */
@@ -900,7 +901,7 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             pthread_join(thr[i],NULL);
         }
     }
-    printf("\r                          \r");
+    printf("\r                               \r");
     timer_elapsed(&timer,&seconds);
     printf("rendering took %.3fs\n", seconds);
 
