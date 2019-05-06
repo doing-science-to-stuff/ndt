@@ -1508,9 +1508,9 @@ static int scene_yaml_parse_subobjects(yaml_parser_t *parser, object *obj) {
         
         /* process event */
         if (type == YAML_MAPPING_START_EVENT) {
-            object *obj = NULL;
-            scene_yaml_parse_object(parser, &obj);
-            object_add_obj(obj, obj);
+            object *sub = NULL;
+            scene_yaml_parse_object(parser, &sub);
+            object_add_obj(obj, sub);
         }
 
         /* cleanup event */
