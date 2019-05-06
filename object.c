@@ -500,8 +500,8 @@ int object_add_obj(object *obj, object *new_obj) {
 
 
 int object_move(object * obj, vectNd *offset) {
-    /* cause object to prepare itself as needed */
-    obj->get_bounds(obj);
+    /* make sure object is complete enough to be manipulated */
+    object_validate(obj);
 
     /* move all positions */
     for(int i=0; i<obj->n_pos; ++i) {
@@ -518,8 +518,8 @@ int object_move(object * obj, vectNd *offset) {
 }
 
 int object_rotate(object * obj, vectNd *center, int v1, int v2, double angle) {
-    /* cause object to prepare itself as needed */
-    obj->get_bounds(obj);
+    /* make sure object is complete enough to be manipulated */
+    object_validate(obj);
 
     /* rotate all positions */
     for(int i=0; i<obj->n_pos; ++i) {
@@ -541,8 +541,8 @@ int object_rotate(object * obj, vectNd *center, int v1, int v2, double angle) {
 }
 
 int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double angle) {
-    /* cause object to prepare itself as needed */
-    obj->get_bounds(obj);
+    /* make sure object is complete enough to be manipulated */
+    object_validate(obj);
 
     /* rotate all positions */
     for(int i=0; i<obj->n_pos; ++i) {
