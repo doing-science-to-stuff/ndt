@@ -948,28 +948,32 @@ int scene_write_yaml(scene *scn, char *fname) {
 }
 
 int scene_write_yaml_buffer(scene *scn, unsigned char **buffer, size_t *length) {
+    static size_t last_size = 0;
+
     printf("%s writing to buffer.\n", __FUNCTION__);
 
     /* un-prepare all objects */
     for(int i=0; i< scn->num_objects; ++i) {
         object *obj = scn->object_ptrs[i];
-        if( obj->cleanup )
-            obj->cleanup(obj);
-        obj->prepared = 0;
+        object_cleanup_all(obj);
     }
 
     int ret = -1;
     size_t allocated;
     *length = 1024*1024;
+    if( last_size > 0 )
+        *length = last_size;
     *buffer = NULL;
     do {
         /* initialize YAML emitter */
         yaml_emitter_t emitter;
         yaml_emitter_initialize(&emitter);
 
-        /* resize buffer in-case previous iteration was too small */
-        if( *buffer != NULL ) { free(*buffer); *buffer = NULL; }
-        *length = 2 * (*length) + 1;
+        if( *buffer != NULL ) {
+            free(*buffer); *buffer = NULL;
+            /* resize buffer as previous iteration was too small */
+            *length = 2 * (*length) + 1;
+        }
         *buffer = calloc(*length, sizeof(char));
         allocated = *length;
 
@@ -978,7 +982,18 @@ int scene_write_yaml_buffer(scene *scn, unsigned char **buffer, size_t *length) 
 
         yaml_emitter_delete(&emitter);
 
+        /* add null terminator */
+        if( *length < allocated ) {
+            (*buffer)[*length] = '\0';
+        }
+
     } while( *length == allocated );    /* loop until buffer isn't filled */
+
+    /* remember buffer size needed, so next frame can skip size discovery */
+    last_size = allocated;
+    #if 1
+    printf("%s: wrote %zu bytes to buffer.\n", __FUNCTION__, *length);
+    #endif /* 0 */
 
     return ret;
 }
@@ -1592,7 +1607,9 @@ static int scene_yaml_parse_object(yaml_parser_t *parser, object **obj) {
     (*obj)->refract_index = tmp->refract_index;
     (*obj)->prepared = tmp->prepared;
     if( (*obj)->prepared ) {
-        fprintf(stderr, "Warning: loading of prepared objects not fully supported, expect weirdness!\n");
+        char obj_type[OBJ_TYPE_MAX_LEN];
+        (*obj)->type_name(obj_type,sizeof(obj_type));
+        fprintf(stderr, "Warning: loading of prepared objects not fully supported, expect weirdness! (name: '%s'; type: '%s'\n", (*obj)->name, obj_type);
         (*obj)->prepared = 0;
         (*obj)->bounds.radius = tmp->bounds.radius;
         vectNd_copy(&(*obj)->bounds.center, &tmp->bounds.center);

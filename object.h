@@ -12,7 +12,7 @@
 #define EPSILON (1e-4)
 
 #define OBJ_TYPE_MAX_LEN 64
-#define OBJ_NAME_MAX_LEN 16
+#define OBJ_NAME_MAX_LEN 32
 
 typedef struct gen_object {
     unsigned int transparent:1;
@@ -87,6 +87,7 @@ int unregister_objects();
 /* instanciation of objects */
 object *object_alloc(int dimensions, char *type, char *name);
 int object_free(object *obj);
+int object_cleanup_all(object *obj);
 int object_validate(object *obj);
 
 /* add things to object */

@@ -321,6 +321,21 @@ int object_free(object *obj) {
     return 0;
 }
 
+int object_cleanup_all(object *obj) {
+    /* perform a post-order cleanup on all objects rooted at obj */
+    for(int i=0; i<obj->n_obj; ++i) {
+        object_cleanup_all(obj->obj[i]);
+    }
+
+    if( obj->cleanup && obj->prepared ) {
+        obj->cleanup(obj);
+    }
+    obj->prepared = 0;
+    obj->bounds.radius = 0;
+
+    return 0;
+}
+
 int object_validate(object *obj) {
     char type[256];
     obj->type_name(type, sizeof(type));
