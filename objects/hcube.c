@@ -33,15 +33,13 @@ static int num_n_faces(int n, int m) {
 static int add_faces(object *cube, int m) {
     int n = cube->dimensions;
     int num_faces = num_n_faces(n, m);
-    vectNd dir;
-    vectNd_calloc(&dir, n);
     vectNd pos;
     vectNd_calloc(&pos, n);
+    vectNd tempV;
+    vectNd_calloc(&tempV, n);
 
     if( m > 2 )
         add_faces(cube, m-1);
-
-    printf("Adding %i-dimensional faces.\n", m);
 
     int *dirs_count, *pos_count;
     dirs_count = calloc(m, sizeof(int));
@@ -62,11 +60,12 @@ static int add_faces(object *cube, int m) {
         }
         printf("\n");
         printf("real_offset_id = %i\n", real_offset_id);
+        vectNd_print(&cube->pos[0], "cube->pos[0]");
         #endif /* 0 */
 
         vectNd_reset(&pos);
-        vectNd_reset(&dir);
         offset_id = real_offset_id;
+        vectNd_copy(&pos, &cube->pos[0]);
         for(int i=0; i<n; ++i) {
             /* determine which dimensions 'face' exists in */
             int is_dir = 0;
@@ -75,7 +74,8 @@ static int add_faces(object *cube, int m) {
                     is_dir = 1;
             }
             if( is_dir ) {
-                vectNd_set(&pos, i, cube->pos[0].v[i] - 0.5 * cube->size[i]);
+                vectNd_scale(&cube->dir[i], -0.5 * cube->size[i], &tempV);
+                vectNd_add(&pos, &tempV, &pos);
                 continue;
             }
 
@@ -83,7 +83,8 @@ static int add_faces(object *cube, int m) {
             offset_id >>= 1;
 
             /* determine location of 'face' */
-            vectNd_set(&pos, i, cube->pos[0].v[i] + cube->size[i] * (value-0.5));
+            vectNd_scale(&cube->dir[i], cube->size[i] * (value-0.5), &tempV);
+            vectNd_add(&pos, &tempV, &pos);
         }
 
         object *obj = NULL;
@@ -91,24 +92,14 @@ static int add_faces(object *cube, int m) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "orthotope", "");
             object_add_flag(obj, m);
-            if( m == 3 || n == 3 ) {
-                obj->red = 0.0;
-                obj->green = 0.0;
-                obj->blue = 0.8;
-            } else {
-                obj->red = 0.8;
-                obj->green = 0.8;
-                obj->blue = 0.8;
-            }
 
             for(int i=0; i<m; ++i) {
                 int j = dirs_count[i];
-                vectNd_set(&pos, j, cube->pos[0].v[j] - 0.5 * cube->size[j]);
-                vectNd_reset(&dir);
-                vectNd_set(&dir, j, cube->size[j]);
-                object_add_dir(obj, &dir);
+
+                vectNd_scale(&cube->dir[j], cube->size[j], &tempV);
+                object_add_dir(obj, &tempV);
                 #if 0
-                vectNd_print(&dir,"dir");
+                vectNd_print(&cube->dir[j],"dir");
                 #endif /* 0 */
             }
             object_add_pos(obj, &pos);
@@ -155,7 +146,7 @@ static int add_faces(object *cube, int m) {
     free(dirs_count); dirs_count=NULL;
     free(pos_count); pos_count=NULL;
     vectNd_free(&pos);
-    vectNd_free(&dir);
+    vectNd_free(&tempV);
 
     return 0;
 }
@@ -186,7 +177,7 @@ int type_name(char *name, int size) {
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
     /* report how many of each type of parameter is needed */
     *n_pos = 1;
-    *n_dir = 0;
+    *n_dir = obj->dimensions;
     *n_size = obj->dimensions;
     *n_flags = 0;
     *n_obj = 0;
