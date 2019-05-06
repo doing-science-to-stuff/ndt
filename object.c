@@ -499,7 +499,7 @@ int object_add_obj(object *obj, object *new_obj) {
 }
 
 
-int object_move(object * obj, vectNd *offset) {
+int object_move(object *obj, vectNd *offset) {
     /* make sure object is complete enough to be manipulated */
     object_validate(obj);
 
@@ -517,7 +517,7 @@ int object_move(object * obj, vectNd *offset) {
     return 0;
 }
 
-int object_rotate(object * obj, vectNd *center, int v1, int v2, double angle) {
+int object_rotate(object *obj, vectNd *center, int v1, int v2, double angle) {
     /* make sure object is complete enough to be manipulated */
     object_validate(obj);
 
@@ -540,7 +540,7 @@ int object_rotate(object * obj, vectNd *center, int v1, int v2, double angle) {
     return 0;
 }
 
-int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double angle) {
+int object_rotate2(object *obj, vectNd *center, vectNd *v1, vectNd *v2, double angle) {
     /* make sure object is complete enough to be manipulated */
     object_validate(obj);
 
@@ -563,7 +563,7 @@ int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double 
     return 0;
 }
 
-static inline int vect_object_intersect(object* obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **obj_ptr, double min_dist) {
+static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **obj_ptr, double min_dist) {
     int ret = 0;
 
     /* make sure bounding sphere is set */
