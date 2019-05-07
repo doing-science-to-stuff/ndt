@@ -17,7 +17,7 @@ docker:
 	docker build -t ndt .
 
 docker-run: docker
-	docker run -it ndt
+	docker run -it -v `pwd`/images:/app/images -v `pwd`/yaml:/app/yaml ndt
 
 ndt: ndt.o vectNd.o image.o scene.o camera.o matrix.o kmeans.o timing.o map.o object.o bounding.o
 	$(LD) -o ndt $(LDFLAGS) $% $^
