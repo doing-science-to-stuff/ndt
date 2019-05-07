@@ -54,7 +54,7 @@ add_custom_target(docker
 
 # add a docker image run target
 add_custom_target(docker-run
-                  COMMAND docker run -it ndt
+                  COMMAND docker run -it -v `pwd`/images:/app/images -v `pwd`/yaml:/app/yaml ndt
                   DEPENDS docker
                   )
 

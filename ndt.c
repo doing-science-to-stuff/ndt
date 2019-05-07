@@ -1861,10 +1861,16 @@ int main(int argc, char **argv)
         #endif /* WITH_MPI */
     }   /* frames */
 
-    timer_elapsed(&global_timer,&seconds);
-    printf("\n%i frame%s took %0.2fs (avg. %0.3fs)\n",
-        (last_frame+1)-initial_frame,(((last_frame+1)-initial_frame)!=1)?"s":"",
-        seconds,seconds/((last_frame+1)-initial_frame));
+    #ifdef WITH_MPI
+    if( mpiRank == 0 ) {
+    #endif /* WITH_MPI */
+        timer_elapsed(&global_timer,&seconds);
+        printf("\n%i frame%s took %0.2fs (avg. %0.3fs)\n",
+            (last_frame+1)-initial_frame,(((last_frame+1)-initial_frame)!=1)?"s":"",
+            seconds,seconds/((last_frame+1)-initial_frame));
+    #ifdef WITH_MPI
+    }
+    #endif /* WITH_MPI */
 
     int active_saves = 0;
     while( (active_saves = image_active_saves()) > 0 ) {
