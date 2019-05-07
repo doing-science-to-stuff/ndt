@@ -101,6 +101,7 @@ endif()
 if( MPI_FOUND AND YAML_FOUND )
     # see: https://cmake.org/pipermail/cmake/2011-June/045037.html
     include_directories(${MPI_CXX_INCLUDE_DIRS})
+    include_directories(${MPI_CXX_INCLUDE_PATH})
     target_link_libraries(ndt ${MPI_CXX_LIBRARIES})
     add_definitions(-DWITH_MPI)
 

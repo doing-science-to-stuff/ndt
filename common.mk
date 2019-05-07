@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2019 Bryan Franklin. All rights reserved.
 #
+LD=gcc
 CFLAGS+=-m64
 CFLAGS+=-Wall #-Wpadded
 CFLAGS+=-O3
