@@ -128,8 +128,6 @@ static int between_ends(object *cyl, vectNd *point) {
     int dim;
     int i=0;
     dim  = point->n;
-    vectNd nC;
-    vectNd_alloc(&nC,dim);
 
     /* check length of projection onto each axis against axis length */
     vectNd Bc;
