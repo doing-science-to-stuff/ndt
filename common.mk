@@ -17,9 +17,15 @@ CFLAGS+=-DWITH_YAML
 #CFLAGS+=-msse -msse2 -msse3 -msse4
 
 # Uncomment for MPI support
-CC=mpicc
-LD=mpicc
-CFLAGS+=-DWITH_MPI
+#CC=mpicc
+#LD=mpicc
+#CFLAGS+=-DWITH_MPI
+
+# Uncomment for AWS
+#CC=/usr/lib64/openmpi/bin/mpicc
+#LD=/usr/lib64/openmpi/bin/mpicc
+#CFLAGS+=-I/opt/chef/embedded/include
+#LDFLAGS+=-L/opt/chef/embedded/lib
 
 # see: https://stackoverflow.com/questions/714100/os-detecting-makefile
 UNAME_S := $(shell uname -s)
