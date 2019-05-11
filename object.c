@@ -107,6 +107,10 @@ int register_object(char *filename) {
 
     registry.objs = entry;
 
+    char *slash = NULL;
+    if( (slash=strrchr(filename, '/')) ) {
+        filename = slash+1;
+    }
     printf("\tloaded object from '%s'.\n", filename);
 
     return 0;
@@ -118,21 +122,9 @@ int register_objects(char *dirname) {
         return -1;
     }
 
-    /* record current path and change into objects directory, to avoid path
-     * separator nonsense. */
-    char pwd[PATH_MAX];
-    if( getcwd(pwd,sizeof(pwd)) == NULL ) {
-        perror("getpwd");
-        return -1;
-    }
-    if( chdir(dirname) < 0 ) {
-        perror("chdir");
-        return -1;
-    }
-
     /* open directory */
-    printf("%s: opening %s\n", __FUNCTION__, dirname);
-    DIR *dirp = opendir(".");
+    printf("%s: opening '%s' directory\n", __FUNCTION__, dirname);
+    DIR *dirp = opendir(dirname);
     if( dirp == NULL ) {
         perror("opendir");
         return -1;
@@ -147,20 +139,14 @@ int register_objects(char *dirname) {
         if( namlen > 3 && strncasecmp(dp->d_name+namlen-3, ".so", 3)==0 ) {
             /* avoid library search path */
             char filename[PATH_MAX];
-            snprintf(filename,sizeof(filename), "./%s", dp->d_name);
+            snprintf(filename,sizeof(filename), "%s/%s", dirname, dp->d_name);
 
-            /* load every .so file found */
+            /* load .so file found */
             register_object(filename);
         }
     }
 
     closedir(dirp); dirp = NULL;
-
-    /* return to original directory */
-    if( chdir(pwd) < 0 ) {
-        perror("chdir");
-        return -1;
-    }
 
     return 0;
 }
