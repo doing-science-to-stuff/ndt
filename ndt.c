@@ -1327,6 +1327,11 @@ int main(int argc, char **argv)
 
     if( mpiSize > 1 )
         mpi_mode = MPI_MODE_ROW;
+
+    /* report name of node that each rank is running one */
+    char hostname[256];
+    gethostname(hostname,sizeof(hostname));
+    printf("rank %i: running on host %s\n", mpiRank, hostname);
     #endif /* WITH_MPI */
 
     /* process command-line options */
