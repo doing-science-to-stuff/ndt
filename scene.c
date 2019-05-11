@@ -418,9 +418,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     object_add_posStr(obj, "10,5,25,0");
     object_add_posStr(obj, "-10,5,20,0");
     object_add_posStr(obj, "3,-8,9,4");
-    object_add_dirStr(obj, "3,-8,90,4");
-    object_add_dirStr(obj, "3,-8,90,4");
-    object_add_dirStr(obj, "3,-8,90,4");
+    object_add_dirStr(obj, "0,-16,13");
+    object_add_dirStr(obj, "0,-16,13");
+    object_add_dirStr(obj, "0,-16,13");
     object_add_flag(obj, 0);    /* use normals */
     #endif /* 0 */
 
