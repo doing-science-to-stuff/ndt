@@ -18,7 +18,6 @@ RUN make
 
 RUN apt-get -y --auto-remove remove g++ cmake libpng-dev libjpeg-dev libyaml-dev
 
-ENV LD_LIBRARY_PATH=.
 #CMD /app/ndt -s /app/scenes/random.so
 CMD /bin/bash
 

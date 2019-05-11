@@ -145,8 +145,12 @@ int register_objects(char *dirname) {
         int namlen = -1;
         namlen = strlen(dp->d_name);
         if( namlen > 3 && strncasecmp(dp->d_name+namlen-3, ".so", 3)==0 ) {
+            /* avoid library search path */
+            char filename[PATH_MAX];
+            snprintf(filename,sizeof(filename), "./%s", dp->d_name);
+
             /* load every .so file found */
-            register_object(dp->d_name);
+            register_object(filename);
         }
     }
 
