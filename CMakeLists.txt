@@ -21,6 +21,9 @@ configure_file (
 
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+# add location of mpi compilers to path on AWS
+LIST(APPEND CMAKE_PROGRAM_PATH  "/usr/lib64/mpich/bin" "/usr/lib64/openmpi/bin")
+
 # check for optional libraries
 find_package(PNG REQUIRED)
 find_package(JPEG)
