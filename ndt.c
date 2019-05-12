@@ -1257,6 +1257,7 @@ int print_help_info(int argc, char **argv)
            "\t\t\t\th: high-def 1080p 3D (high)\n"
            "\t\t\t\tm: monoscopic [default]\n"
            "\t-n samples\tResampling count for each pixel\n"
+           "\t-o directory\tDirectory to look in for object description files\n"
            "\t-p\t\tDisable specular high-lighting\n"
            "\t-q quality\tPreset quality levels (high,med,low,fast)\n"
            "\t-r mode,vFov,[hFov]\tRadial camera, mode={spherical,cylindrical}\n"
@@ -1336,8 +1337,8 @@ int main(int argc, char **argv)
 
     /* process command-line options */
     int ch = '\0';
-    /* unused: b,j,x,z */
-    while( (ch=getopt(argc, argv, ":a:b:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:vw:y3:?"))!=-1 ) {
+    /* unused: j,v,x,z */
+    while( (ch=getopt(argc, argv, ":a:b:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:w:y3:?"))!=-1 ) {
         switch(ch) {
             case 'a':
                 aa_str = strdup(optarg);
@@ -1854,13 +1855,31 @@ int main(int argc, char **argv)
             /* record frame time */
             timer_elapsed(&timer,&seconds);
             printf("%s took %0.2fs to render\n", fname, seconds);
+
             timer_elapsed(&global_timer,&seconds);
             int total_frames = i-initial_frame+1;
             printf("\t%i frame%s took %0.2fs (avg. %0.3fs)\n",
                 total_frames, (total_frames!=1)?"s":"",
                 seconds, seconds/total_frames);
-            int remaining_frames = frames - i - 1;
-            printf("\t%0.2fs remaining.\n", (seconds/total_frames) * remaining_frames);
+            int remaining_frames = last_frame - i - 1;
+            double secs_per_frame = seconds/total_frames;
+            double total_time = secs_per_frame * (last_frame - initial_frame + 1);
+            double remaining_time = seconds/total_frames * remaining_frames;
+            double total_cpu = -1;
+            #ifdef WITH_MPI
+            total_cpu = total_time * mpiSize * threads;
+            #else
+            total_cpu = total_time * threads;
+            #endif /* WITH_MPI */
+            printf("\t%0.2fs remaining (%.2f est. total CPU hours).\n", seconds/total_frames * remaining_frames, total_cpu/3600.0);
+
+            char date_str[26];
+            struct tm finish_tm;
+            time_t now = time(NULL);
+            time_t finish_time = now + (int)remaining_time;
+            localtime_r(&finish_time, &finish_tm);
+            asctime_r(&finish_tm, date_str);
+            printf("\tExpected completion time: %s\n", date_str);
         #ifdef WITH_MPI
         }
         #endif /* WITH_MPI */
@@ -1881,7 +1900,7 @@ int main(int argc, char **argv)
     while( (active_saves = image_active_saves()) > 0 ) {
         printf("\rPausing to allow %i I/O thread%s to finish. ", active_saves, ((active_saves==1)?"":"s"));
         fflush(stdout);
-        usleep(100);
+        usleep(1000);
     }
     printf("\r                                               \rdone.\n");
 
