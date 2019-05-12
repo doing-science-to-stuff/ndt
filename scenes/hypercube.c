@@ -356,6 +356,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         vectNd_calloc(&origin, dimensions);
         object_add_pos(obj, &origin);
         vectNd_free(&origin);
+        vectNd temp;
+        vectNd_calloc(&temp,dimensions);
+        for(int i=0; i<dimensions; ++i) {
+            vectNd_reset(&temp);
+            vectNd_set(&temp, i, 1.0);
+            object_add_dir(obj, &temp);
+        }
+        vectNd_free(&temp);
         obj->red = 0.0;
         obj->green = 0.0;
         obj->blue = 0.8;
