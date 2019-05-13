@@ -1378,7 +1378,15 @@ int main(int argc, char **argv)
     /* process command-line options */
     int ch = '\0';
     /* unused: c,j,v,x,z */
-    while( (ch=getopt(argc, argv, ":a:b:d:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:w:y3:?"))!=-1 ) {
+    /* changes:
+     *      c -> a
+     *      e,i -> f   e, i:e, i:e:f
+     *      w,h -> ???  wxh
+     *      p -> h  (highlighting)
+     *      m -> p (parallax)
+     *      g -> m (map)
+     */
+    while( (ch=getopt(argc, argv, ":a:b:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:w:y3:?"))!=-1 ) {
         switch(ch) {
             case 'a':
                 aa_str = strdup(optarg);
