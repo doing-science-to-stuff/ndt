@@ -1857,29 +1857,33 @@ int main(int argc, char **argv)
             printf("%s took %0.2fs to render\n", fname, seconds);
 
             timer_elapsed(&global_timer,&seconds);
-            int total_frames = i-initial_frame+1;
+            int completed_frames = i-initial_frame+1;
+            double secs_per_frame = seconds/completed_frames;
             printf("\t%i frame%s took %0.2fs (avg. %0.3fs)\n",
-                total_frames, (total_frames!=1)?"s":"",
-                seconds, seconds/total_frames);
-            int remaining_frames = last_frame - i - 1;
-            double secs_per_frame = seconds/total_frames;
+                completed_frames, (completed_frames!=1)?"s":"",
+                seconds, secs_per_frame);
             double total_time = secs_per_frame * (last_frame - initial_frame + 1);
-            double remaining_time = seconds/total_frames * remaining_frames;
-            double total_cpu = -1;
+            double total_cpu_secs = -1;
             #ifdef WITH_MPI
-            total_cpu = total_time * mpiSize * threads;
+            total_cpu_secs = total_time * mpiSize * threads;
             #else
-            total_cpu = total_time * threads;
+            total_cpu_secs = total_time * threads;
             #endif /* WITH_MPI */
-            printf("\t%0.2fs remaining (%.2f est. total CPU hours).\n", seconds/total_frames * remaining_frames, total_cpu/3600.0);
+            printf("\t%.2f est. total CPU hours.\n", total_cpu_secs/3600.0);
 
-            char date_str[26];
-            struct tm finish_tm;
-            time_t now = time(NULL);
-            time_t finish_time = now + (int)remaining_time;
-            localtime_r(&finish_time, &finish_tm);
-            asctime_r(&finish_tm, date_str);
-            printf("\tExpected completion time: %s\n", date_str);
+            int remaining_frames = last_frame - i - 1;
+            double remaining_time = secs_per_frame * remaining_frames;
+            if( remaining_time > 0 ) {
+                printf("\t%0.2fs remaining.\n", remaining_time);
+
+                char date_str[26];
+                struct tm finish_tm;
+                time_t now = time(NULL);
+                time_t finish_time = now + (int)remaining_time;
+                localtime_r(&finish_time, &finish_tm);
+                asctime_r(&finish_tm, date_str);
+                printf("\tExpected completion time: %s\n", date_str);
+            }
         #ifdef WITH_MPI
         }
         #endif /* WITH_MPI */
