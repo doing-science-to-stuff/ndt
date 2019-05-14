@@ -61,6 +61,7 @@ static int mpiSize = -1;
 static mpi_mode_t mpi_mode = MPI_MODE_NONE;
 
 int mpi_collect_image(image_t*);
+int mpi_broadcast_image(image_t *img, int source_rank);
 #endif /* WITH_MPI */
 
 static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src, vectNd *look, vectNd *hit, vectNd *hit_normal, dbl_pixel_t *color) {
@@ -903,9 +904,18 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             pthread_join(thr[i],NULL);
         }
     }
-    printf("\r                               \r");
+
+    double initial_time = -1.0;
     timer_elapsed(&timer,&seconds);
-    printf("rendering took %.3fs\n", seconds);
+    initial_time = seconds;
+    #ifdef WITH_MPI
+    if( mpiRank == 0 ) {
+    #endif /* WITH_MPI */
+        printf("\r                               \r");
+        printf("rendering took %.3fs\n", seconds);
+    #ifdef WITH_MPI
+    }
+    #endif /* WITH_MPI */
 
     /* write initial image */
     if( name != NULL ) {
@@ -959,7 +969,15 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
 
     if( recursive_aa ) {
         if( aa_depth >= 0 && aa_diff < 256 ) {
-            printf("resampling image\n");
+            #ifdef WITH_MPI
+            /* broadcast raw initial image for before resampling */
+            if( mpi_mode != MPI_MODE_FRAME && mpi_mode != MPI_MODE_FRAME2 )
+                mpi_broadcast_image(img,0);
+
+            if( mpiRank == 0 )
+            #endif /* WITH_MPI */
+                printf("resampling image\n");
+
             timer_start(&timer);
             for(i=0; i<threads; ++i) {
                 info[i].width = width;
@@ -975,15 +993,27 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
                 pthread_join(thr[i],NULL);
                 pixel_count += info[i].pixel_count;
             }
-            printf("\r              \r");
-            timer_elapsed(&timer,&seconds);
+
+            printf("\r                               \r");
             printf("\r\t%i pixels resampled. (%.2f%%)\n", pixel_count,
                     100.0*pixel_count/(width*height));
-            printf("\tresampling took %.3fs\n", seconds);
 
             #ifdef WITH_MPI
             if( !img_copy ) {
                 mpi_collect_image(actual_img);
+            }
+            #endif /* WITH_MPI */
+
+            timer_elapsed(&timer,&seconds);
+            printf("\tresampling took %.3fs\n", seconds);
+
+            #ifdef WITH_MPI
+            if( mpiRank == 0 ) {
+            #endif /* WITH_MPI */
+                double resample_time = seconds;
+                double combined_time = resample_time+initial_time;
+                printf("resampling took %.1f%% of the time (total is %.2fx initial).\n", 100.0 * resample_time / combined_time, combined_time / initial_time);
+            #ifdef WITH_MPI
             }
             #endif /* WITH_MPI */
         } else {
@@ -1020,6 +1050,11 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
                 image_save(actual_img,name,IMAGE_FORMAT);
             timer_elapsed(&timer,&seconds);
             printf(" (took %.3fs)\n", seconds);
+        }
+
+        if( name && img_copy && img ) {
+            /* make a copy that will be visible by the calling function */
+            image_copy(img_copy, actual_img);
         }
 
         image_free(actual_img);
@@ -1200,6 +1235,30 @@ int mpi_collect_image(image_t *img) {
     if( parent != mpiRank ) {
         mpi_send_image(img, parent);
     }
+
+    return 0;
+}
+
+int mpi_broadcast_image(image_t *img, int source_rank) {
+    /* send image struct */
+    MPI_Bcast(img, sizeof(image_t), MPI_BYTE, source_rank, MPI_COMM_WORLD);
+
+    if( mpiRank != source_rank ) {
+        /* resize image, as needed */
+        img->allocated = 0;
+        img->pixels = NULL;
+        image_set_size(img, img->width, img->height);
+    }
+
+    /* send pixel buffer */
+    int pixels_size = img->width * img->height * img->pixel_width;
+    MPI_Bcast(img->pixels, pixels_size, MPI_BYTE, source_rank, MPI_COMM_WORLD);
+
+    #if 0
+    char fname[PATH_MAX];
+    snprintf(fname, sizeof(fname), "img_%i.png", mpiRank);
+    image_save(img, fname, IMG_TYPE_PNG);
+    #endif /* 0 */
 
     return 0;
 }
@@ -1821,8 +1880,7 @@ int main(int argc, char **argv)
         }
 
         #ifdef WITH_MPI
-        if( (mpi_mode != MPI_MODE_FRAME || mpiRank == 0)
-            && frames_running == 0 ) {
+        if( mpiRank == 0 && frames_running == 0 ) {
         #endif /* WITH_MPI */
             /* record frame time */
             timer_elapsed(&timer,&seconds);
