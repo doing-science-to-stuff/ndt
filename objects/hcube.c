@@ -169,6 +169,21 @@ static int prepare(object *hcube)
     return 0;
 }
 
+int cleanup(object *hcube) {
+    /* remove all faces */
+    for(int i=0; i<hcube->n_obj; ++i) {
+        object_free(hcube->obj[i]); hcube->obj[i] = NULL;
+    }
+    hcube->n_obj = 0;
+    hcube->obj = NULL;
+
+    /* mark hcube as needed preparation */
+    hcube->bounds.radius = 0.0;
+    hcube->prepared = 0;
+
+    return 0;
+}
+
 int type_name(char *name, int size) {
     strncpy(name,"hcube",size);
     return 0;

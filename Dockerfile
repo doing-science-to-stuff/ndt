@@ -5,6 +5,7 @@ ENV CXX /usr/bin/gcc
 RUN apt-get -y update
 RUN apt-get -y install libpng-tools libjpeg-turbo-progs libyaml-0-2
 RUN apt-get -y install cmake libpng-dev libjpeg-dev libyaml-dev
+RUN apt-get -y install libmpich-dev mpich
 # cmake seems to be missing a dependency for g++
 RUN apt-get -y install g++
 
