@@ -41,7 +41,7 @@
 int specular_enabled = 1;
 #endif /* WITH_SPECULAR */
 
-int recursive_aa = 0;
+int recursive_aa = 1;
 
 typedef enum stereo_mode_t {
     MONO, SIDE_SIDE_3D, OVER_UNDER_3D, ANAGLYPH_3D, HIDEF_3D
@@ -644,7 +644,7 @@ int recursive_resample(scene *scn, int width, double x_scale,
     return var5;
 }
 
-int resample_pixel(scene *scn, int width, double x_scale, int height, double y_scale, int i, int j, stereo_mode mode, int samples, int aa_diff, int aa_depth, image_t *img, image_t *prev_raw, image_t *prev_aa, dbl_pixel_t *clr, int max_optic_depth) {
+int resample_pixel(scene *scn, int width, double x_scale, int height, double y_scale, int i, int j, stereo_mode mode, int samples, int aa_diff, int aa_depth, image_t *img, dbl_pixel_t *clr, int max_optic_depth) {
     dbl_pixel_t p1, p2, p3, p4;
     double var;
     int ret = 0;
@@ -653,21 +653,6 @@ int resample_pixel(scene *scn, int width, double x_scale, int height, double y_s
     dbl_image_get_pixel(img,i+1,j,&p2);
     dbl_image_get_pixel(img,i,j+1,&p3);
     dbl_image_get_pixel(img,i+1,j+1,&p4);
-
-    if( prev_raw != NULL && prev_aa !=NULL ) {
-        dbl_pixel_t pp1, pp2, pp3, pp4;   
-        dbl_image_get_pixel(prev_raw,i,j,&pp1);
-        dbl_image_get_pixel(prev_raw,i+1,j,&pp2);
-        dbl_image_get_pixel(prev_raw,i,j+1,&pp3);
-        dbl_image_get_pixel(prev_raw,i+1,j+1,&pp4);
-        if( memcmp(&pp1,&p1,sizeof(pixel_t))==0 &&
-                memcmp(&pp2,&p2,sizeof(pixel_t))==0 &&
-                memcmp(&pp3,&p3,sizeof(pixel_t))==0 &&
-                memcmp(&pp4,&p4,sizeof(pixel_t))==0 ) {
-            dbl_image_get_pixel(prev_aa,i,j,clr);
-            return 0;
-        }
-    }
 
     image_avg_dbl_pixels4(&p1,&p2,&p3,&p4,clr,&var);
 
@@ -708,7 +693,7 @@ int render_line(scene *scn, int width, double x_scale, int height, double y_scal
     return 0;
 }
 
-int resample_line(scene *scn, int width, double x_scale, int height, double y_scale, int j, stereo_mode mode, int samples, int aa_diff, int aa_depth, image_t *img, image_t *actual_img, image_t *prev_raw, image_t *prev_aa, int max_optic_depth)
+int resample_line(scene *scn, int width, double x_scale, int height, double y_scale, int j, stereo_mode mode, int samples, int aa_diff, int aa_depth, image_t *img, image_t *actual_img, int max_optic_depth)
 {
     dbl_pixel_t clr;
     int ret = 0;
@@ -722,7 +707,7 @@ int resample_line(scene *scn, int width, double x_scale, int height, double y_sc
     }
     #endif /* WITH_MPI */
     for(i=row_start; i<width; i+=row_step) {
-        ret += resample_pixel(scn, width, x_scale, height, y_scale, i, j, mode, samples, aa_diff, aa_depth, img, prev_raw, prev_aa, &clr, max_optic_depth);
+        ret += resample_pixel(scn, width, x_scale, height, y_scale, i, j, mode, samples, aa_diff, aa_depth, img, &clr, max_optic_depth);
         dbl_image_set_pixel(actual_img,i,j,&clr);
     }
 
@@ -732,8 +717,6 @@ int resample_line(scene *scn, int width, double x_scale, int height, double y_sc
 struct thr_info {
     image_t *img;
     image_t *actual_img;
-    image_t *prev_raw;
-    image_t *prev_aa;
     image_t *depth_map;
     scene *scn;
     char *name;
@@ -818,7 +801,7 @@ void *resample_lines_thread(void *arg)
         info.pixel_count += resample_line(info.scn, info.width, info.x_scale,
                       info.height, info.y_scale, j, info.mode, info.samples,
                       info.aa_diff, info.aa_depth, info.img, info.actual_img,
-                      info.prev_raw, info.prev_aa, info.max_optic_depth);
+                      info.max_optic_depth);
 
         if( info.thr_offset==0 && (j%10) == 0 ) {
             int num = image_active_saves();
@@ -844,13 +827,11 @@ void *resample_lines_thread(void *arg)
     return 0;
 }
 
-int render_image(scene *scn, char *name, char *depth_name, int width, int height, int samples, stereo_mode mode, int threads, int aa_diff, int aa_depth, int aa_cache_frame, int max_optic_depth, image_t *img_copy, image_t *depth_copy)
+int render_image(scene *scn, char *name, char *depth_name, int width, int height, int samples, stereo_mode mode, int threads, int aa_diff, int aa_depth, int max_optic_depth, image_t *img_copy, image_t *depth_copy)
 {
     image_t *img = NULL;
     image_t *actual_img = NULL;
     image_t *depth_map = NULL;
-    static image_t *prev_raw = NULL;
-    static image_t *prev_aa = NULL;
     double x_scale = 1.0;
     double y_scale = 1.0;
     struct timeval timer;
@@ -956,17 +937,6 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
                 image_save(&norm,depth_name,IMAGE_FORMAT);
                 image_free(&norm);
             }
-
-            if( recursive_aa && aa_cache_frame ) {
-                timer_start(&timer);
-                if( prev_raw!=NULL )
-                    image_save(prev_raw,"prev_raw.png",IMAGE_FORMAT);
-                if( prev_aa!=NULL )
-                    image_save(prev_aa,"prev_aa.png",IMAGE_FORMAT);
-                timer_elapsed(&timer,&seconds);
-                printf("saving anti-aliasing cache images (took %.3fs)\n", seconds);
-            }
-
         #ifdef WITH_MPI
         }
         #endif /* WITH_MPI */
@@ -996,8 +966,6 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
                 info[i].height = height;
                 info[i].aa_diff = aa_diff;
                 info[i].aa_depth = aa_depth;
-                info[i].prev_raw = prev_raw;
-                info[i].prev_aa = prev_aa;
                 info[i].pixel_count = 0;
                 pthread_create(&thr[i],NULL,resample_lines_thread,&info[i]);
             }
@@ -1012,6 +980,12 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             printf("\r\t%i pixels resampled. (%.2f%%)\n", pixel_count,
                     100.0*pixel_count/(width*height));
             printf("\tresampling took %.3fs\n", seconds);
+
+            #ifdef WITH_MPI
+            if( !img_copy ) {
+                mpi_collect_image(actual_img);
+            }
+            #endif /* WITH_MPI */
         } else {
             /* simply copy img to actual_img */
             printf("\tcopying image without anti-aliasing\n");
@@ -1033,7 +1007,11 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
         free(thr); thr=NULL;
 
         /* write image */
-        if( name != NULL ) {
+        if( name != NULL 
+            #ifdef WITH_MPI
+            && mpiRank == 0
+            #endif /* WITH_MPI */
+            ) {
             timer_start(&timer);
             printf("\tsaving %s", name);
             if( threads > 1 )
@@ -1044,27 +1022,10 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
             printf(" (took %.3fs)\n", seconds);
         }
 
-        /* update inter-frame caching of AA images */
-        if( aa_cache_frame ) {
-            if( prev_raw!=NULL ) {
-                image_free(prev_raw);
-                free(prev_raw); prev_raw=NULL;
-            }
-            prev_raw = img;
-            img = NULL;
-
-            if( prev_aa!=NULL ) {
-                image_free(prev_aa);
-                free(prev_aa); prev_aa=NULL;
-            }
-            prev_aa = actual_img;
-            actual_img = NULL;
-        } else {
-            image_free(actual_img);
-            free(actual_img); actual_img=NULL;
-            image_free(img);
-            free(img); img=NULL;
-        }
+        image_free(actual_img);
+        free(actual_img); actual_img=NULL;
+        image_free(img);
+        free(img); img=NULL;
     }
     if( actual_img ) {
         image_free(actual_img);
@@ -1263,7 +1224,6 @@ int print_help_info(int argc, char **argv)
            "\t\t\t\tf: frame level parallelism\n"
            "\t\t\t\tF: frame level with rendering by rank 0\n"
            #endif /* WITH_MPI */
-           "\t-c\t\tEnable anti-aliasing cache\n"
            "\t-d dimension\tNumber of spacial dimension to use\n"
            "\t-e num\t\tLast frame number to render\n"
            "\t-f num\t\tNumber of frames to render\n"
@@ -1323,7 +1283,6 @@ int main(int argc, char **argv)
     char *aa_str = NULL;
     char *depth_str=NULL, *diff_str=NULL;
     int max_optic_depth = 128;
-    int aa_cache_frame = 0;
     void *dl_handle = NULL;
     int (*custom_scene)(scene *scn, int dimensions, int frame, int frames, char *config) = NULL;
     int (*custom_frame_count)(int dimensions, char *config) = NULL;
@@ -1359,8 +1318,8 @@ int main(int argc, char **argv)
 
     /* process command-line options */
     int ch = '\0';
-    /* unused: j,v,x,z */
-    while( (ch=getopt(argc, argv, ":a:b:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:w:y3:?"))!=-1 ) {
+    /* unused: c,j,v,x,z */
+    while( (ch=getopt(argc, argv, ":a:b:d:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:w:y3:?"))!=-1 ) {
         switch(ch) {
             case 'a':
                 aa_str = strdup(optarg);
@@ -1404,10 +1363,6 @@ int main(int argc, char **argv)
                 fprintf(stderr,"Not compiled with MPI support, remove the -b option.\n");
                 exit(1);
                 #endif /* WITH_MPI */
-                break;
-            case 'c':
-                aa_cache_frame = 1;
-                printf("inter-frame anti-aliasing cache enabled\n");
                 break;
             case 'd':
                 dimensions = atoi(optarg);
@@ -1511,7 +1466,6 @@ int main(int argc, char **argv)
                         /* settings for high quality */
                         aa_depth = 17;
                         aa_diff = 1;
-                        aa_cache_frame = 0;
                         max_optic_depth = 128;
                         break;
                     case 'm':
@@ -1520,7 +1474,6 @@ int main(int argc, char **argv)
                         /* settings for medium quality */
                         aa_depth = 2;
                         aa_diff = 1;
-                        aa_cache_frame = 1;
                         max_optic_depth = 20;
                         break;
                     case 'l':
@@ -1528,7 +1481,6 @@ int main(int argc, char **argv)
                         /* settings for low rendering */
                         aa_depth = 0;
                         aa_diff = 255;
-                        aa_cache_frame = 0;
                         max_optic_depth = 5;
                         break;
                         break;
@@ -1537,12 +1489,10 @@ int main(int argc, char **argv)
                         /* settings for fastest rendering */
                         aa_depth = 0;
                         aa_diff = 255;
-                        aa_cache_frame = 0;
                         max_optic_depth = 1;
                         break;
                 }
                 printf("anti-aliasing = diff=%i,depth=%i\n", aa_diff, aa_depth);
-                printf("aa_cache_frame = %i\n", aa_cache_frame);
                 printf("reflection/refraction depth limit = %i\n", max_optic_depth);
                 break;
             case 'r':
@@ -1802,7 +1752,7 @@ int main(int argc, char **argv)
             #else
             printf("rendering frame %i/%i \n", i, frames);
             #endif /* WITH_MPI */
-            render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, aa_cache_frame, max_optic_depth, img, depth_img);
+            render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, max_optic_depth, img, depth_img);
 
         #ifdef WITH_MPI
             if( mpiRank!=0 && (mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2) ) {
