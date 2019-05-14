@@ -346,7 +346,7 @@ $ pcluster list
 
 ### Attaching a snapshot
 
-If you created a snapdhot before deleting the cluster, you can use that
+If you created a snapshot before deleting the cluster, you can use that
 snapshot as the starting point for future cluster instances.
 
 1. Open the [snapshots console](https://console.aws.amazon.com/ec2/v2/#Snapshots).
