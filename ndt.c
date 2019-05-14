@@ -41,7 +41,7 @@
 int specular_enabled = 1;
 #endif /* WITH_SPECULAR */
 
-int recursive_aa = 1;
+int recursive_aa = 0;
 
 typedef enum stereo_mode_t {
     MONO, SIDE_SIDE_3D, OVER_UNDER_3D, ANAGLYPH_3D, HIDEF_3D
