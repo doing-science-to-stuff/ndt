@@ -3,9 +3,9 @@
 This document provides a minimal set of instructions for getting NDT running
 on an Amazon Web Services HPC cluster.
 To keep these instructions as simple as possible, many common practices
-especially with respect to security are left out.
+especially with respect to security have been left out.
 Use at your own risk.
-These instructions were last verfied to work on 2019-05-13.
+These instructions were last verified to work on 2019-05-13.
 
 ---
 
@@ -53,7 +53,7 @@ create the cluster.
 8. If all is correct, click "Create User" at the bottom of the page.
 9. Click "Show" under "Secret access key".
 10. Record the Access key ID which will be needed later.
-11. Record Secret access key which will be needed later.</br>**Warning: This is the last chance you willl have to get this secret key.**
+11. Record Secret access key which will be needed later.</br>**Warning: This is the last chance you will have to get this secret key.**
 12. Click "Download .csv" to get the username and keys in CSV format.  *(optional)*
 13. Click "Close" button at the bottom of the page.
 
@@ -169,7 +169,7 @@ $ pcluster create my-test-cluster
 ```
 **Note: This will take a surprisingly long time (approximately 5-10 minutes).**
 
-Verify thet cluster exists, by listing the current clusters *(optional)*:
+Verify that the cluster exists, by listing the current clusters *(optional)*:
 ```text
 $ pcluster list
 ```
@@ -182,7 +182,7 @@ Login to cluster:
 ```text
 $ pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem
 ```
-When promted about the authenticity of the host, answer `yes`.
+When prompted about the authenticity of the host, answer `yes`.
 
 Clone NDT:
 ```text
@@ -205,7 +205,7 @@ those can be copied with `scp`.
 5. Scroll over to the "IPv4 Public IP" column.
 6. Record the public IP address for the Master instance.
 
-Using the public IP address, files can be tranfered using `scp`.
+Using the public IP address, files can be transferred using `scp`.
 ```text
 $ scp -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
         ./path_to_local_file \
@@ -318,7 +318,7 @@ cluster will be destroyed when the cluster is deleted.**
 5. Scroll over to the "IPv4 Public IP" column.
 6. Record the IP address for the Master instance.
 
-Using the public IP address, files can be tranfered using `scp`.
+Using the public IP address, files can be transferred using `scp`.
 ```text
 $ mkdir results
 $ scp -r -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
@@ -350,7 +350,7 @@ If you created a snapshot before deleting the cluster, you can use that
 snapshot as the starting point for future cluster instances.
 
 1. Open the [snapshots console](https://console.aws.amazon.com/ec2/v2/#Snapshots).
-2. Locate the "Snapshot ID" of the snampshot you are interested in.
+2. Locate the "Snapshot ID" of the snapshot you are interested in.
 3. Add an `ebs` section to `~/.parallelcluster/config`:
     ```text
     [ebs snapshot_name]
