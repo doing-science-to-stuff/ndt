@@ -713,7 +713,15 @@ int resample_line(scene *scn, int width, double x_scale, int height, double y_sc
     dbl_pixel_t clr;
     int ret = 0;
     int i=0;
-    for(i=0; i<width; ++i) {
+    int row_start = 0;
+    int row_step = 1;
+    #ifdef WITH_MPI
+    if( mpi_mode == MPI_MODE_PIXEL && mpiSize > 0 ) {
+        row_start = (width * j + mpiRank) % mpiSize;
+        row_step = mpiSize;
+    }
+    #endif /* WITH_MPI */
+    for(i=row_start; i<width; i+=row_step) {
         ret += resample_pixel(scn, width, x_scale, height, y_scale, i, j, mode, samples, aa_diff, aa_depth, img, prev_raw, prev_aa, &clr, max_optic_depth);
         dbl_image_set_pixel(actual_img,i,j,&clr);
     }
@@ -798,7 +806,15 @@ void *resample_lines_thread(void *arg)
     struct timeval timer;
     if( info.thr_offset==0 )
         timer_start(&timer);
-    for(j=info.thr_offset; j<info.height; j+=info.threads) {
+    int row_start = info.thr_offset;
+    int row_step = info.threads;
+    #ifdef WITH_MPI
+    if( mpi_mode == MPI_MODE_ROW ) {
+        row_start += mpiRank*info.threads;
+        row_step *= mpiSize;
+    }
+    #endif /* WITH_MPI */
+    for(j=row_start; j<info.height; j+=row_step) {
         info.pixel_count += resample_line(info.scn, info.width, info.x_scale,
                       info.height, info.y_scale, j, info.mode, info.samples,
                       info.aa_diff, info.aa_depth, info.img, info.actual_img,
@@ -807,14 +823,20 @@ void *resample_lines_thread(void *arg)
         if( info.thr_offset==0 && (j%10) == 0 ) {
             int num = image_active_saves();
             double remaining = timer_remaining(&timer, j, info.height+1);
-            if( num <= 0 )
-                printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
-            else if( num == 1 )
-                printf("\r% 6.2f%%  (%i active save)   ", 100.0*j/info.height, num);
-            else
-                printf("\r% 6.2f%%  (%i active saves)  ", 100.0*j/info.height, num);
+            #ifdef WITH_MPI
+            if( mpiRank == 0 || (mpiRank == 1 && mpi_mode == MPI_MODE_FRAME) ) {
+            #endif /* WITH_MPI */
+                if( num <= 0 )
+                    printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
+                else if( num == 1 )
+                    printf("\r% 6.2f%%  (%i active save)   ", 100.0*j/info.height, num);
+                else
+                    printf("\r% 6.2f%%  (%i active saves)  ", 100.0*j/info.height, num);
 
-            fflush(stdout);
+                fflush(stdout);
+            #ifdef WITH_MPI
+            }
+            #endif /* WITH_MPI */
         }
     }
     memcpy(arg,&info,sizeof(info));
