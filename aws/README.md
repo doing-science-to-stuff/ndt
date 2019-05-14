@@ -92,7 +92,7 @@ Cluster setup will be managed with the `pcluster` command line interface (CLI) w
 $ pip install --user --upgrade awscli
 $ pip install --user --upgrade aws-parallelcluster
 ```
-**Note: as far as I can tell [CfnCluster](https://cfncluster.readthedocs.io/en/latest/getting_started.html) is deprecated.**
+**Note: The utility formerly known as [CfnCluster](https://cfncluster.readthedocs.io/en/latest/getting_started.html) was [renamed](https://github.com/aws/aws-parallelcluster/commit/eebd1029846ddea7eda00505d482bc83395890bb) to `pcluster`.**
 
 Next the CLI needs to be configured.
 ```text
@@ -374,4 +374,5 @@ eliminating the need to refetch the source code and compile it.
  * [EC2 Instance Pricing](https://aws.amazon.com/ec2/pricing/on-demand/)
  * [EC2 Instance Types](https://aws.amazon.com/ec2/instance-types/)
  * [Connect to the Master Node Using SSH](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-connect-master-node-ssh.html)
+ * [SGE Manual Pages](http://gridscheduler.sourceforge.net/htmlman/manuals.html)
  * Obsolete [CfnCluster](https://d1.awsstatic.com/Projects/P4114756/deploy-elastic-hpc-cluster_project.pdf) documentation
