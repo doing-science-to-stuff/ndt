@@ -176,7 +176,7 @@ $ pcluster list
 
 ---
 
-### Obtaininng / Compiling NDT
+### Acquiring / Compiling NDT
 
 Login to cluster:
 ```text
