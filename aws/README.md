@@ -292,7 +292,7 @@ Since the job-ID show by `qstat` is `1`, the filename will be `ndt.o1`.
 $ tail -f ndt.o1
 ```
 To stop monitoring the progress, press *ctrl+c*.
-This will not have any affect on the running job, it will only stop displaying
+This will not affect the running job, it will only stop displaying
 of further output.
 
 If you need to stop a running job, you can do so with the `qdel` command.
