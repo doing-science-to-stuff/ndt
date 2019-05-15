@@ -499,6 +499,7 @@ int object_add_obj(object *obj, object *new_obj) {
     }
     obj->obj[obj->n_obj] = new_obj;
     obj->n_obj++;
+    obj->bounds.radius = 0.0;
 
     return 0;
 }
