@@ -1272,23 +1272,20 @@ int print_help_info(int argc, char **argv)
         return 0;
     #endif /* WITH_MPI */
 
-    printf("Usage\n"
+    printf("Usage:\n"
            "\t%s [options]\n"
            "\n"
-           "\t-a diff,depth\tAnti-aliasing options\n"
+           "\t-a args\tAnti-aliasing arguments: max_diff,max_depth\n"
            #ifdef WITH_MPI
-           "\t-b mode\t\tmpi render granularity mode (p,t,f,F)\n"
+           "\t-b mode\t\tMPI render granularity mode (p,t,f,F)\n"
            "\t\t\t\tp: pixel level parallelism\n"
            "\t\t\t\tr: row level parallelism\n"
            "\t\t\t\tf: frame level parallelism\n"
            "\t\t\t\tF: frame level with rendering by rank 0\n"
            #endif /* WITH_MPI */
            "\t-d dimension\tNumber of spacial dimension to use\n"
-           "\t-e num\t\tLast frame number to render\n"
-           "\t-f num\t\tNumber of frames to render\n"
-           "\t-g\t\tEnable writing of depthmap image(s)\n"
-           "\t-h height\tHeight of output image (in pixels)\n"
-           "\t-i num\t\tInitial frame to render\n"
+           "\t-f arg\t\tFrames to render: last, first:last, or first:last:total\n"
+           "\t-h\t\tPrint this help message\n"
            "\t-k num\t\tNumber of clusters per level when grouping objects\n"
            "\t-l num\t\tMaximum recusion depth for reflection/refraction\n"
            "\t-m mode\t\tStereoscopic rendering mode (s,o,a,h,m)\n"
@@ -1299,17 +1296,18 @@ int print_help_info(int argc, char **argv)
            "\t\t\t\tm: monoscopic [default]\n"
            "\t-n samples\tResampling count for each pixel\n"
            "\t-o directory\tDirectory to look in for object description files\n"
-           "\t-p\t\tDisable specular high-lighting\n"
+           "\t-p\t\tDisable specular highlighting\n"
            "\t-q quality\tPreset quality levels (high,med,low,fast)\n"
-           "\t-r mode,vFov,[hFov]\tRadial camera, mode={spherical,cylindrical}\n"
+           "\t-r resolution\tImage size {4k,1080p,720p} or WxH (e.g., 1920x1080)\n"
            "\t-s scene.so\tShared object that specifies the scene\n"
-           "\t-t threads\tThreads to use\n"
+           "\t-t threads\tNumber of threads to use\n"
            "\t-u scene_config\tScene specific options string\n"
-           "\t-w width\tWidth of output image (in pixels)\n"
+           "\t-v mode,vFov,[hFov]\tVR/Pano camera, mode={spherical,cylindrical}\n"
+           "\t-w\t\tEnable recursive anti-aliasing\n"
            #ifdef WITH_YAML
            "\t-y\t\tWrite YAML file(s)\n"
            #endif /* WITH_YAML */
-           "\t-?\t\tPrint this help message\n",
+           "\t-z\t\tEnable writing of depthmap image(s)\n",
            argv[0]);
     fflush(stdout);
 
@@ -1339,8 +1337,6 @@ int main(int argc, char **argv)
     int cluster_k = 6;
     int aa_depth = 4;
     int aa_diff = 20;
-    char *aa_str = NULL;
-    char *depth_str=NULL, *diff_str=NULL;
     int max_optic_depth = 128;
     void *dl_handle = NULL;
     int (*custom_scene)(scene *scn, int dimensions, int frame, int frames, char *config) = NULL;
@@ -1377,27 +1373,23 @@ int main(int argc, char **argv)
 
     /* process command-line options */
     int ch = '\0';
-    /* unused: c,j,v,x,z */
-    /* changes:
-     *      c -> a
-     *      e,i -> f   e, i:e, i:e:f
-     *      w,h -> ???  wxh
-     *      p -> h  (highlighting)
-     *      m -> p (parallax)
-     *      g -> m (map)
-     */
-    while( (ch=getopt(argc, argv, ":a:b:cd:e:f:gh:i:k:l:m:n:o:pq:r:s:t:u:w:y3:?"))!=-1 ) {
+    /* unused: c,e,g,i,j,x */
+    while( (ch=getopt(argc, argv, ":a:b:d:f:ghk:l:m:n:o:pq:r:s:t:u:v:wyz3:"))!=-1 ) {
+        int arg1, arg2, arg3;
+        int nargs;
+
         switch(ch) {
             case 'a':
-                aa_str = strdup(optarg);
-                diff_str = strtok(aa_str,",");
-                depth_str = strtok(NULL,",");
-                if( diff_str!=NULL )
-                    aa_diff = atoi(diff_str);
-                if( depth_str!=NULL )
-                    aa_depth = atoi(depth_str);
-                free(aa_str); aa_str=NULL;
-                printf("anti-aliasing = diff=%i,depth=%i\n", aa_diff, aa_depth);
+                recursive_aa = 1;
+                printf("recursive anti-aliasing enabled\n");
+                if( optarg ) {
+                    nargs = sscanf(optarg, "%d,%d", &arg1, &arg2);
+                    if( nargs >= 1 )
+                        aa_diff = arg1;
+                    if( nargs >= 2 )
+                        aa_depth = arg2;
+                    printf("anti-aliasing = diff=%i,depth=%i\n", aa_diff, aa_depth);
+                }
                 break;
             case 'b':
                 #ifdef WITH_MPI
@@ -1442,26 +1434,20 @@ int main(int argc, char **argv)
                 }
                 printf("rendering in %id\n", dimensions);
                 break;
-            case 'e':
-                last_frame = atoi(optarg);
-                printf("end frame = %i\n", last_frame);
-                break;
             case 'f':
-                frames_given = 1;
-                frames = atoi(optarg);
-                printf("%i frames\n", frames);
-                break;
-            case 'g':
-                record_depth_map = 1;
-                printf("record_depth_map = yes\n");
-                break;
-            case 'h':
-                height = atoi(optarg);
-                printf("height = %i\n", height);
-                break;
-            case 'i':
-                initial_frame = atoi(optarg);
-                printf("initial frame = %i\n", initial_frame);
+                nargs = sscanf(optarg,"%d:%d:%d", &arg1, &arg2, &arg3);
+                if( nargs >= 3 ) {
+                    initial_frame = arg1;
+                    last_frame = arg2;
+                    frames = arg3;
+                    frames_given = 1;
+                } else if( nargs >= 2 ) {
+                    initial_frame = arg1;
+                    last_frame = arg2;
+                } else if( nargs >= 1 ) {
+                    last_frame = arg1;
+                }
+                printf("frames %i to %i of %i.\n", initial_frame, last_frame, frames);
                 break;
             case 'k':
                 cluster_k = atoi(optarg);
@@ -1563,6 +1549,56 @@ int main(int argc, char **argv)
                 printf("reflection/refraction depth limit = %i\n", max_optic_depth);
                 break;
             case 'r':
+                printf("resolution: %s\n", optarg);
+                width = height = -1;
+                if( strncasecmp(optarg, "4k", 2) == 0
+                    || strncmp(optarg, "2160", 4) == 0 ) {
+                    width = 3840;
+                    height = 2160;
+                } else if( strncasecmp(optarg, "1080p", 5) == 0 ) {
+                    width = 1920;
+                    height = 1080;
+                } else if( strncasecmp(optarg, "720p", 5) == 0 ) {
+                    width = 1280;
+                    height = 720;
+                } else if( strncasecmp(optarg, "480p", 4) == 0 ) {
+                    width = 720;
+                    height = 480;
+                } else {
+                    sscanf(optarg, "%dx%d", &width, &height);
+                }
+
+                if( width < 1 || height < 1 ) {
+                    fprintf(stderr, "\nInvalid resolution specified, '%s'.\nMust be one of 4k, 1080p, 720p, or of the form WxH.\n\n", optarg);
+                    exit(1);
+                }
+                printf("width = %i\n", width);
+                printf("height = %i\n", height);
+                break;
+            case 's':
+                printf("Loading scene object %s\n", optarg);
+                dl_handle = dlopen(optarg,RTLD_NOW);
+                if( !dl_handle ) {
+                    fprintf(stderr, "%s\n", dlerror());
+                    #ifdef WITH_MPI
+                    MPI_Finalize();
+                    #endif /* WITH_MPI */
+                    exit(1);
+                } else {
+                    *(void **) (&custom_scene) = dlsym(dl_handle, "scene_setup");
+                    *(void **) (&custom_frame_count) = dlsym(dl_handle, "scene_frames");
+                    *(void **) (&custom_scene_cleanup) = dlsym(dl_handle, "scene_cleanup");
+                }
+                break;
+            case 't':
+                threads = atoi(optarg);
+                printf("threads = %i\n", threads);
+                break;
+            case 'u':
+                scene_config = strdup(optarg);
+                printf("scene config string = %s\n", scene_config);
+                break;
+            case 'v':
                 /* enable radial camera mode */
                 enable_vr = 0;
                 enable_pano = 0;
@@ -1598,32 +1634,9 @@ int main(int argc, char **argv)
                 printf("    vFov = %g\n", camera_v_fov * 180.0 / M_PI);
                 printf("    hFov = %g\n", camera_h_fov * 180.0 / M_PI);
                 break;
-            case 's':
-                printf("Loading scene object %s\n", optarg);
-                dl_handle = dlopen(optarg,RTLD_NOW);
-                if( !dl_handle ) {
-                    fprintf(stderr, "%s\n", dlerror());
-                    #ifdef WITH_MPI
-                    MPI_Finalize();
-                    #endif /* WITH_MPI */
-                    exit(1);
-                } else {
-                    *(void **) (&custom_scene) = dlsym(dl_handle, "scene_setup");
-                    *(void **) (&custom_frame_count) = dlsym(dl_handle, "scene_frames");
-                    *(void **) (&custom_scene_cleanup) = dlsym(dl_handle, "scene_cleanup");
-                }
-                break;
-            case 't':
-                threads = atoi(optarg);
-                printf("threads = %i\n", threads);
-                break;
-            case 'u':
-                scene_config = strdup(optarg);
-                printf("scene config string = %s\n", scene_config);
-                break;
             case 'w':
-                width = atoi(optarg);
-                printf("width = %i\n", width);
+                recursive_aa = 1;
+                printf("recursive anti-aliasing (Whitted’s method) enabled\n");
                 break;
             case 'y':
                 #ifdef WITH_YAML
@@ -1636,7 +1649,11 @@ int main(int argc, char **argv)
                 exit(1);
                 #endif /* WITH_YAML */
                 break;
-            case '?':
+            case 'z':
+                record_depth_map = 1;
+                printf("record_depth_map = yes\n");
+                break;
+            case 'h':
             case ':':
                 print_help_info(argc,argv);
                 #ifdef WITH_MPI
