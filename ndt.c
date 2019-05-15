@@ -359,34 +359,47 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
         obj_ptr->get_reflect(obj_ptr, &hit, &hitr_r, &hitr_g, &hitr_b);
 
         #if 1
-        /* compute reflection */
+        /* compute reflection and refraction */
         /* see:
          * http://www.unc.edu/~marzuola/Math547_S13/Math547_S13_Projects/P_Smith_Section001_RayTracing.pdf
          */
         double contrib = MAX(hitr_r,MAX(hitr_g,hitr_b));
         if(contrib > 0 ) {
-            vectNd reflect;
-            vectNd_alloc(&reflect,dim);
-            vectNd_reflect(look,&hit_normal,&reflect,1.0);
-
-            /* set color based on actual reflection */
             dbl_pixel_t ref;
-            get_ray_color(&hit,&reflect,scn,&ref, contrib*pixel_frac, NULL, max_depth-1);
-            #ifdef WITH_SPECULAR
-            if( specular_enabled ) {
-                clr.r = (1-hitr_r)*(clr.r)+(hitr_r)*ref.r;
-                clr.g = (1-hitr_g)*(clr.g)+(hitr_g)*ref.g;
-                clr.b = (1-hitr_b)*(clr.b)+(hitr_b)*ref.b;
-            } else {
-            #endif /* WITH_SPECULAR */
+            vectNd new_ray;
+            vectNd_alloc(&new_ray,dim);
+
+            /* apply reflectivity */
+            if( hitr_r != 0.0 || hitr_g != 0.0 || hitr_b != 0.0 ) {
+                vectNd_reflect(look,&hit_normal,&new_ray,1.0);
+
+                /* set color based on actual reflection */
+                get_ray_color(&hit,&new_ray,scn,&ref, contrib*pixel_frac, NULL, max_depth-1);
+                #ifdef WITH_SPECULAR
+                if( specular_enabled ) {
+                    clr.r = (1-hitr_r)*(clr.r)+(hitr_r)*ref.r;
+                    clr.g = (1-hitr_g)*(clr.g)+(hitr_g)*ref.g;
+                    clr.b = (1-hitr_b)*(clr.b)+(hitr_b)*ref.b;
+                } else {
+                #endif /* WITH_SPECULAR */
+                    clr.r += hitr_r*ref.r;
+                    clr.g += hitr_g*ref.g;
+                    clr.b += hitr_b*ref.b;
+                #ifdef WITH_SPECULAR
+                }
+                #endif /* WITH_SPECULAR */
+            }
+
+            /* apply transparency */
+            if( obj_ptr->transparent ) {
+                vectNd_refract(look,&hit_normal,&new_ray,obj_ptr->refract_index);
+                get_ray_color(&hit,&new_ray,scn,&ref, contrib*pixel_frac, NULL, max_depth-1);
                 clr.r += hitr_r*ref.r;
                 clr.g += hitr_g*ref.g;
                 clr.b += hitr_b*ref.b;
-            #ifdef WITH_SPECULAR
             }
-            #endif /* WITH_SPECULAR */
 
-            vectNd_free(&reflect);
+            vectNd_free(&new_ray);
         }
         #endif /* 1 */
 
