@@ -160,7 +160,7 @@ int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         prepare(obj);
     }
 
-    int ret = trace(o, v, obj->obj, obj->n_obj, res, normal, obj_ptr);
+    int ret = trace(o, v, obj->obj, obj->n_obj, res, normal, obj_ptr, -1.0);
 
     return ret;
 }

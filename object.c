@@ -595,7 +595,7 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
     return ret;
 }
 
-int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr) {
+int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
     double min_dist = -1;
     vectNd res;
     vectNd normal;
@@ -625,6 +625,10 @@ int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *
                 vectNd_copy(hit_normal,&normal);
                 if( ptr!=NULL )
                     *ptr = tmp_ptr;
+            }
+
+            if( dist_limit == 0.0 || dist < dist_limit ) {
+                break;
             }
         }
     }

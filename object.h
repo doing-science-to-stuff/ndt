@@ -105,6 +105,6 @@ int object_rotate(object * obj, vectNd *center, int v1, int v2, double angle);
 int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double angle);
 
 /* tracing rays to objects */
-int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr);
+int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit);
 
 #endif /* OBJECT_H */

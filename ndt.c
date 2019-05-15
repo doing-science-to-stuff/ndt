@@ -162,11 +162,25 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
             }
         }
 
-        if( lgt_type == LIGHT_POINT ||
-            lgt_type == LIGHT_SPOT ||
-            lgt_type == LIGHT_DIRECTIONAL ) {
+        if( lgt_type == LIGHT_POINT
+            || lgt_type == LIGHT_SPOT
+            || lgt_type == LIGHT_DIRECTIONAL ) {
             object *light_obj_ptr=NULL;
             int got_hit = 0;
+
+            /* dist_limit meanings:
+             *  <0 check all objects
+             *  0 stop if any hit found
+             *  >0 stop if hit found withing limit
+             */
+            double dist_limit = -1.0;
+            if( lgt_type == LIGHT_DIRECTIONAL ) {
+                dist_limit = 0.0;
+            } else if( lgt_type == LIGHT_POINT
+                    || lgt_type == LIGHT_SPOT ) {
+                vectNd_dist(hit,&lgt_pos,&dist_limit);
+                dist_limit += EPSILON;
+            }
 
             double ldist2=1.0;
             if( lgt_type == LIGHT_POINT ||
@@ -185,7 +199,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
 
                 /* trace from light to object */
                 got_hit = trace(&lgt_pos, &light_vec, scn->object_ptrs, scn->num_objects,
-                    &light_hit, &light_hit_normal, &light_obj_ptr);
+                    &light_hit, &light_hit_normal, &light_obj_ptr, dist_limit);
                 if( !got_hit || light_obj_ptr != obj_ptr ) {
                     /* light didn't hit the target object */
                     continue;
@@ -209,7 +223,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                 vectNd_add(&near_pos,hit,&near_pos);
                 vectNd_scale(&scn->lights[i]->dir, -1.0, &light_vec);
                 got_hit = trace(&near_pos, &rev_light, scn->object_ptrs, scn->num_objects,
-                    &light_hit, &light_hit_normal, &light_obj_ptr);
+                    &light_hit, &light_hit_normal, &light_obj_ptr, 0.0);
 
                 /* success is not hitting anything */
                 if( got_hit ) {
@@ -321,7 +335,7 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
     vectNd_calloc(&hit_normal,dim);
 
     obj_ptr = NULL;
-    trace(src, look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr);
+    trace(src, look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr, -1.0);
 
     /* record depth for depth maps */
     double trace_dist = -1;
