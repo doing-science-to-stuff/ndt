@@ -67,6 +67,7 @@ int scene_aim_light(light *lgt, vectNd *target);
 int scene_prepare_light(light *lgt);
 int scene_validate_objects(scene *scn);
 int scene_cluster(scene *scn, int k);
+int scene_print(scene *scn);
 int scene_find_dupes(scene *scn);
 int scene_remove_dupes(scene *scn);
 

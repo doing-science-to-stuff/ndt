@@ -300,6 +300,38 @@ int scene_cluster(scene *scn, int k)
         object_free(infinite); infinite = NULL;
     }
 
+    #if 0
+    scene_print(scn);
+    #endif /* 0 */
+
+    return 0;
+}
+
+static int scene_print_r(object **obj, int n, int depth) {
+    char prefix[256];
+    memset(prefix,' ',sizeof(prefix));
+    prefix[sizeof(prefix)-1] = '\0';
+    if( depth*4 < sizeof(prefix) )
+        prefix[depth*4] = '\0';
+
+    for(int i=0; i<n; ++i) {
+        char type[OBJ_TYPE_MAX_LEN];
+        obj[i]->type_name(type, sizeof(type));
+        printf("%s%s: %s\n", prefix, type, obj[i]->name);
+
+        if( obj[i]->n_obj > 0 ) {
+            scene_print_r(obj[i]->obj, obj[i]->n_obj, depth+1);
+        }
+    }
+
+    return 0;
+}
+
+int scene_print(scene *scn) {
+    printf("\nStart %s\n", __FUNCTION__);
+    scene_print_r(scn->object_ptrs, scn->num_objects, 0);
+    printf("End %s\n\n", __FUNCTION__);
+
     return 0;
 }
 
