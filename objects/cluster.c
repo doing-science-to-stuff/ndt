@@ -74,13 +74,13 @@ static int cluster_do_clustering(object *clstr, int k)
 
     /* copy all bounding sphere centers */
     for(int i=0; i<clstr->n_obj; ++i)
-        vectNd_copy(&centers.data[i].vect, &clstr->bounds.center);
+        vectNd_copy(&centers.data[i].vect, &clstr->obj[i]->bounds.center);
 
     /* perform clustering */
     kmean_vector_list_t centroids;
     kmeans_new_list(&centroids,k,clstr->dimensions);
     for(int i=0; i<k; ++i) {
-        vectNd_copy(&centroids.data[i].vect, &clstr->bounds.center);
+        vectNd_copy(&centroids.data[i].vect, &clstr->obj[i]->bounds.center);
         centroids.data[i].which = i;
     }
     kmeans_find(&centers,&centroids);
@@ -89,6 +89,7 @@ static int cluster_do_clustering(object *clstr, int k)
     object **subs = calloc(k,sizeof(object*));
     for(int i=0; i<k; ++i) {
         subs[i] = object_alloc(clstr->dimensions, "cluster", "sub object");
+        object_add_flag(subs[i], k);
     }
     for(int i=0; i<clstr->n_obj; ++i) {
         int which = centers.data[i].which;
@@ -106,12 +107,12 @@ static int cluster_do_clustering(object *clstr, int k)
         /* recurse on each sub-clusters */
         for(int i=0; i<k; ++i) {
             subs[i]->get_bounds(subs[i]);
-            cluster_do_clustering(subs[i],k);
+            cluster_do_clustering(subs[i],subs[i]->flag[0]);
         }
 
         /* replace list with new sub-clusters */
         free(clstr->obj); clstr->obj=NULL;
-        clstr->n_obj = 0;
+        clstr->n_obj = clstr->cap_obj = 0;
         for(int i=0; i<k; ++i) {
             if( subs[i]!=NULL && subs[i]->n_obj > 0 ) {
                 object_add_obj(clstr, subs[i]);
@@ -121,10 +122,26 @@ static int cluster_do_clustering(object *clstr, int k)
         for(int i=0; i<k; ++i) {
             /* prevent freeing of sub-objects in, now useless, clusters */
             subs[i]->n_obj = 0;
+
+            /* destroy unused cluster */
             object_free(subs[i]); subs[i] = NULL;
         }
     }
     free(subs); subs=NULL;
+
+    #if 0
+    printf("Adding a cluster outline sphere for %s.\n", clstr->name);
+    /* For debugging, add a transparent sphere where the bounding sphere is. */
+    get_bounds(clstr);
+    object *outline = object_alloc(clstr->dimensions, "sphere", "");
+    outline->red = outline->green = outline->blue = 0.1;
+    outline->red_r = outline->green_r = outline->blue_r = 0.5;
+    outline->refract_index = 1.0;
+    outline->transparent = 1;
+    object_add_pos(outline, &clstr->bounds.center);
+    object_add_size(outline, clstr->bounds.radius-EPSILON);
+    object_add_obj(clstr, outline);
+    #endif /* 0 */
 
     kmeans_free_list(&centers);
     kmeans_free_list(&centroids);
