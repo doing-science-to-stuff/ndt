@@ -765,10 +765,8 @@ void *render_lines_thread(void *arg)
             #endif /* WITH_MPI */
                 if( num <= 0 )
                     printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
-                else if( num == 1 )
-                    printf("\r% 6.2f%%  (%i active save)   ", 100.0*j/info.height, num);
                 else
-                    printf("\r% 6.2f%%  (%i active saves)  ", 100.0*j/info.height, num);
+                    printf("\r% 6.2f%%  (%i active save%s)   ", 100.0*j/info.height, num, (num==1)?"":"s");
 
                 fflush(stdout);
             #ifdef WITH_MPI
@@ -812,10 +810,8 @@ void *resample_lines_thread(void *arg)
             #endif /* WITH_MPI */
                 if( num <= 0 )
                     printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
-                else if( num == 1 )
-                    printf("\r% 6.2f%%  (%i active save)   ", 100.0*j/info.height, num);
                 else
-                    printf("\r% 6.2f%%  (%i active saves)  ", 100.0*j/info.height, num);
+                    printf("\r% 6.2f%%  (%i active save%s)   ", 100.0*j/info.height, num, (num==1)?"":"s");
 
                 fflush(stdout);
             #ifdef WITH_MPI
