@@ -23,10 +23,10 @@ Since pip installs executables to an odd location, update the `PATH` to
 include this location.
 
 ```text
-$ export PATH="~/.local/bin:$PATH"
+$ export PATH=~/.local/bin:"$PATH"
 ```
 
-To make this change persistent, runtime configuration files will need to be updated as well (e.g., in bash, add `export PATH="~/.local/bin:$PATH"` to the end of `~/.bashrc`).
+To make this change persistent, runtime configuration files will need to be updated as well (e.g., in bash, add `export PATH=~/.local/bin:"$PATH"` to the end of `~/.bashrc`).
 
 #### Creating a User
 
@@ -366,6 +366,139 @@ At this point rerunning `pcluster create cluster-name` will create a cluster
 such that `/shared` is populated with the contents of the snapshot,
 eliminating the need to refetch the source code and compile it.
 
+# Troubleshooting
+
+* **Symptom:**
+    Access Key ID and Secret Access Key ID were not displayed when creating a
+    user.
+    * Possible Cause:
+        Access type `Programmatic access` was not checked.</br>
+    Fix:
+        Recreate the user and be sure to check the `Programmatic access` box
+        in the Access type section below the User name field.
+
+* **Symptom:**
+    While creating a user the following message is displayed:
+    ```text
+    This user has no permissions
+    You haven't given this user any permissions. This means that the user has no access to any AWS service or resource. Consider returning to the previous step and adding some type of permissions.
+    ```
+    * Possible Cause:
+        No permissions checkboxes were selected.</br>
+    Fix:
+        1. Click `Previous` button (twice?) to get to the `Set permissions` screen.
+        2. Click `Attach existing policies directly`.
+        3. Check the box for `AdministratorAccess`.
+        4. Click `Next: Tags` button.
+
+* **Symptom:**
+    Running `aws` produces the error message:
+    ```text
+    aws: command not found
+    ```
+    * Possible Cause:
+        `awscli` is not installed.</br>
+    Fix:
+        Install `awscli` with `pip install --user --upgrade awscli`
+    * Possible Cause:
+        `aws` is not in your `PATH`</br>
+    Fix:
+        Run `export PATH=~/.local/bin:"$PATH"` and update runtime configuration files.
+
+* **Symptom:**
+    Running `pcluster` produces the error message:
+    ```text
+    pcluster: command not found
+    ```
+    * Possible Cause:
+        `aws-parallelcluster` is not installed.</br>
+    Fix:
+        Install `aws-parallelcluster` with `pip install --user --upgrade aws-parallelcluster`
+    * Possible Cause:
+        `pcluster` is not in your `PATH`</br>
+    Fix:
+        Run `export PATH="~/.local/bin:$PATH"` and update runtime configuration files.
+
+* **Symptom:**
+    Running `pcluster configure` produces the error message:
+    ```text
+    Failed with error: You must specify a region.
+    Hint: please check your AWS credentials.
+    ```
+    * Possible Cause:
+        AWS isn't configured yet.</br>
+    Fix:
+        Run `aws configure`.
+    * Possible Cause:
+        A `Default region` was not specified when configuring AWS.</br>
+    Fix:
+        Run `aws configure` and be sure to give an answer to `Default region name` (e.g., `us-east-2`).
+
+* **Symptom:**
+    Running `pcluster configure` produces the error message:
+    ```text
+    Failed with error: An error occurred (AuthFailure) when calling the DescribeKeyPairs operation: AWS was not able to validate the provided access credentials
+    Hint: please check your AWS credentials.
+    ```
+    * Possible Cause:
+        Invalid Access Key IDs entered.</br>
+    Fix:
+        Generate a new pair of Access Key IDs to be sure they are valid.
+    * Possible Cause:
+        Mismatch between Access Key ID and Secret Access Key ID.</br>
+    Fix:
+        Generate a new pair of Access Key IDs to be sure they match.
+
+* **Symptom:**
+    Running `pcluster configure` produces the error message:
+    ```
+    Failed with error: Unable to locate credentials
+    Hint: please check your AWS credentials.
+    ```
+    * Possible Cause:
+        Access Keys not given when configuring AWS.</br>
+    Fix:
+        Rerun `aws configure` and be sure to provide `AWS Access Key ID` and `AWS Secret Access Key`.
+
+* **Symptom:**
+    Running `pcluster configure` produces the error message:
+    ```
+    Failed with error: An error occurred (UnauthorizedOperation) when calling the DescribeRegions operation: You are not authorized to perform this operation.
+    Hint: please check your AWS credentials.
+    ```
+    * Possible Cause:
+        User lacks `AdministratorAccess` permissions.</br>
+    Fix:
+        1. Open the [IAM Console](https://console.aws.amazon.com/iam/home#/users).
+        2. Click on the User name for the relevant user.
+        3. Select the `Permissions` tab.
+        4. Click the `Add permissions` button.
+        5. Click `Attach existing policies directly`.
+        6. Check the box for `AdministratorAccess`.
+        7. Click the `Next: Review` button at the bottom of the page.
+        8. Click the `Add permissions` button at the bottom of the page.
+
+* **Symptom:**
+    Running `pcluster create my-test-cluster` produces the error message:
+    ```text
+    ERROR: Default config ~/.parallelcluster/config not found.
+    You can copy a template from here: ~/.local/lib/python2.7/site-packages/pcluster/examples/config
+    ```
+    * Possible Cause:
+        `aws-parallelcluster` has not been configured yet.</br>
+    Fix:
+        Run `pcluster configure`.
+
+<!--
+* **Symptom:**
+    Running ` ` produces the error message:
+    ```
+    ```
+    * Possible Cause:
+        </br>
+    Fix:
+
+-->
 
 # References:
 
