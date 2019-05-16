@@ -269,6 +269,7 @@ is run in either the scenes directory or the top level ndt directory.
 
 ```text
 $ cd ..
+$ cmake .
 $ make
 ```
 
