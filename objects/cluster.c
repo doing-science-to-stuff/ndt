@@ -38,8 +38,8 @@ int get_bounds(object *obj)
     /* get centroid of all sub objects */
     vectNd_reset(&obj->bounds.center);
     for(int i=0; i<obj->n_obj; ++i) {
-        if( obj->obj[i]->bounds.radius == 0 )
-            obj->obj[i]->get_bounds(obj->obj[i]);
+        obj->obj[i]->bounds.radius = 0.0;
+        obj->obj[i]->get_bounds(obj->obj[i]);
         vectNd_add(&obj->bounds.center,&obj->obj[i]->bounds.center,
                     &obj->bounds.center);
     }
@@ -135,11 +135,13 @@ static int cluster_do_clustering(object *clstr, int k)
     get_bounds(clstr);
     object *outline = object_alloc(clstr->dimensions, "sphere", "");
     outline->red = outline->green = outline->blue = 0.1;
-    outline->red_r = outline->green_r = outline->blue_r = 0.5;
+    outline->red_r = outline->green_r = outline->blue_r = 0.0;
     outline->refract_index = 1.0;
     outline->transparent = 1;
     object_add_pos(outline, &clstr->bounds.center);
     object_add_size(outline, clstr->bounds.radius-EPSILON);
+    vectNd_print(&clstr->bounds.center, "\tcenter");
+    printf("\toutline radius = %g\n", clstr->bounds.radius);
     object_add_obj(clstr, outline);
     #endif /* 0 */
 

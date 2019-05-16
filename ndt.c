@@ -363,11 +363,12 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
         /* see:
          * http://www.unc.edu/~marzuola/Math547_S13/Math547_S13_Projects/P_Smith_Section001_RayTracing.pdf
          */
+        dbl_pixel_t ref;
+        vectNd new_ray;
+        vectNd_alloc(&new_ray,dim);
+
         double contrib = MAX(hitr_r,MAX(hitr_g,hitr_b));
         if(contrib > 0 ) {
-            dbl_pixel_t ref;
-            vectNd new_ray;
-            vectNd_alloc(&new_ray,dim);
 
             /* apply reflectivity */
             if( hitr_r != 0.0 || hitr_g != 0.0 || hitr_b != 0.0 ) {
@@ -389,18 +390,18 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
                 }
                 #endif /* WITH_SPECULAR */
             }
-
-            /* apply transparency */
-            if( obj_ptr->transparent ) {
-                vectNd_refract(look,&hit_normal,&new_ray,obj_ptr->refract_index);
-                get_ray_color(&hit,&new_ray,scn,&ref, contrib*pixel_frac, NULL, max_depth-1);
-                clr.r += hitr_r*ref.r;
-                clr.g += hitr_g*ref.g;
-                clr.b += hitr_b*ref.b;
-            }
-
-            vectNd_free(&new_ray);
         }
+
+        /* apply transparency */
+        if( obj_ptr->transparent ) {
+            vectNd_refract(look,&hit_normal,&new_ray,obj_ptr->refract_index);
+            get_ray_color(&hit,&new_ray,scn,&ref, (1-contrib)*pixel_frac, NULL, max_depth-1);
+            clr.r += (1.0-hitr_r)*ref.r;
+            clr.g += (1.0-hitr_g)*ref.g;
+            clr.b += (1.0-hitr_b)*ref.b;
+        }
+
+        vectNd_free(&new_ray);
         #endif /* 1 */
 
         ret = 1;
