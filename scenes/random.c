@@ -117,6 +117,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         obj->red_r = 0.25*drand48();
         obj->green_r = 0.25*drand48();
         obj->blue_r = 0.25*drand48();
+
+        obj->transparent = (drand48()<0.25)?1:0;
+        if( obj->transparent )
+            obj->refract_index = 1.0 + drand48();
     }
 
     registered_types_free(types); types=NULL;
