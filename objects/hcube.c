@@ -91,6 +91,7 @@ static int add_faces(object *cube, int m) {
         if( m > 1 ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "orthotope", "");
+            snprintf(obj->name, sizeof(obj->name), "%s face %i\n", cube->name, f);
             object_add_flag(obj, m);
 
             for(int i=0; i<m; ++i) {
