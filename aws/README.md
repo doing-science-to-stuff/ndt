@@ -5,9 +5,18 @@ on an Amazon Web Services HPC cluster.
 To keep these instructions as simple as possible, many common practices
 especially with respect to security have been left out.
 Use at your own risk.
-These instructions were last verified to work on 2019-05-13.
+These instructions were last verified to work on 2019-05-16.
 
 ---
+
+### Notational Conventions
+
+Different commands need to be run on different machines and possibly by
+different users.
+Which machine (and possibly user) a command should be run as, is indicated by
+the sample command prompt:
+ * `localhost$ ` : Regular user on your local machine.
+ * `ec2$ ` : The `ec2-user` on the cluster.
 
 ### Prerequisites
 
@@ -23,7 +32,7 @@ Since pip installs executables to an odd location, update the `PATH` to
 include this location.
 
 ```text
-$ export PATH=~/.local/bin:"$PATH"
+localhost$ export PATH=~/.local/bin:"$PATH"
 ```
 
 To make this change persistent, runtime configuration files will need to be updated as well (e.g., in bash, add `export PATH=~/.local/bin:"$PATH"` to the end of `~/.bashrc`).
@@ -89,14 +98,14 @@ To create such a pair:
 
 Cluster setup will be managed with the `pcluster` command line interface (CLI) which can be installed via `pip`.
 ```text
-$ pip install --user --upgrade awscli
-$ pip install --user --upgrade aws-parallelcluster
+localhost$ pip install --user --upgrade awscli
+localhost$ pip install --user --upgrade aws-parallelcluster
 ```
 **Note: The utility formerly known as [CfnCluster](https://cfncluster.readthedocs.io/en/latest/getting_started.html) was [renamed](https://github.com/aws/aws-parallelcluster/commit/eebd1029846ddea7eda00505d482bc83395890bb) to `pcluster`.**
 
 Next the CLI needs to be configured.
 ```text
-$ aws configure
+localhost$ aws configure
 AWS Access Key ID [None]: <Access key ID from user creation>
 AWS Secret Access Key [None]: <Secret access key from user creation>
 Default region name [None]: us-east-2
@@ -113,7 +122,7 @@ Configure a cluster template by running `pcluster configure`.
 
 The process should look something like this:
 ```text
-$ pcluster configure
+localhost$ pcluster configure
 Cluster Template [default]: default
 AWS Access Key ID []: <Your Access Key ID>
 AWS Secret Access Key ID []: <Your Secret key ID>
@@ -165,13 +174,13 @@ page to request an increase to the limits for the instance type being used.*
 
 Actually create a cluster:
 ```text
-$ pcluster create my-test-cluster
+localhost$ pcluster create my-test-cluster
 ```
 **Note: This will take a surprisingly long time (approximately 5-10 minutes).**
 
 Verify that the cluster exists, by listing the current clusters *(optional)*:
 ```text
-$ pcluster list
+localhost$ pcluster list
 ```
 
 ---
@@ -180,20 +189,20 @@ $ pcluster list
 
 Login to cluster:
 ```text
-$ pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem
+localhost$ pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem
 ```
 When prompted about the authenticity of the host, answer `yes`.
 
 Clone NDT:
 ```text
-$ cd /shared
-$ git clone https://github.com/doing-science-to-stuff/ndt.git
+ec2$ cd /shared
+ec2$ git clone https://github.com/doing-science-to-stuff/ndt.git
 ```
 
 Compile NDT:
 ```text
-$ cd ndt
-$ cmake . && make
+ec2$ cd ndt
+ec2$ cmake . && make
 ```
 
 If any additional files are needed (e.g. updated scene files or YAML files),
@@ -207,7 +216,7 @@ those can be copied with `scp`.
 
 Using the public IP address, files can be transferred using `scp`.
 ```text
-$ scp -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
+ec2$ scp -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
         ./path_to_local_file \
         ec2-user@a.b.c.d:/shared/ndt/path_to_remote_file
 ```
@@ -260,14 +269,14 @@ In this file the `10` in the line `#$ -pe mpi 10` specified how many *slots*
 
 Submit the job:
 ```text
-$ qsub example_job.sh
+ec2$ qsub example_job.sh
 ```
 *Note: It may complain that `ec2-user's job is not allowed to run in any
 queue`.  This can be ignored.*
 
 The status of the submitted job can be tracked with the `qstat` command.
 ```text
-[ec2-user@ip-172-31-21-122 ndt]$ qstat
+ec2$ qstat
 job-ID  prior   name       user         state submit/start at     queue         slots ja-task-ID
 ------------------------------------------------------------------------------------------------
       1 0.55500 ndt        ec2-user     qw    05/13/2019 21:44:55                  10
@@ -279,7 +288,7 @@ to run the job.
 Progress on adding execution hosts to the cluster can be tracked with the
 `qstat` command.
 ```text
-$ qstat -sh
+ec2$ qstat -sh
 ```
 
 When the job starts, the state will change to `r`.
@@ -289,7 +298,7 @@ Standard out is redirected to a file, progress of the running job can be
 tracked by tailing this file.
 Since the job-ID show by `qstat` is `1`, the filename will be `ndt.o1`.
 ```text
-$ tail -f ndt.o1
+ec2$ tail -f ndt.o1
 ```
 To stop monitoring the progress, press *ctrl+c*.
 This will not affect the running job, it will only stop displaying
@@ -297,7 +306,7 @@ of further output.
 
 If you need to stop a running job, you can do so with the `qdel` command.
 ```text
-$ qdel 1
+ec2$ qdel 1
 ```
 Where `1` is the job-ID for the running job, as reported by `qstat`.
 
@@ -320,8 +329,8 @@ cluster will be destroyed when the cluster is deleted.**
 
 Using the public IP address, files can be transferred using `scp`.
 ```text
-$ mkdir results
-$ scp -r -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
+localhost$ mkdir results
+localhost$ scp -r -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
         ec2-user@a.b.c.d:/shared/ndt/images \
         ./results
 ```
@@ -334,12 +343,12 @@ Where *a.b.c.d* is the public IP address from the instances table.
 When you are done with the cluster, it can be torn down with the `pcluster`
 command.
 ```text
-$ pcluster delete my-test-cluster
+localhost$ pcluster delete my-test-cluster
 ```
 
 Verify that cluster was deleted, by listing the current clusters *(optional)*:
 ```text
-$ pcluster list
+localhost$ pcluster list
 ```
 
 ---
