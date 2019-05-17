@@ -37,6 +37,15 @@ localhost$ export PATH=~/.local/bin:"$PATH"
 
 To make this change persistent, runtime configuration files will need to be updated as well (e.g., in bash, add `export PATH=~/.local/bin:"$PATH"` to the end of `~/.bashrc`).
 
+#### Install AWS ParallelCluster
+
+Cluster setup will be managed with the `pcluster` command line interface (CLI) which can be installed via `pip`.
+```text
+localhost$ pip install --user --upgrade awscli
+localhost$ pip install --user --upgrade aws-parallelcluster
+```
+**Note: The utility formerly known as [CfnCluster](https://cfncluster.readthedocs.io/en/latest/getting_started.html) was [renamed](https://github.com/aws/aws-parallelcluster/commit/eebd1029846ddea7eda00505d482bc83395890bb) to `pcluster`.**
+
 #### Creating a User
 
 Before a cluster can be set up, a user must be created with permissions to
@@ -93,15 +102,6 @@ To create such a pair:
 `.txt` extension).
 7. Move the downloaded file to your ssh configuration directory (e.g., `mv ~/Downloads/TestClusterSshKey.pem.txt ~/.ssh/TestClusterSshKey.pem`)
 8. Set permissions on the PEM file to be only readable by owner (e.g., `chmod 400 ~/.ssh/TestClusterSshKey.pem`). 
-
-#### Install AWS ParallelCluster
-
-Cluster setup will be managed with the `pcluster` command line interface (CLI) which can be installed via `pip`.
-```text
-localhost$ pip install --user --upgrade awscli
-localhost$ pip install --user --upgrade aws-parallelcluster
-```
-**Note: The utility formerly known as [CfnCluster](https://cfncluster.readthedocs.io/en/latest/getting_started.html) was [renamed](https://github.com/aws/aws-parallelcluster/commit/eebd1029846ddea7eda00505d482bc83395890bb) to `pcluster`.**
 
 Next the CLI needs to be configured.
 ```text
@@ -376,6 +376,10 @@ such that `/shared` is populated with the contents of the snapshot,
 eliminating the need to refetch the source code and compile it.
 
 # Troubleshooting
+
+As with any complex process, things may go wrong along the way.
+This section provides a list of potential problems that may occur and
+suggestions on how to fix them.
 
 * **Symptom:**
     Running `python get-pip.py` produces the error message:
