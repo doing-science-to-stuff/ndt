@@ -173,13 +173,13 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_alloc(&P,dim);
     vectNd sum_A;
     vectNd_calloc(&sum_A,dim);
-    double VdA;
+    double VdA, AdA;
     vectNd sA;
     vectNd_alloc(&sA,dim);
     vectNd_reset(&sum_A);
     for(i=0; i<dim-2; ++i) {
         vectNd_dot(v,&axes[i],&VdA);
-        vectNd_dot(&axes[i],&axes[i],&AdA);
+        AdA = prepped->AdA[i];
         vectNd_scale(&axes[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }
@@ -189,14 +189,15 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_alloc(&Q,dim);
     double OdA, BdA;
     vectNd_reset(&sum_A);
+    vectNd *pos0 = &cyl->pos[0];
     for(i=0; i<dim-2; ++i) {
         vectNd_dot(o,&axes[i],&OdA);
-        vectNd_dot(&cyl->pos[0],&axes[i],&BdA);
-        vectNd_dot(&axes[i],&axes[i],&AdA);
+        vectNd_dot(pos0,&axes[i],&BdA);
+        AdA = prepped->AdA[i];
         vectNd_scale(&axes[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }
-    vectNd_sub(&cyl->pos[0],o,&Q);
+    vectNd_sub(pos0,o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
     vectNd_free(&sum_A);
 

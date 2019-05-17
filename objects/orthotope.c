@@ -123,7 +123,6 @@ static int within_orthotope(object *sub, vectNd *point) {
     vectNd_alloc(&Bc,dim);
     vectNd_sub(point,&sub->pos[0],&Bc);
     double scale;
-    double AdA;
     prepped_t* prepped = (prepped_t*)sub->prepped;
     vectNd *basis = prepped->basis;
     double *lengths = prepped->lengths;
@@ -166,9 +165,11 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd sA;
     vectNd_alloc(&sA,dim);
     vectNd_reset(&sum_A);
-    for(i=0; i<sub->flag[0]; ++i) {
+    double *BdBs = prepped->BdB;
+    int flag0 = sub->flag[0];
+    for(i=0; i<flag0; ++i) {
         vectNd_dot(v,&basis[i],&VdA);
-        AdA = prepped->BdB[i];
+        AdA = BdBs[i];
         vectNd_scale(&basis[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum Y_i */
@@ -178,10 +179,11 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_alloc(&Q,dim);
     double OdA, BdA;
     vectNd_reset(&sum_A);
-    for(i=0; i<sub->flag[0]; ++i) {
+    double *BdPs = prepped->BdP;
+    for(i=0; i<flag0; ++i) {
         vectNd_dot(o,&basis[i],&OdA);
-        BdA = prepped->BdP[i];
-        AdA = prepped->BdB[i];
+        BdA = BdPs[i];
+        AdA = BdBs[i];
         vectNd_scale(&basis[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum X_i */
