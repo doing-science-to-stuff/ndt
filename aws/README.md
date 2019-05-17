@@ -378,10 +378,22 @@ eliminating the need to refetch the source code and compile it.
 # Troubleshooting
 
 * **Symptom:**
+    Running `python get-pip.py` produces the error message:
+    ```text
+    ERROR: Could not install packages due to an EnvironmentError: [Errno 13] Permission denied: '/usr/local/lib/python2.7/dist-packages/pip-19.1.1.dist-info'
+    Consider using the `--user` option or check the permissions.
+    ```
+    * Possible Cause:
+        Pip tried to install to a location that regular users do not have
+        access to.</br>
+    Fix:
+        Rerun pip installer with the `--user` option, (i.e., `python get-pip.py --user`).
+
+* **Symptom:**
     Access Key ID and Secret Access Key ID were not displayed when creating a
     user.
     * Possible Cause:
-        Access type `Programmatic access` was not checked.</br>
+        The checkbox for Access type `Programmatic access` was not checked.</br>
     Fix:
         Recreate the user and be sure to check the `Programmatic access` box
         in the Access type section below the User name field.
