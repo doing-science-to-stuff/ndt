@@ -127,11 +127,12 @@ static int within_orthotope(object *sub, vectNd *point) {
     prepped_t* prepped = (prepped_t*)sub->prepped;
     vectNd *basis = prepped->basis;
     double *lengths = prepped->lengths;
-    for(i=0; i<sub->flag[0]; ++i) {
+    int n = sub->flag[0];
+    double *BdBs = prepped->BdB;
+    for(i=0; i<n; ++i) {
         /* get scaling of basis[i] needed to project (point - pos[0]) onto basis[i] */
         vectNd_dot(&Bc,&basis[i],&scale);
-        AdA = prepped->BdB[i];
-        scale = scale / AdA;
+        scale = scale / BdBs[i];
 
         if( scale < -EPSILON || scale > lengths[i]+EPSILON ) {
             vectNd_free(&Bc);
