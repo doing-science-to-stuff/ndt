@@ -122,17 +122,18 @@ static int within_orthotope(object *sub, vectNd *point) {
     vectNd Bc;
     vectNd_alloc(&Bc,dim);
     vectNd_sub(point,&sub->pos[0],&Bc);
+    double scale;
+    double AdA;
+    prepped_t* prepped = (prepped_t*)sub->prepped;
+    vectNd *basis = prepped->basis;
+    double *lengths = prepped->lengths;
     for(i=0; i<sub->flag[0]; ++i) {
-        double scale;
-        double AdA;
-        prepped_t* prepped = (prepped_t*)sub->prepped;
-        vectNd *basis = prepped->basis;
         /* get scaling of basis[i] needed to project (point - pos[0]) onto basis[i] */
         vectNd_dot(&Bc,&basis[i],&scale);
         AdA = prepped->BdB[i];
         scale = scale / AdA;
 
-        if( scale < -EPSILON || scale > prepped->lengths[i]+EPSILON ) {
+        if( scale < -EPSILON || scale > lengths[i]+EPSILON ) {
             vectNd_free(&Bc);
             return 0;
         }
