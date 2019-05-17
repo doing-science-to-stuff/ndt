@@ -458,7 +458,7 @@ eliminating the need to refetch the source code and compile it.
     * Possible Cause:
         Access Keys not given when configuring AWS.</br>
     Fix:
-        Rerun `aws configure` and be sure to provide `AWS Access Key ID` and `AWS Secret Access Key`.
+        Rerun `aws configure` and be sure to provide values for `AWS Access Key ID` and `AWS Secret Access Key`.
 
 * **Symptom:**
     Running `pcluster configure` produces the error message:
@@ -479,7 +479,19 @@ eliminating the need to refetch the source code and compile it.
         8. Click the `Add permissions` button at the bottom of the page.
 
 * **Symptom:**
-    Running `pcluster create my-test-cluster` produces the error message:
+    Running `pcluster configure` produces the error message:
+    ```text
+    ERROR: The value (TestClusterShKey) is not valid
+    Please select one of the Acceptable Values listed above.
+    ```
+    * Possible Cause:
+        The value entered was not in the list of possibilities.</br>
+    Fix:
+        Enter one of the value from the proved list.
+        Try copying and pasting the approrpriate value.
+
+* **Symptom:**
+    The `pcluster` command produces the error message:
     ```text
     ERROR: Default config ~/.parallelcluster/config not found.
     You can copy a template from here: ~/.local/lib/python2.7/site-packages/pcluster/examples/config
@@ -489,10 +501,61 @@ eliminating the need to refetch the source code and compile it.
     Fix:
         Run `pcluster configure`.
 
+* **Symptom:**
+    Running `pcluster ssh my-test-cluster` produces the error message:
+    ```text
+    ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
+    ```
+    * Possible Cause:
+        SSH identify file not specified.</br>
+    Fix:
+        Add the `-i` flag, (e.g., `pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem`).
+
+* **Symptom:**
+    Running `pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem` produces the error message:
+    ```text
+    ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
+    ```
+    * Possible Cause:
+        Incorrect SSH identify file specified.</br>
+    Fix:
+        Use a PEM file that matches the Key used when configuring the cluster template.
+        If needed, go to [Key Pairs](https://console.aws.amazon.com/ec2/v2/#KeyPairs) in the EC2 Dashboard to generate a new key pair, then delete and recreate the cluster using the known good pair.
+
+* **Symptom:**
+    Running `pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem` produces the error message:
+    ```text
+    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    @         WARNING: UNPROTECTED PRIVATE KEY FILE!          @
+    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    Permissions 0644 for '~/.ssh/TestClusterSshKey.pem' are too open.
+    It is required that your private key files are NOT accessible by others.
+    This private key will be ignored.
+    Load key "~/.ssh/TestClusterSshKey.pem": bad permissions
+    ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
+    ```
+    * Possible Cause:
+        Permissions are incorrect on your PEM file.</br>
+    Fix:
+        Set the permissions to be only readable by the owner, (e.g., `chown
+        400 ~/.ssh/TestClusterSshKey.pem`).
+
+* **Symptom:**
+    Running `pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem` produces the error message:
+    ```text
+    Load key "~/.ssh/TestClusterSshKey.pem": Permission denied
+    ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
+    ```
+    * Possible Cause:
+        Permissions are incorrect on your PEM file.</br>
+    Fix:
+        Set the permissions to be readable by the owner, (e.g., `chown
+        400 ~/.ssh/TestClusterSshKey.pem`).
+
 <!--
 * **Symptom:**
     Running ` ` produces the error message:
-    ```
+    ```text
     ```
     * Possible Cause:
         </br>
