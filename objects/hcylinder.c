@@ -16,6 +16,7 @@ typedef struct prepared_data {
     /* data that is ray invariant and can be pre-computed in prepare function */
     vectNd *axes;
     double *lengths;
+    double *AdA;
 } prepped_t;
 
 static int prepare(object *cyl) {
@@ -31,11 +32,13 @@ static int prepare(object *cyl) {
         dim = bottom->n;
         prepped->axes = calloc(dim-2,sizeof(vectNd));
         prepped->lengths = calloc(dim-2,sizeof(double));
+        prepped->AdA = calloc(dim-2,sizeof(double));
         for(int i=0; i<dim-2; i++) {
             vectNd_alloc(&prepped->axes[i],dim);
             vectNd_sub(&cyl->pos[i+1],&cyl->pos[0],&prepped->axes[i]);
             vectNd_unitize(&prepped->axes[i]);
             vectNd_dist(&cyl->pos[i+1],&cyl->pos[0],&prepped->lengths[i]);
+            vectNd_dot(&prepped->axes[i],&prepped->axes[i],&prepped->AdA[i]);
         }
 
         cyl->prepped = prepped;
@@ -133,14 +136,13 @@ static int between_ends(object *cyl, vectNd *point) {
     vectNd Bc;
     vectNd_alloc(&Bc,dim);
     vectNd_sub(point,&cyl->pos[0],&Bc);
+    double scale;
+    prepped_t* prepped = (prepped_t*)cyl->prepped;
+    vectNd *axes = prepped->axes;
+    double *AdAs = prepped->AdA;
     for(i=0; i<dim-2; ++i) {
-        double scale;
-        double AdA;
-        prepped_t* prepped = (prepped_t*)cyl->prepped;
-        vectNd *axes = prepped->axes;
         vectNd_dot(&Bc,&axes[i],&scale);
-        vectNd_dot(&axes[i],&axes[i],&AdA);
-        scale = scale / AdA;
+        scale = scale / AdAs[i];
 
         if( scale < -EPSILON || scale > prepped->lengths[i]+EPSILON ) {
             vectNd_free(&Bc);
@@ -171,7 +173,7 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_alloc(&P,dim);
     vectNd sum_A;
     vectNd_calloc(&sum_A,dim);
-    double VdA, AdA;
+    double VdA;
     vectNd sA;
     vectNd_alloc(&sA,dim);
     vectNd_reset(&sum_A);
