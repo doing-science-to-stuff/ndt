@@ -986,7 +986,7 @@ int render_image(scene *scn, char *name, char *depth_name, int width, int height
     }
 
     #if 0
-    char fname[PATH_MAX];
+    char fname[NAME_MAX];
     snprintf(fname, sizeof(fname), "mpi_rank_%i.%s", mpiRank, "png");
     image_save(img, fname, IMAGE_FORMAT);
     #endif /* 1 */
@@ -1236,7 +1236,7 @@ int mpi_collect_image(image_t *img) {
     int parent = (mpiRank-1) / 2;
 
     #if 0
-    char fname[PATH_MAX];
+    char fname[NAME_MAX];
     snprintf(fname, sizeof(fname), "img_%i.png", mpiRank);
     image_save(img, fname, IMG_TYPE_PNG);
     #endif /* 0 */
@@ -1279,7 +1279,7 @@ int mpi_broadcast_image(image_t *img, int source_rank) {
     MPI_Bcast(img->pixels, pixels_size, MPI_BYTE, source_rank, MPI_COMM_WORLD);
 
     #if 0
-    char fname[PATH_MAX];
+    char fname[NAME_MAX];
     snprintf(fname, sizeof(fname), "img_%i.png", mpiRank);
     image_save(img, fname, IMG_TYPE_PNG);
     #endif /* 0 */
@@ -1348,10 +1348,10 @@ int main(int argc, char **argv)
     int initial_frame = 0;
     int last_frame = -1;
     scene scn;
-    char fname[PATH_MAX];
-    char dname[PATH_MAX];
-    char dname2[PATH_MAX];
-    char depth_dname[PATH_MAX];
+    char fname[NAME_MAX];
+    char dname[NAME_MAX];
+    char dname2[NAME_MAX];
+    char depth_dname[NAME_MAX];
     char res_str[24];
     stereo_mode stereo = MONO;
     char *mode_str = "";
@@ -1375,7 +1375,7 @@ int main(int argc, char **argv)
     char *hFov_str = NULL;
     double camera_v_fov = M_PI;
     double camera_h_fov = 2.0 * M_PI;
-    char obj_dir[PATH_MAX] = "objects";
+    char obj_dir[NAME_MAX] = "objects";
     #ifdef WITH_YAML
     int write_yaml = 0;
     #endif /* WITH_YAML */
