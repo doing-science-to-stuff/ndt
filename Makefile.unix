@@ -29,7 +29,7 @@ objects:
 	make -C objects -f Makefile.unix
 
 valgrind: ndt objects scenes
-	valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -w 60 -h 45 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -d 5 -s scenes/random.so
+	valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -r 60x45 -t 4 -k 8 -f 64:67:300 -w -d 5 -s scenes/random.so
 
 test: scenes ndt objects
 	./ndt -w 40 -h 30 -t 4 -k 10 -f 300 -i 5 -e 7 -q f -s scenes/random.so -d 5

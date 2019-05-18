@@ -62,7 +62,7 @@ add_custom_target(debug-build
 
 # add a valgrind testing target
 add_custom_target(valgrind
-                  COMMAND valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -w 60 -h 45 -t 4 -k 8 -f 300 -i 64 -e 67 -q f -d 5 -s scenes/random.so
+                  COMMAND valgrind --leak-check=full --show-reachable=yes --vgdb-error=0 -v ./ndt -r 60x45 -t 4 -k 8 -f 64:67:300 -w -d 5 -s scenes/random.so
                   DEPENDS debug-build
                   )
 
