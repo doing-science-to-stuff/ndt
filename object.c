@@ -321,6 +321,7 @@ int object_cleanup_all(object *obj) {
         obj->cleanup(obj);
     }
     obj->prepared = 0;
+    vectNd_reset(&obj->bounds.center);
     obj->bounds.radius = 0;
 
     return 0;
