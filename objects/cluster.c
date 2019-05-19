@@ -51,7 +51,8 @@ int get_bounds(object *obj)
     for(int i=0; i<obj->n_obj; i++) {
         double dist;
         vectNd_dist(&obj->bounds.center, &obj->obj[i]->bounds.center, &dist);
-        dist += obj->obj[i]->bounds.radius;
+        if( obj->obj[i]->bounds.radius > 0 )
+            dist += obj->obj[i]->bounds.radius;
         max = (dist>max)?dist:max;
         if( obj->obj[i]->bounds.radius < 0 )
             has_inf = 1;
@@ -61,6 +62,23 @@ int get_bounds(object *obj)
         obj->bounds.radius = -1;
 
     return 1;
+}
+
+static int check_bounds(object *obj, bounding_sphere *bounds) {
+    for(int i=0; i<obj->n_obj; ++i) {
+        double dist = -1.0;
+        vectNd_dist(&bounds->center, &obj->obj[i]->bounds.center, &dist);
+        if( dist + obj->obj[i]->bounds.radius > bounds->radius
+            || check_bounds(obj->obj[i], bounds) ) {
+            printf("bounds failure for '%s' in '%s', %g+%g > %g\n",
+                    obj->obj[i]->name, obj->name,
+                    dist, obj->obj[i]->bounds.radius,
+                    bounds->radius);
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 static int cluster_do_clustering(object *clstr, int k)
@@ -88,8 +106,9 @@ static int cluster_do_clustering(object *clstr, int k)
     /* split objects into sub-clusters */
     object **subs = calloc(k,sizeof(object*));
     for(int i=0; i<k; ++i) {
-        subs[i] = object_alloc(clstr->dimensions, "cluster", "sub object");
+        subs[i] = object_alloc(clstr->dimensions, "cluster", "sub cluster");
         object_add_flag(subs[i], k);
+        snprintf(subs[i]->name, sizeof(subs[i]->name), "%s%i", clstr->name, i);
     }
     for(int i=0; i<clstr->n_obj; ++i) {
         int which = centers.data[i].which;
@@ -133,7 +152,7 @@ static int cluster_do_clustering(object *clstr, int k)
     printf("Adding a cluster outline sphere for %s.\n", clstr->name);
     /* For debugging, add a transparent sphere where the bounding sphere is. */
     get_bounds(clstr);
-    object *outline = object_alloc(clstr->dimensions, "sphere", "");
+    object *outline = object_alloc(clstr->dimensions, "sphere", "outline");
     outline->red = outline->green = outline->blue = 0.1;
     outline->red_r = outline->green_r = outline->blue_r = 0.0;
     outline->refract_index = 1.0;
@@ -148,7 +167,14 @@ static int cluster_do_clustering(object *clstr, int k)
     kmeans_free_list(&centers);
     kmeans_free_list(&centroids);
 
-    get_bounds(clstr);
+    clstr->get_bounds(clstr);
+
+    #if 0
+    if( check_bounds(clstr, &clstr->bounds) ) {
+        fprintf(stderr,"bound check failed!");
+        exit(1);
+    }
+    #endif /* 0 */
 
     return 1;
 }

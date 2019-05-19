@@ -74,7 +74,7 @@ int scene_add_object(scene *scn, object *obj) {
 
 int scene_alloc_object(scene *scn, int dimensions, object **obj, char *type)
 {
-    *obj = object_alloc(dimensions, type, "");
+    *obj = object_alloc(dimensions, type, "unnamed");
     if( *obj == NULL ) {
         return 0;
     }
@@ -236,6 +236,20 @@ int scene_validate_objects(scene *scn)
     return 0;
 }
 
+static int set_all_bounds(object *obj) {
+    /* do post-order traversal to set bounds */
+    printf("%s: setting bounds for %s.\n", __FUNCTION__, obj->name);
+    for(int i=0; i<obj->n_obj; ++i) {
+        set_all_bounds(obj->obj[i]);
+    }
+
+    obj->bounds.radius = 0.0;
+    vectNd_reset(&obj->bounds.center);
+    obj->get_bounds(obj);
+
+    return 0;
+}
+
 int scene_cluster(scene *scn, int k)
 {
     if( scn->num_objects <= 0) {
@@ -256,9 +270,9 @@ int scene_cluster(scene *scn, int k)
             fprintf(stderr, "Object '%s' (%p) failed to validate.\n",
                 scn->object_ptrs[i]->name, scn->object_ptrs[i]);
         }
-        if( scn->object_ptrs[i]->bounds.radius == 0 ) {
-            scn->object_ptrs[i]->get_bounds(scn->object_ptrs[i]);
-        }
+
+        /* recursively set bounds for entire object tree */
+        set_all_bounds(scn->object_ptrs[i]);
     }
         
     /* sort objects by distance from camera */
@@ -284,7 +298,8 @@ int scene_cluster(scene *scn, int k)
     scn->object_ptrs = calloc(2,sizeof(object**));
     scn->num_objects = 0;
 
-    /* replace object list with single cluster without bounds */
+    /* replace object list up to with two clusters
+     * one with bounds and one without bounds */
     if( finite->n_obj > 0 ) {
         printf("adding cluster of %i finite objects.\n", finite->n_obj);
         scn->object_ptrs[scn->num_objects] = finite;
@@ -300,7 +315,25 @@ int scene_cluster(scene *scn, int k)
         object_free(infinite); infinite = NULL;
     }
 
-    #if 0
+    /* cause all objects to prepare them */
+    vectNd o, v;
+    vectNd res, normal;
+    object *obj_ptr = NULL;
+    vectNd_calloc(&o, scn->dimensions);
+    vectNd_calloc(&v, scn->dimensions);
+    vectNd_calloc(&res, scn->dimensions);
+    vectNd_calloc(&normal, scn->dimensions);
+    vectNd_set(&o, 0, -1.0);
+    vectNd_set(&v, 0, 1.0);
+    for(int i=0; i<scn->num_objects; ++i) {
+        scn->object_ptrs[i]->intersect(scn->object_ptrs[i], &o, &v, &res, &normal, &obj_ptr);
+    }
+    vectNd_free(&o);
+    vectNd_free(&v);
+    vectNd_free(&res);
+    vectNd_free(&normal);
+
+    #if 1
     scene_print(scn);
     #endif /* 0 */
 
@@ -1051,7 +1084,8 @@ static int scene_yaml_parse_string(yaml_parser_t *parser, char *value, int size)
     /* process event */
     char *valueStr = (char*)event.data.scalar.value;
     if( valueStr ) {
-        strncpy(value, valueStr, size);
+        strncpy(value, valueStr, size-1);
+        value[size-1] = '\0';
     }
 
     /* cleanup event */
