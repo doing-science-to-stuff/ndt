@@ -16,7 +16,7 @@ different users.
 Which machine (and possibly user) a command should be run as, is indicated by
 the sample command prompt:
  * `localhost$ ` : Regular user on your local machine.
- * `ec2$ ` : The `ec2-user` on the cluster.
+ * `ec2$ ` : The `ec2-user` on the master node of a cluster.
 
 ### Prerequisites
 
