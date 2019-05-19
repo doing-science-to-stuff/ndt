@@ -91,7 +91,6 @@ static int add_faces(object *cube, int m) {
         if( m > 1 ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "orthotope", "");
-            snprintf(obj->name, sizeof(obj->name), "%s face %i\n", cube->name, f);
             object_add_flag(obj, m);
 
             for(int i=0; i<m; ++i) {
@@ -175,8 +174,8 @@ int cleanup(object *hcube) {
     for(int i=0; i<hcube->n_obj; ++i) {
         object_free(hcube->obj[i]); hcube->obj[i] = NULL;
     }
+    free(hcube->obj); hcube->obj = NULL;
     hcube->n_obj = 0;
-    hcube->obj = NULL;
 
     /* mark hcube as needed preparation */
     hcube->bounds.radius = 0.0;

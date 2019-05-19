@@ -167,12 +167,14 @@ int facet_set_normals(object *face, vectNd *normals)
 static int inside_edges(object *face, vectNd *res)
 {
     prepped_t *prepped = face->prepped;
+    double *angles = prepped->angle;
+    vectNd *pos = face->pos;
+    double angle;
     for(int i=0; i<3; ++i) {
         int j=(i+1)%3;
-        double angle;
         
-        vectNd_angle3(res,&face->pos[i],&face->pos[j],&angle);
-        if( angle > prepped->angle[i] )
+        vectNd_angle3(res,&pos[i],&pos[j],&angle);
+        if( angle > angles[i] )
             return 0;
     }
 
@@ -181,30 +183,27 @@ static int inside_edges(object *face, vectNd *res)
 
 int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **ptr)
 {
-    int ret = 0;
-    int dim = 0;
-    int i=0;
-
     if( !face->prepared ) {
         facet_prepare(face);
     }
 
-    /* normalize look vector */
-    dim = o->n;
-    vectNd_unitize(v);
-
+    int ret = 0;
+    int dim = o->n;
     prepped_t *prepped = face->prepped;
 
     /* sum over all basis vectors */
-    vectNd P;
-    vectNd_alloc(&P,dim);
-    vectNd sum_A;
-    vectNd_calloc(&sum_A,dim);
     double VdA, AdA;
+    double OdA, BdA;
+    vectNd *pos1 = &face->pos[1];
+    vectNd P;
     vectNd sA;
+    vectNd sum_A;
+    vectNd Q;
+    vectNd_alloc(&Q,dim);
+    vectNd_alloc(&P,dim);
     vectNd_alloc(&sA,dim);
-    vectNd_reset(&sum_A);
-    for(i=0; i<2; ++i) {
+    vectNd_calloc(&sum_A,dim);
+    for(int i=0; i<2; ++i) {
         vectNd_dot(v,&prepped->basis[i],&VdA);
         vectNd_dot(&prepped->basis[i],&prepped->basis[i],&AdA);
         vectNd_scale(&prepped->basis[i],VdA/AdA,&sA);
@@ -212,20 +211,16 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     }
     vectNd_sub(&sum_A,v,&P);
 
-    vectNd Q;
-    vectNd_alloc(&Q,dim);
-    double OdA, BdA;
     vectNd_reset(&sum_A);
-    for(i=0; i<2; ++i) {
+    for(int i=0; i<2; ++i) {
         vectNd_dot(o,&prepped->basis[i],&OdA);
-        vectNd_dot(&face->pos[1],&prepped->basis[i],&BdA);
+        vectNd_dot(pos1,&prepped->basis[i],&BdA);
         vectNd_dot(&prepped->basis[i],&prepped->basis[i],&AdA);
         vectNd_scale(&prepped->basis[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }
-    vectNd_sub(&face->pos[1],o,&Q);
+    vectNd_sub(pos1,o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
-    vectNd_free(&sum_A);
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -233,8 +228,6 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     vectNd_dot(&P,&Q,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
-    vectNd_free(&P);
-    vectNd_free(&Q);
 
     double t=-1.0;
     /* find value of t where o+v*t is closest to plane */
@@ -253,6 +246,9 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     }
     if( t < EPSILON ) {
         /* hit is behind the viewer */
+        vectNd_free(&sum_A);
+        vectNd_free(&P);
+        vectNd_free(&Q);
         vectNd_free(&sA);
         return 0;
     }
@@ -260,6 +256,9 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     double dist = qa*t*t + qb*t + qc;
     if( fabs(dist) > EPSILON ) {
         /* closest point is too far from surface */
+        vectNd_free(&sum_A);
+        vectNd_free(&P);
+        vectNd_free(&Q);
         vectNd_free(&sA);
         return 0;
     }
@@ -267,7 +266,6 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
     /* find intersection point */
     vectNd_scale(v,t,&sA);
     vectNd_add(o,&sA,res);
-    vectNd_free(&sA);
 
     /* do end test */
     if( inside_edges(face, res) )
@@ -275,6 +273,11 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
 
     /* fill in the normal at the intersection point */
     vectNd_copy(normal,&face->dir[0]);
+
+    vectNd_free(&sum_A);
+    vectNd_free(&P);
+    vectNd_free(&Q);
+    vectNd_free(&sA);
 
     if( ret && ptr ) {
         *ptr = face;

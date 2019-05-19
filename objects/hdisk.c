@@ -19,7 +19,7 @@ static int prepare(object *obj) {
     if( !obj->prepared ) {
 
         /* create a hyper-plane for hdisk to use internally */
-        object *hplane = object_alloc(obj->dimensions, "hplane", "internal");
+        object *hplane = object_alloc(obj->dimensions, "hplane", "hdisk's hplane");
         object_add_pos(hplane, &obj->pos[0]);
         object_add_dir(hplane, &obj->dir[0]);
         object_add_obj(obj, hplane);

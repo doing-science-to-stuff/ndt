@@ -46,7 +46,6 @@ static int prepare(object *face) {
     vectNd *vertex = face->pos;
 
     int dim = face->dimensions;
-    int i;
 
     if( ones_set==0 ) {
         vectNd_alloc(&ones,dim);
@@ -59,7 +58,7 @@ static int prepare(object *face) {
         prepped_t *prepped = calloc(1,sizeof(prepped_t));
         face->prepped = prepped;
 
-        for(i=0; i<3; i++) {
+        for(int i=0; i<3; i++) {
             int j = (i+1)%3;
             vectNd_alloc(&prepped->edge[i],dim);
             vectNd_sub(&vertex[j],&vertex[i],&prepped->edge[i]);
@@ -115,16 +114,15 @@ int get_bounds(object *obj) {
     /* average all vertices */
     vectNd sum;
     vectNd_calloc(&sum,dim);
-    int i=0;
     vectNd *vertex = obj->pos;
-    for(i=0; i<3; ++i) {
+    for(int i=0; i<3; ++i) {
         vectNd_add(&sum,&vertex[i],&sum);
     }
     vectNd_scale(&sum,1.0/3.0,&obj->bounds.center);
     vectNd_free(&sum);
 
     double max_length = -1.0;
-    for(i=0; i<3; ++i) {
+    for(int i=0; i<3; ++i) {
         double len = 0;
         vectNd_dist(&obj->bounds.center,&vertex[i],&len);
         if( len > max_length )
@@ -212,7 +210,6 @@ static inline int get_barycentric(object *face, vectNd *point, double *coords) {
 
 static inline int inside_facet(object *face, vectNd *point, double *bary) {
     double lambda[3];
-    int i=0;
 
     if( bary==NULL )
         bary = lambda;
@@ -221,7 +218,7 @@ static inline int inside_facet(object *face, vectNd *point, double *bary) {
      * Slow but effective */
     get_barycentric(face,point,bary);
 
-    for(i=0; i<3; ++i) {
+    for(int i=0; i<3; ++i) {
         if( bary[i] < -EPSILON || bary[i] > 1+EPSILON )
             return 0;
     }
@@ -231,34 +228,33 @@ static inline int inside_facet(object *face, vectNd *point, double *bary) {
 
 int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **ptr)
 {
-    int ret = 0;
-
     if( !face->prepared ) {
         prepare(face);
     }
 
     prepped_t *prepped = ((prepped_t*)face->prepped);
     vectNd *vertex = face->pos;
-
+    vectNd *edge_perp = &prepped->edge_perp;
+    vectNd *unit_edge0 = &prepped->unit_edge[0];
+    int ret = 0;
     int dim = face->dimensions;
+    double Qv, Rv;
+    vectNd R;
+    vectNd vE0;
+    vectNd vE2;
+    vectNd Q;
+    vectNd oP0;
 
     /* additional setup */
-    double Qv, Rv;
-
-    vectNd R;
     vectNd_alloc(&R,dim);
-    vectNd vE0;
     vectNd_alloc(&vE0,dim);
-    vectNd vE2;
     vectNd_alloc(&vE2,dim);
-    vectNd Q;
     vectNd_alloc(&Q,dim);
-    vectNd oP0;
     vectNd_alloc(&oP0,dim);
 
     /* compute dependant terms */
-    vectNd_proj_unit(v,&prepped->unit_edge[0],&vE0);
-    vectNd_proj_unit(v,&prepped->edge_perp,&vE2);
+    vectNd_proj_unit(v,unit_edge0,&vE0);
+    vectNd_proj_unit(v,edge_perp,&vE2);
     vectNd_add(&vE0,&vE2,&R);
     vectNd_sub(&R,v,&R);
     vectNd_dot(&R,&ones,&Rv);
@@ -275,17 +271,11 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
 
     /* compute constant terms */
     vectNd_sub(o,&vertex[0],&oP0);
-    vectNd_proj_unit(&oP0,&prepped->unit_edge[0],&vE0);
-    vectNd_proj_unit(&oP0,&prepped->edge_perp,&vE2);
+    vectNd_proj_unit(&oP0,unit_edge0,&vE0);
+    vectNd_proj_unit(&oP0,edge_perp,&vE2);
     vectNd_add(&vE0,&vE2,&Q);
     vectNd_sub(&Q,&oP0,&Q);
     vectNd_dot(&Q,&ones,&Qv);
-
-    vectNd_free(&R);
-    vectNd_free(&Q);
-    vectNd_free(&oP0);
-    vectNd_free(&vE0);
-    vectNd_free(&vE2);
 
     /* solve for t */
     double t = -1;
@@ -308,33 +298,31 @@ int intersect(object *face, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, o
         int use_normals = face->flag[0];
         if( use_normals ) {
             /* use weighted average of normal vectors */
-            int i=0;
             vectNd *normals = face->dir;
 
-            vectNd sN;
             vectNd_reset(normal);
-            vectNd_alloc(&sN,dim);
-            for(i=0; i<3; ++i) {
-                vectNd_scale(&normals[i],lambda[i],&sN);
-                vectNd_add(normal,&sN,normal);
+            for(int i=0; i<3; ++i) {
+                vectNd_scale(&normals[i],lambda[i],&R);
+                vectNd_add(normal,&R,normal);
             }
-            vectNd_free(&sN);
         } else {
-            vectNd P;
-            vectNd_alloc(&P,dim);
-            hfacet_point_in_plane(face,o,&P);
+            hfacet_point_in_plane(face,o,&R);
 
             /* normal is the direction of shortest distance from plane to
-             * observer point  */
-            vectNd_sub(o,&P,normal);
+             * observer point */
+            vectNd_sub(o,&R,normal);
             vectNd_unitize(normal);
-
-            vectNd_free(&P);
         }
 
         if( ptr != NULL )
             *ptr = face;
     }
+
+    vectNd_free(&R);
+    vectNd_free(&Q);
+    vectNd_free(&oP0);
+    vectNd_free(&vE0);
+    vectNd_free(&vE2);
 
     return ret;
 }

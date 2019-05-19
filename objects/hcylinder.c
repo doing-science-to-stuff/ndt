@@ -17,6 +17,7 @@ typedef struct prepared_data {
     vectNd *axes;
     double *lengths;
     double *AdA;
+    double *BdA;
 } prepped_t;
 
 static int prepare(object *cyl) {
@@ -33,12 +34,14 @@ static int prepare(object *cyl) {
         prepped->axes = calloc(dim-2,sizeof(vectNd));
         prepped->lengths = calloc(dim-2,sizeof(double));
         prepped->AdA = calloc(dim-2,sizeof(double));
+        prepped->BdA = calloc(dim-2,sizeof(double));
         for(int i=0; i<dim-2; i++) {
             vectNd_alloc(&prepped->axes[i],dim);
             vectNd_sub(&cyl->pos[i+1],&cyl->pos[0],&prepped->axes[i]);
             vectNd_unitize(&prepped->axes[i]);
             vectNd_dist(&cyl->pos[i+1],&cyl->pos[0],&prepped->lengths[i]);
             vectNd_dot(&prepped->axes[i],&prepped->axes[i],&prepped->AdA[i]);
+            vectNd_dot(&cyl->pos[0],&prepped->axes[i],&prepped->BdA[i]);
         }
 
         cyl->prepped = prepped;
@@ -61,6 +64,8 @@ int cleanup(object *cyl) {
     }
     free(prepped->axes); prepped->axes = NULL;
     free(prepped->lengths); prepped->lengths = NULL;
+    free(prepped->AdA); prepped->AdA = NULL;
+    free(prepped->BdA); prepped->BdA = NULL;
     return 0;
 }
 
@@ -95,9 +100,8 @@ int get_bounds(object *obj) {
     vectNd diff;
     vectNd_calloc(&diff,dim);
     vectNd_calloc(&sums,dim);
-    int i=0;
     double sum_sq = 0.0;
-    for(i=0; i<dim-2; ++i) {
+    for(int i=0; i<dim-2; ++i) {
         double length;
         vectNd_sub(&obj->pos[i+1],&obj->pos[0],&diff);
         vectNd_l2norm(&diff,&length);
@@ -129,7 +133,6 @@ int get_bounds(object *obj) {
 
 static int between_ends(object *cyl, vectNd *point) {
     int dim;
-    int i=0;
     dim  = point->n;
 
     /* check length of projection onto each axis against axis length */
@@ -140,7 +143,7 @@ static int between_ends(object *cyl, vectNd *point) {
     prepped_t* prepped = (prepped_t*)cyl->prepped;
     vectNd *axes = prepped->axes;
     double *AdAs = prepped->AdA;
-    for(i=0; i<dim-2; ++i) {
+    for(int i=0; i<dim-2; ++i) {
         vectNd_dot(&Bc,&axes[i],&scale);
         scale = scale / AdAs[i];
 
@@ -156,66 +159,65 @@ static int between_ends(object *cyl, vectNd *point) {
 
 int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **ptr)
 {
-    int ret = 0;
-    int i=0;
-
     if( !cyl->prepared ) {
         prepare(cyl);
     }
 
+    int ret = 0;
     prepped_t *prepped = (prepped_t*)cyl->prepped;
     int dim = cyl->dimensions;
 
-    /* sum over all basis vectors */
+    /* allocate all intermediate vectors */
     vectNd *axes = prepped->axes;
+    vectNd *pos0 = &cyl->pos[0];
     double radius = cyl->size[0];
-    vectNd P;
-    vectNd_alloc(&P,dim);
-    vectNd sum_A;
-    vectNd_calloc(&sum_A,dim);
     double VdA, AdA;
+    double OdA, BdA;
+    double qa, qb, qc;
+    double det, detRoot;
+    double t1, t2;
+    vectNd P;
+    vectNd Q;
     vectNd sA;
+    vectNd sum_A;
+    vectNd_alloc(&P,dim);
+    vectNd_alloc(&Q,dim);
     vectNd_alloc(&sA,dim);
-    vectNd_reset(&sum_A);
-    for(i=0; i<dim-2; ++i) {
-        vectNd_dot(v,&axes[i],&VdA);
+    vectNd_calloc(&sum_A,dim);
+
+    /* sum over all basis vectors */
+    for(int i=0; i<dim-2; ++i) {
         AdA = prepped->AdA[i];
+        vectNd_dot(v,&axes[i],&VdA);
         vectNd_scale(&axes[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }
     vectNd_sub(&sum_A,v,&P);
 
-    vectNd Q;
-    vectNd_alloc(&Q,dim);
-    double OdA, BdA;
     vectNd_reset(&sum_A);
-    vectNd *pos0 = &cyl->pos[0];
-    for(i=0; i<dim-2; ++i) {
-        vectNd_dot(o,&axes[i],&OdA);
-        vectNd_dot(pos0,&axes[i],&BdA);
+    for(int i=0; i<dim-2; ++i) {
+        BdA = prepped->BdA[i];
         AdA = prepped->AdA[i];
+        vectNd_dot(o,&axes[i],&OdA);
         vectNd_scale(&axes[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }
     vectNd_sub(pos0,o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
-    vectNd_free(&sum_A);
 
     /* solve quadratic */
-    double qa, qb, qc;
-    double det, detRoot;
-    double t1, t2;
     vectNd_dot(&P,&P,&qa);
     vectNd_dot(&P,&Q,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
     qc -= radius*radius;
-    vectNd_free(&Q);
-    vectNd_free(&P);
 
     /* solve for t */
     det = qb*qb - 4*qa*qc;
     if( det < 0.0 ) {
+        vectNd_free(&Q);
+        vectNd_free(&P);
+        vectNd_free(&sum_A);
         vectNd_free(&sA);
         return 0;
     }
@@ -241,35 +243,30 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         if( between_ends(cyl, res) )
             ret = 1;
     }
-    vectNd_free(&sA);
 
     /* find normal */
     if( ret != 0 ) {
-        vectNd nC;
-        vectNd_alloc(&nC,dim);
-
         /* get vector from bottom point to intersection point */
-        vectNd_sub(res,&cyl->pos[0],&nC);
+        vectNd_sub(res,pos0,&P);
 
-        /* get sum of nC projected onto each of the axes */
-        vectNd nB;
-        vectNd_calloc(&nB,dim);
-        vectNd nCpAi;
-        vectNd_calloc(&nCpAi,dim);
-        for( i=0; i<dim-2; ++i) {
-            vectNd_proj(&nC,&axes[i],&nCpAi);
-            vectNd_add(&nB,&nCpAi,&nB);
+        /* get sum of P projected onto each of the axes */
+        vectNd_reset(&Q);
+        for(int i=0; i<dim-2; ++i) {
+            vectNd_proj(&P,&axes[i],&sA);
+            vectNd_add(&Q,&sA,&Q);
         }
-        vectNd_free(&nCpAi);
 
         /* get vector from nearest axis point to intersection */
-        vectNd_sub(&nC,&nB,normal);
-        vectNd_free(&nB);
-        vectNd_free(&nC);
+        vectNd_sub(&P,&Q,normal);
 
         if( ptr != NULL )
             *ptr = cyl;
     }
+
+    vectNd_free(&Q);
+    vectNd_free(&P);
+    vectNd_free(&sum_A);
+    vectNd_free(&sA);
 
     return ret;
 }

@@ -36,20 +36,20 @@ int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
 {
     /* see: * http://en.wikipedia.org/wiki/Line–plane_intersection#Algebraic_form */
     double d=-1;
-    vectNd pl;  /* p_0 - l_0 */
     double pln=0; /* (p_0-l_0) . n */
     double ln=-1;  /* l . n */
-
+    vectNd pl;  /* p_0 - l_0 */
     vectNd *point = &obj->pos[0];
+
+    vectNd_alloc(&pl,v->n);
     vectNd_copy(normal, &obj->dir[0]);
 
     /* compute d */
-    vectNd_alloc(&pl,v->n);
     vectNd_sub(point,o,&pl);
     vectNd_dot(&pl,normal,&pln);
     vectNd_dot(v,normal,&ln);
 
-    if( fabs(ln) > EPSILON )
+    if( ln > EPSILON || ln < -EPSILON )
         d = pln / ln;
 
     /* find intersection */
@@ -66,5 +66,6 @@ int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
 
     if( ptr != NULL )
         *ptr = obj;
+
     return 1;
 }

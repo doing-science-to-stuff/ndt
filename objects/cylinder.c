@@ -15,6 +15,8 @@ typedef struct prepared_data {
     /* data that is ray invariant and can be pre-computed in prepare function */
     vectNd axis;
     double length;
+    double AdA;
+    double BdA;
 } prepped_t;
 
 static int prepare(object *cyl) {
@@ -27,6 +29,8 @@ static int prepare(object *cyl) {
         vectNd_sub(&cyl->pos[1],&cyl->pos[0],&prepped->axis);
         vectNd_unitize(&prepped->axis);
         vectNd_dist(&cyl->pos[1],&cyl->pos[0],&prepped->length);
+        vectNd_dot(&prepped->axis,&prepped->axis,&prepped->AdA);
+        vectNd_dot(&cyl->pos[0],&prepped->axis,&prepped->BdA);
         cyl->prepped = prepped;
         cyl->prepared = 1;
     }
@@ -81,11 +85,11 @@ int get_bounds(object *obj) {
 }
 
 static int between_ends(object *cyl, vectNd *point) {
+    double scale;
+    prepped_t *prepped = cyl->prepped;
     vectNd Bc;
     vectNd_alloc(&Bc,point->n);
     vectNd_sub(point,&cyl->pos[0],&Bc);
-    double scale;
-    prepped_t *prepped = cyl->prepped;
     vectNd_dot(&Bc,&prepped->axis,&scale);
     vectNd_free(&Bc);
 
@@ -99,51 +103,45 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
 {
     int ret = 0;
     int dim = 0;
-    vectNd Be;
-    vectNd A;
 
     if( !cyl->prepared ) {
         prepare(cyl);
     }
 
-    /* additional initial vectors needed */
+    /* allocate additional intermediate vectors needed */
+    prepped_t *prepped = (prepped_t*)cyl->prepped;
     dim = o->n;
-    vectNd_alloc(&Be,dim);
-    vectNd_copy(&Be,&cyl->pos[0]);
-    vectNd_alloc(&A,dim);
-    vectNd_copy(&A,&((prepped_t*)cyl->prepped)->axis);
+    vectNd *Be = &cyl->pos[0];
+    vectNd *A = &prepped->axis;
+    double size0 = cyl->size[0];
+    vectNd sA;
+    vectNd X;
+    vectNd Y;
+    vectNd tmp;
+    vectNd_alloc(&sA,dim);
+    vectNd_alloc(&X,dim);
+    vectNd_alloc(&Y,dim);
+    vectNd_alloc(&tmp,dim);
 
     /* lots of initial dot products */
     double VdA;
-    double AdA;
+    double AdA = prepped->AdA;
     double OdA;
-    double BdA;
-    vectNd_dot(v,&A,&VdA);
-    vectNd_dot(&A,&A,&AdA);
-    vectNd_dot(o,&A,&OdA);
-    vectNd_dot(&Be,&A,&BdA);
+    double BdA = prepped->BdA;
     double Vaaa;
     double BOaa;
+    vectNd_dot(v,A,&VdA);
+    vectNd_dot(o,A,&OdA);
     Vaaa = VdA/AdA;
     BOaa = (BdA-OdA)/AdA;
 
     /* more vector math */
-    vectNd Y;
-    vectNd sA;
-    vectNd_alloc(&Y,dim);
-    vectNd_alloc(&sA,dim);
-    vectNd_scale(&A,Vaaa,&sA);
+    vectNd_scale(A,Vaaa,&sA);
     vectNd_sub(v,&sA,&Y);
 
-    vectNd X;
-    vectNd_alloc(&X,dim);
-    vectNd tmp;
-    vectNd_alloc(&tmp,dim);
-    vectNd_sub(o,&Be,&tmp);
-    vectNd_scale(&A,BOaa,&sA);
+    vectNd_sub(o,Be,&tmp);
+    vectNd_scale(A,BOaa,&sA);
     vectNd_add(&tmp,&sA,&X);
-    vectNd_free(&Be);
-    vectNd_free(&tmp);
 
     /* solve quadratic */
     double qa, qb, qc;
@@ -153,14 +151,16 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     vectNd_dot(&Y,&X,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&X,&X,&qc);
-    qc -= cyl->size[0]*cyl->size[0];
-    vectNd_free(&Y);
-    vectNd_free(&X);
+    qc -= size0 * size0;
+
+    /* free intermediate results that are no longer needed */
 
     /* solve for t */
     det = qb*qb - 4*qa*qc;
     if( det <= 0 ) {
-        vectNd_free(&A);
+        vectNd_free(&tmp);
+        vectNd_free(&Y);
+        vectNd_free(&X);
         vectNd_free(&sA);
         return 0;
     }
@@ -186,23 +186,20 @@ int intersect(object *cyl, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         if( between_ends(cyl, res) )
             ret = 1;
     }
-    vectNd_free(&sA);
 
     /* find normal */
     if( ret != 0 ) {
-        vectNd nC;
-        vectNd_alloc(&nC,dim);
-        vectNd_sub(res,&cyl->pos[0],&nC);
         double nCdA;
-        vectNd_dot(&A,&nC,&nCdA);
-        vectNd nB;
-        vectNd_alloc(&nB,dim);
-        vectNd_scale(&A,nCdA/AdA,&nB);
-        vectNd_sub(&nC,&nB,normal);
-        vectNd_free(&nC);
-        vectNd_free(&nB);
+        vectNd_sub(res,Be,&X);
+        vectNd_dot(A,&X,&nCdA);
+        vectNd_scale(A,nCdA/AdA,&Y);
+        vectNd_sub(&X,&Y,normal);
     }
-    vectNd_free(&A);
+
+    vectNd_free(&tmp);
+    vectNd_free(&Y);
+    vectNd_free(&X);
+    vectNd_free(&sA);
 
     if( ret )
         *ptr = cyl;

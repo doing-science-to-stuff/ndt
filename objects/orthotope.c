@@ -94,8 +94,7 @@ int get_bounds(object *obj) {
     /* sum all axis vectors */
     vectNd sum;
     vectNd_calloc(&sum,dim);
-    int i=0;
-    for(i=0; i<obj->flag[0]; ++i) {
+    for(int i=0; i<obj->flag[0]; ++i) {
         vectNd_add(&sum,&obj->dir[i],&sum);
     }
 
@@ -114,21 +113,19 @@ int get_bounds(object *obj) {
 }
 
 static int within_orthotope(object *sub, vectNd *point) {
-    int dim;
-    int i=0;
-    dim  = point->n;
-
-    /* check length of projection onto each axis against axis length */
-    vectNd Bc;
-    vectNd_alloc(&Bc,dim);
-    vectNd_sub(point,&sub->pos[0],&Bc);
+    int dim  = point->n;
+    int n = sub->flag[0];
     double scale;
     prepped_t* prepped = (prepped_t*)sub->prepped;
-    vectNd *basis = prepped->basis;
     double *lengths = prepped->lengths;
-    int n = sub->flag[0];
     double *BdBs = prepped->BdB;
-    for(i=0; i<n; ++i) {
+    vectNd *basis = prepped->basis;
+    vectNd Bc;
+
+    /* check length of projection onto each axis against axis length */
+    vectNd_alloc(&Bc,dim);
+    vectNd_sub(point,&sub->pos[0],&Bc);
+    for(int i=0; i<n; ++i) {
         /* get scaling of basis[i] needed to project (point - pos[0]) onto basis[i] */
         vectNd_dot(&Bc,&basis[i],&scale);
         scale = scale / BdBs[i];
@@ -145,64 +142,59 @@ static int within_orthotope(object *sub, vectNd *point) {
 
 int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **ptr)
 {
-    int ret = 0;
-    int i=0;
-
     if( !sub->prepared ) {
         prepare(sub);
     }
 
-    prepped_t *prepped = (prepped_t*)sub->prepped;
+    int ret = 0;
     int dim = sub->dimensions;
+    int flag0 = sub->flag[0];
+    double VdA, AdA;
+    double OdA, BdA;
+    double qa, qb, qc;
+    double t1, t2;
+    double det, detRoot;
+    prepped_t *prepped = (prepped_t*)sub->prepped;
+    double *BdBs = prepped->BdB;
+    double *BdPs = prepped->BdP;
+    vectNd *basis = prepped->basis;
+    vectNd *pos0 = &sub->pos[0];
+    vectNd P;
+    vectNd Q;
+    vectNd sum_A;
+    vectNd sA;
 
     /* sum over all basis vectors */
-    vectNd *basis = prepped->basis;
-    vectNd P;
     vectNd_alloc(&P,dim);
-    vectNd sum_A;
-    vectNd_calloc(&sum_A,dim);
-    double VdA, AdA;
-    vectNd sA;
+    vectNd_alloc(&Q,dim);
     vectNd_alloc(&sA,dim);
-    vectNd_reset(&sum_A);
-    double *BdBs = prepped->BdB;
-    int flag0 = sub->flag[0];
-    for(i=0; i<flag0; ++i) {
-        vectNd_dot(v,&basis[i],&VdA);
+    vectNd_calloc(&sum_A,dim);
+    for(int i=0; i<flag0; ++i) {
         AdA = BdBs[i];
+        vectNd_dot(v,&basis[i],&VdA);
         vectNd_scale(&basis[i],VdA/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum Y_i */
     vectNd_sub(&sum_A,v,&P);
 
-    vectNd Q;
-    vectNd_alloc(&Q,dim);
-    double OdA, BdA;
     vectNd_reset(&sum_A);
-    double *BdPs = prepped->BdP;
-    for(i=0; i<flag0; ++i) {
-        vectNd_dot(o,&basis[i],&OdA);
+    for(int i=0; i<flag0; ++i) {
         BdA = BdPs[i];
         AdA = BdBs[i];
+        vectNd_dot(o,&basis[i],&OdA);
         vectNd_scale(&basis[i],(OdA-BdA)/AdA,&sA);
         vectNd_add(&sum_A,&sA,&sum_A);
     }   /* sum_A is now \sum X_i */
-    vectNd_sub(&sub->pos[0],o,&Q);
+    vectNd_sub(pos0,o,&Q);
     vectNd_add(&Q,&sum_A,&Q);
-    vectNd_free(&sum_A);
 
     /* solve quadratic */
-    double qa, qb, qc;
     vectNd_dot(&P,&P,&qa);
     vectNd_dot(&P,&Q,&qb);
     qb *= 2;    /* FOILed again! */
     vectNd_dot(&Q,&Q,&qc);
-    vectNd_free(&P);
-    vectNd_free(&Q);
     qc -= EPSILON;
 
-    double t1, t2;
-    double det, detRoot;
     /* solve for t */
     det = qb*qb - 4*qa*qc;
     if( det >= 0.0 && fabs(qa)>EPSILON ) {
@@ -248,6 +240,9 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         }
         if( t < EPSILON ) {
             /* hit is behind the viewer */
+            vectNd_free(&sum_A);
+            vectNd_free(&P);
+            vectNd_free(&Q);
             vectNd_free(&sA);
             return 0;
         }
@@ -255,6 +250,9 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         double dist = qa*t*t + qb*t + qc;
         if( fabs(dist) > EPSILON ) {
             /* closest point is too far from surface */
+            vectNd_free(&sum_A);
+            vectNd_free(&P);
+            vectNd_free(&Q);
             vectNd_free(&sA);
             return 0;
         }
@@ -267,35 +265,30 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         if( within_orthotope(sub, res) )
             ret = 1;
     }
-    vectNd_free(&sA);
 
     /* find normal */
     if( ret != 0 ) {
-        vectNd nC;
-        vectNd_alloc(&nC,dim);
-
         /* get vector from bottom point to intersection point */
-        vectNd_sub(res,&sub->pos[0],&nC);
+        vectNd_sub(res,pos0,&P);
 
-        /* get sum of nC projected onto each of the basis */
-        vectNd nB;
-        vectNd_calloc(&nB,dim);
-        vectNd nCpAi;
-        vectNd_calloc(&nCpAi,dim);
-        for( i=0; i<sub->flag[0]; ++i) {
-            vectNd_proj(&nC,&basis[i],&nCpAi);
-            vectNd_add(&nB,&nCpAi,&nB);
+        /* get sum of P projected onto each of the basis */
+        vectNd_reset(&Q);
+        for(int i=0; i<flag0; ++i) {
+            vectNd_proj(&P,&basis[i],&sA);
+            vectNd_add(&Q,&sA,&Q);
         }
-        vectNd_free(&nCpAi);
 
         /* get vector from nearest axis point to intersection */
-        vectNd_sub(&nC,&nB,normal);
-        vectNd_free(&nB);
-        vectNd_free(&nC);
+        vectNd_sub(&P,&Q,normal);
 
         if( ptr != NULL )
             *ptr = sub;
     }
+
+    vectNd_free(&sum_A);
+    vectNd_free(&P);
+    vectNd_free(&Q);
+    vectNd_free(&sA);
 
     return ret;
 }

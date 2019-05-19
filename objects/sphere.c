@@ -58,33 +58,27 @@ int get_bounds(object *obj)
 
 int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **ptr)
 {
-    /* see: http://en.wikipedia.org/wiki/Line–sphere_intersection */
-    vectNd *oc;
-    double d;
-    double voc;
-    double oc_len2;
-    double desc;
-    vectNd *center;
-
     if( !obj->prepared ) {
         prepare(obj);
     }
 
-    /* usurp res vector for oc (alloc'ing and freeing it is time consuming */
-    oc = res;
+    /* see: http://en.wikipedia.org/wiki/Line–sphere_intersection */
+    double d;
+    double voc;
+    double oc_len2;
+    double desc;
+    vectNd *oc = res; /* usurp res vector for oc */
+    vectNd *center = &obj->pos[0];
 
     /* compute d */
-    center = &obj->pos[0];
-
     vectNd_sub(o,center,oc); /* (o-c) */
     /* no point in taking a sqrt if it will just be squared again */
     vectNd_dot(oc,oc,&oc_len2); /* ||o-c||^2 */
-
     vectNd_dot(v,oc,&voc); /* v . (o-c) */
 
     double r_sqr = ((prepped_t*)obj->prepped)->radius_sqr;
     desc = (voc*voc) - oc_len2 + r_sqr;
-    if( desc < EPSILON ) {
+    if( desc < 0.0 ) {
         /* ray misses the sphere */
         return 0;
     }
@@ -105,7 +99,7 @@ int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         }
     }
 
-    /* compute intersection */
+    /* compute intersection and normal */
     if( normal!=NULL ) {
         vectNd_scale(v,d,res);
         vectNd_add(o,res,res);
@@ -115,5 +109,6 @@ int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
 
     if( ptr != NULL )
         *ptr = obj;
+
     return 1;
 }
