@@ -76,6 +76,7 @@ static int add_faces(object *cube, int m) {
         if( m > 2 || (n == 3 && m == 2) ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "orthotope", "");
+            snprintf(obj->name, sizeof(obj->name), "face %i", f);
             object_add_flag(obj, m);
 
             for(int i=0; i<m; ++i) {
@@ -88,6 +89,7 @@ static int add_faces(object *cube, int m) {
         } else if( m == 2 ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "hcylinder", "");
+            snprintf(obj->name, sizeof(obj->name), "'edge' %i", f);
             object_add_size(obj, EDGE_SIZE + (n-m) * (EDGE_SIZE*0.05 + EPSILON) );
             object_add_flag(obj, m);
 
@@ -103,6 +105,7 @@ static int add_faces(object *cube, int m) {
             }
         } else if( m == 1 ) {
             obj = object_alloc(cube->dimensions, "cylinder", "");
+            snprintf(obj->name, sizeof(obj->name), "edge %i", f);
             object_add_size(obj, EDGE_SIZE + (n-m) * (EDGE_SIZE*0.05 + EPSILON) );
             object_add_flag(obj, 1);
             object_add_pos(obj, &pos);
@@ -117,6 +120,7 @@ static int add_faces(object *cube, int m) {
             vectNd_free(&pos2);
         } else if( m == 0 ) {
             obj = object_alloc(cube->dimensions, "sphere", "");
+            snprintf(obj->name, sizeof(obj->name), "corner %i", f);
             object_add_size(obj, EDGE_SIZE + (n-m) * (EDGE_SIZE*0.05 + EPSILON) );
             object_add_pos(obj, &pos);
         } else {
