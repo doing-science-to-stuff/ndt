@@ -30,6 +30,7 @@ $ sudo port install cmake jpeg libpng libyaml
 
 Build from source with `cmake`:
 ```text
+$ git clone https://github.com/doing-science-to-stuff/ndt.git
 $ cd ndt
 $ cmake .
 $ make
@@ -427,3 +428,8 @@ The `-d` option indicates that the scene should be rendered using 4-dimensions.
 ```text
 $ ./ndt -s scenes/yaml.so -u scenes/custom.yaml -d 4
 ```
+
+# Additional Documentation
+
+ * [Running NDT on AWS](https://doing-science-to-stuff.github.io/ndt/aws/)
+ * [Adding new shaped](https://doing-science-to-stuff.github.io/ndt/objects/)
