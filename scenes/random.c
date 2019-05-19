@@ -54,13 +54,14 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         #endif /* 0 */
         printf("type: %s (%i)\n", rnd_type, type);
         scene_alloc_object(scn,dimensions,&obj,rnd_type);
+        snprintf(obj->name, sizeof(obj->name), "%i: %s", i, rnd_type);
 
         int n_pos, n_dir, n_size, n_flag, n_obj;
         obj->params(obj, &n_pos, &n_dir, &n_size, &n_flag, &n_obj);
 
         /* skip any object that lacks a position of its own */
         if( n_pos <= 0 ) {
-            printf("\tskipping...\n");
+            printf("\tskipping...%s\n", rnd_type);
             i -= 1;
             scene_remove_object(scn, obj);
             object_free(obj); obj=NULL;
@@ -103,7 +104,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         obj->get_bounds(obj);
 
         if( obj->bounds.radius < 0 ) {
-            printf("removing infinite object...\n");
+            printf("removing infinite object...%s\n", rnd_type);
             i -= 1;
             scene_remove_object(scn, obj);
             object_free(obj); obj=NULL;
@@ -114,13 +115,17 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         obj->green = 0.5*drand48()+0.5;
         obj->blue = 0.5*drand48()+0.5;
         
+        #if 1
         obj->red_r = 0.25*drand48();
         obj->green_r = 0.25*drand48();
         obj->blue_r = 0.25*drand48();
+        #endif /* 0 */
 
+        #if 1
         obj->transparent = (drand48()<0.25)?1:0;
         if( obj->transparent )
             obj->refract_index = 1.0 + drand48();
+        #endif /* 0 */
     }
 
     registered_types_free(types); types=NULL;
