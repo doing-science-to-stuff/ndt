@@ -64,6 +64,7 @@ int get_bounds(object *obj)
     return 1;
 }
 
+#if 0
 static int check_bounds(object *obj, bounding_sphere *bounds) {
     for(int i=0; i<obj->n_obj; ++i) {
         double dist = -1.0;
@@ -80,6 +81,7 @@ static int check_bounds(object *obj, bounding_sphere *bounds) {
 
     return 0;
 }
+#endif /* 0 */
 
 static int cluster_do_clustering(object *clstr, int k)
 {
