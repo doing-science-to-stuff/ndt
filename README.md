@@ -91,7 +91,7 @@ created "custom" subdirectory under the "images" directory.
 
 **int scene_setup(scene \*scn, int dimensions, int frame, int frames, char \*config);**
 
-The required function populates a scene structure with the camerea, objects
+The required function populates a scene structure with the camera, objects
 and lighting.
 
 Parameters:
