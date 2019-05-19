@@ -238,7 +238,6 @@ int scene_validate_objects(scene *scn)
 
 static int set_all_bounds(object *obj) {
     /* do post-order traversal to set bounds */
-    printf("%s: setting bounds for %s.\n", __FUNCTION__, obj->name);
     for(int i=0; i<obj->n_obj; ++i) {
         set_all_bounds(obj->obj[i]);
     }
@@ -333,7 +332,7 @@ int scene_cluster(scene *scn, int k)
     vectNd_free(&res);
     vectNd_free(&normal);
 
-    #if 1
+    #if 0
     scene_print(scn);
     #endif /* 0 */
 
