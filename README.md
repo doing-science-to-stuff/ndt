@@ -432,4 +432,4 @@ $ ./ndt -s scenes/yaml.so -u scenes/custom.yaml -d 4
 # Additional Documentation
 
  * [Running NDT on AWS](https://doing-science-to-stuff.github.io/ndt/aws/)
- * [Adding new shaped](https://doing-science-to-stuff.github.io/ndt/objects/)
+ * [Adding new shapes](https://doing-science-to-stuff.github.io/ndt/objects/)
