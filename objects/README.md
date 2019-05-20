@@ -45,20 +45,22 @@ Returns:
 
 ---
 
-**int get_bounds(object \* obj);**
+**int bounding_points(struct gen_object * obj, bounds_list *list);**
 
-The `get_bounds` function finds a (hyper)sphere that completely contains the
-objects.
+The `bounding_points` function finds a set of points such that any sphere that surrounds all of the points will also completely surround the object.
+Points are added to the bounding set using the `bounds_list_add` function.
 To improve performance, each object is surrounded by a bounding sphere that is
 checked for intersection with a ray before checking to see if the actual
 object intersects a ray.
 Thus a tighter bound gives fewer false positives and therefore better
 performance.
-The bounding sphere has a `center` vector and a `radius`.
-For infinitely large objects (e.g., hyperplanes), the radius is set to -1, to indicate that bounding sphere checking should be skipped.
+Each point can be padded with a radius around it that will also be included in the final bounding sphere.
+For infinitely large objects (e.g., hyperplanes), the passed in list should
+remain empty.
 
 Parameters:
  * *obj* - The object for which the bounding sphere is being computed.
+ * *list* - An initialized list of bounding points.
 
 Returns:
  * Reserved

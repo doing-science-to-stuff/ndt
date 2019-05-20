@@ -101,8 +101,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
         vectNd_free(&temp);
 
-        obj->get_bounds(obj);
-
+        object_get_bounds(obj);
         if( obj->bounds.radius < 0 ) {
             printf("removing infinite object...%s\n", rnd_type);
             i -= 1;

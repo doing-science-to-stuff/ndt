@@ -371,7 +371,6 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         obj->red = 0.0;
         obj->green = 0.0;
         obj->blue = 0.8;
-        obj->get_bounds(obj);   /* this needs to be done before any rotations can happen */
     } else {
         /* add all of the faces for a (hyper)cube */
         scene_alloc_object(scn,dimensions,&obj,"cluster");

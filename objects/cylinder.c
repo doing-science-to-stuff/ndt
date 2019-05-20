@@ -66,19 +66,13 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj) {
-    /* center is average of end points */
-    vectNd_add(&obj->pos[1],&obj->pos[0],&obj->bounds.center);
-    vectNd_scale(&obj->bounds.center,0.5,&obj->bounds.center);
-
+int bounding_points(object *obj, bounds_list *list) {
     if( obj->flag[0] != 0 ) {
-        /* radius is half length + radius (just to be sure) */
-        vectNd_dist(&obj->pos[1],&obj->pos[0],&obj->bounds.radius);
-        obj->bounds.radius /= 2;
-        obj->bounds.radius += obj->size[0]+EPSILON;
+        /* add both ends with radius */
+        bounds_list_add(list, &obj->pos[0], obj->size[0]);
+        bounds_list_add(list, &obj->pos[1], obj->size[0]);
     } else {
-        /* inifinite cylinder */
-        obj->bounds.radius = -1;
+        /* leave list empty for infinite cylinder */
     }
 
     return 1;

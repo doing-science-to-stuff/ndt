@@ -62,7 +62,7 @@ int register_object(char *filename) {
     entry->obj.type_name = dlsym(dl_handle, "type_name");
     entry->obj.params = dlsym(dl_handle, "params");
     entry->obj.cleanup = dlsym(dl_handle, "cleanup");
-    entry->obj.get_bounds = dlsym(dl_handle, "get_bounds");
+    entry->obj.bounding_points = dlsym(dl_handle, "bounding_points");
     entry->obj.intersect = dlsym(dl_handle, "intersect");
     entry->obj.get_color = dlsym(dl_handle, "get_color");
     if( entry->obj.get_color == NULL )
@@ -84,8 +84,8 @@ int register_object(char *filename) {
         fprintf(stderr, "%s missing params function.\n", filename);
         error = 2;
     }
-    if( entry->obj.get_bounds == NULL ) {
-        fprintf(stderr, "%s missing get_bounds function.\n", filename);
+    if( entry->obj.bounding_points == NULL ) {
+        fprintf(stderr, "%s missing bounding_points function.\n", filename);
         error = 3;
     }
     if( entry->obj.intersect == NULL ) {
@@ -240,7 +240,7 @@ object *object_alloc(int dimensions, char *type, char *name) {
     obj->type_name = curr->obj.type_name;
     obj->params = curr->obj.params;
     obj->cleanup = curr->obj.cleanup;
-    obj->get_bounds = curr->obj.get_bounds;
+    obj->bounding_points = curr->obj.bounding_points;
     obj->intersect = curr->obj.intersect;
     obj->get_color = curr->obj.get_color;
     obj->get_reflect = curr->obj.get_reflect;
@@ -341,8 +341,8 @@ int object_validate(object *obj) {
         fprintf(stderr, "params not set on %s object %p.\n", type, obj);
         return -1;
     }
-    if( obj->get_bounds == NULL ) {
-        fprintf(stderr, "get_bounds not set on %s object %p.\n", type, obj);
+    if( obj->bounding_points == NULL ) {
+        fprintf(stderr, "bounding_points not set on %s object %p.\n", type, obj);
         return -1;
     }
     if( obj->intersect == NULL ) {
@@ -570,6 +570,25 @@ int object_rotate2(object *obj, vectNd *center, vectNd *v1, vectNd *v2, double a
     return 0;
 }
 
+int object_get_bounds(object *obj) {
+    bounds_list points;
+    bounds_list_init(&points);
+    obj->bounding_points(obj, &points);
+
+    if( points.head == NULL ) {
+        obj->bounds.radius = -1.0;
+        return 0;
+    }
+
+    bounds_list_centroid(&points, &obj->bounds.center);
+    bounds_list_radius(&points, &obj->bounds.center, &obj->bounds.radius);
+    if( obj->bounds.radius > 0.0 )
+        obj->bounds.radius += EPSILON;
+    bounds_list_free(&points);
+
+    return 0;
+}
+
 static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, object **obj_ptr, double min_dist) {
     int ret = 0;
 
@@ -578,7 +597,7 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
         pthread_mutex_lock(&lock);
         /* recheck, with lock */
         if( obj->bounds.radius == 0 )
-            ret = obj->get_bounds(obj);
+            object_get_bounds(obj);
         pthread_mutex_unlock(&lock);
     }
 

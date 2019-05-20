@@ -106,31 +106,10 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj) {
-    int dim = obj->dimensions;
-
-    /* center is average of end points */
-
-    /* average all vertices */
-    vectNd sum;
-    vectNd_calloc(&sum,dim);
-    vectNd *vertex = obj->pos;
-    for(int i=0; i<3; ++i) {
-        vectNd_add(&sum,&vertex[i],&sum);
+int bounding_points(object *obj, bounds_list *list) {
+    for(int i=0; i<obj->n_pos; ++i) {
+        bounds_list_add(list, &obj->pos[i], 0.0);
     }
-    vectNd_scale(&sum,1.0/3.0,&obj->bounds.center);
-    vectNd_free(&sum);
-
-    double max_length = -1.0;
-    for(int i=0; i<3; ++i) {
-        double len = 0;
-        vectNd_dist(&obj->bounds.center,&vertex[i],&len);
-        if( len > max_length )
-            max_length = len;
-    }
-    obj->bounds.radius = max_length + EPSILON;
-
-    obj->prepared = 0;
 
     return 1;
 }

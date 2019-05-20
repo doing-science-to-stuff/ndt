@@ -46,13 +46,8 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj)
-{
-    /* bounding a sphere is silly, but do it anyway */
-    double radius = obj->size[0];
-    obj->bounds.radius = radius + EPSILON;
-    vectNd_copy(&obj->bounds.center, &obj->pos[0]);
-
+int bounding_points(object *obj, bounds_list *list) {
+    bounds_list_add(list, &obj->pos[0], obj->size[0]);
     return 1;
 }
 

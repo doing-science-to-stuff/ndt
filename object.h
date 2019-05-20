@@ -59,7 +59,7 @@ typedef struct gen_object {
     int (*type_name)(char *name, int size);
     int (*params)(struct gen_object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj);
     int (*cleanup)(struct gen_object *obj);
-    int (*get_bounds)(struct gen_object * obj);
+    int (*bounding_points)(struct gen_object * obj, bounds_list *list);
     int (*intersect)(struct gen_object * obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, struct gen_object **obj_ptr);
     int (*get_color)(struct gen_object *obj, vectNd *at, double *red, double *green, double *blue);
     int (*get_reflect)(struct gen_object *obj, vectNd *at, double *red_r, double *green_r, double *blue_r);
@@ -103,6 +103,7 @@ int object_add_obj(object *obj, object *new_obj);
 int object_move(object * obj, vectNd *offset);
 int object_rotate(object * obj, vectNd *center, int v1, int v2, double angle);
 int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double angle);
+int object_get_bounds(object *obj);
 
 /* tracing rays to objects */
 int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit);

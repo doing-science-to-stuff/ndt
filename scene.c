@@ -242,9 +242,7 @@ static int set_all_bounds(object *obj) {
         set_all_bounds(obj->obj[i]);
     }
 
-    obj->bounds.radius = 0.0;
-    vectNd_reset(&obj->bounds.center);
-    obj->get_bounds(obj);
+    object_get_bounds(obj);
 
     return 0;
 }

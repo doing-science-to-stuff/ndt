@@ -79,3 +79,92 @@ int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, d
 
     return 1;
 }
+
+/* Start bounds_list operations */
+
+int bounds_list_init(bounds_list *list) {
+    memset(list, '\0', sizeof(*list));
+    return 0;
+}
+
+int bounds_list_add(bounds_list *list, vectNd *vect, double radius) {
+    /* add a new node to the head of the list */
+    bounds_node *new_node = calloc(1,sizeof(bounds_node));
+    if( new_node == NULL ) {
+        perror("calloc");
+        exit(1);
+    }
+    new_node->next = list->head;
+    list->head = new_node;
+    if( list->tail == NULL )
+        list->tail = new_node;
+
+    /* copy vector and radius into new node */
+    vectNd_calloc(&new_node->bounds.center, vect->n);
+    vectNd_copy(&new_node->bounds.center, vect);
+    new_node->bounds.radius = radius;
+
+    return 0;
+}
+
+int bounds_list_join(bounds_list *list, bounds_list *other) {
+    if( list->tail )
+        list->tail->next = other->head;
+    else
+        list->head = other->head;
+    list->tail = other->tail;
+    other->head = NULL;
+    other->tail = NULL;
+    return 0;
+}
+
+int bounds_list_free(bounds_list *list) {
+    /* start at head */
+    bounds_node *curr = list->head;
+
+    /* loop through all nodes */
+    while(curr) {
+        /* free each vector */
+        vectNd_free(&curr->bounds.center);
+        bounds_node *next = curr->next;
+        free(curr); curr=NULL;
+        curr = next;
+    }
+    list->head = NULL;
+    list->tail = NULL;
+
+    return 0;
+}
+
+int bounds_list_centroid(bounds_list *list, vectNd *centroid) {
+    /* Nelder-Mead could be used to find a center that minimizes the radius. */
+
+    bounds_node *curr = list->head;
+    vectNd sum;
+    vectNd_calloc(&sum, centroid->n);
+    int count = 0;
+    while(curr) {
+        vectNd_add(&sum, &curr->bounds.center, &sum);
+        ++count;
+        curr = curr->next;
+    }
+    vectNd_scale(&sum, 1.0/count, centroid);
+
+    return 0;
+}
+
+int bounds_list_radius(bounds_list *list, vectNd *centroid, double *radius) {
+    bounds_node *curr = list->head;
+    double max = -1.0;
+    while(curr) {
+        double dist = -1.0;
+        vectNd_dist(centroid, &curr->bounds.center, &dist);
+        if( curr->bounds.radius > 0.0 )
+            dist += curr->bounds.radius;
+        max = (dist>max)?dist:max;
+        curr = curr->next;
+    }
+    *radius = max;
+
+    return 0;
+}

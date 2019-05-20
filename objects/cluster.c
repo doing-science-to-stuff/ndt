@@ -28,38 +28,30 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj)
+int bounding_points(object *obj, bounds_list *list)
 {
-    if( obj->n_obj == 0 || obj->obj==NULL ) {
-        obj->bounds.radius = -1;
-        return 0;
-    }
-
-    /* get centroid of all sub objects */
-    vectNd_reset(&obj->bounds.center);
-    for(int i=0; i<obj->n_obj; ++i) {
-        obj->obj[i]->bounds.radius = 0.0;
-        obj->obj[i]->get_bounds(obj->obj[i]);
-        vectNd_add(&obj->bounds.center,&obj->obj[i]->bounds.center,
-                    &obj->bounds.center);
-    }
-    vectNd_scale(&obj->bounds.center,1.0/obj->n_obj,&obj->bounds.center);
-
-    /* get radius */
-    double max = -1;
-    int has_inf = 0;
     for(int i=0; i<obj->n_obj; i++) {
-        double dist;
-        vectNd_dist(&obj->bounds.center, &obj->obj[i]->bounds.center, &dist);
-        if( obj->obj[i]->bounds.radius > 0 )
-            dist += obj->obj[i]->bounds.radius;
-        max = (dist>max)?dist:max;
-        if( obj->obj[i]->bounds.radius < 0 )
-            has_inf = 1;
+        bounds_list points;
+        bounds_list_init(&points);
+        object *sub = obj->obj[i];
+
+        if( strcmp("outline", sub->name) == 0 )
+            continue;
+
+        sub->bounding_points(sub, &points);
+        if( points.head == NULL ) {
+            /* if an infinite object is encountered,
+             * clear the lists and return. */
+            bounds_list_free(&points);
+            bounds_list_free(list);
+            return 0;
+        }
+
+        /* combine new points with complete list */
+        bounds_list_join(list, &points);
+
+        bounds_list_free(&points);
     }
-    obj->bounds.radius = max + EPSILON;
-    if( has_inf )
-        obj->bounds.radius = -1;
 
     return 1;
 }
@@ -127,7 +119,7 @@ static int cluster_do_clustering(object *clstr, int k)
     if( did_split==1 ) {
         /* recurse on each sub-clusters */
         for(int i=0; i<k; ++i) {
-            subs[i]->get_bounds(subs[i]);
+            object_get_bounds(subs[i]);
             cluster_do_clustering(subs[i],subs[i]->flag[0]);
         }
 
@@ -153,7 +145,7 @@ static int cluster_do_clustering(object *clstr, int k)
     #if 0
     printf("Adding a cluster outline sphere for %s.\n", clstr->name);
     /* For debugging, add a transparent sphere where the bounding sphere is. */
-    get_bounds(clstr);
+    object_get_bounds(clstr);
     object *outline = object_alloc(clstr->dimensions, "sphere", "outline");
     outline->red = outline->green = outline->blue = 0.1;
     outline->red_r = outline->green_r = outline->blue_r = 0.0;
@@ -169,7 +161,7 @@ static int cluster_do_clustering(object *clstr, int k)
     kmeans_free_list(&centers);
     kmeans_free_list(&centroids);
 
-    clstr->get_bounds(clstr);
+    object_get_bounds(clstr);
 
     #if 0
     if( check_bounds(clstr, &clstr->bounds) ) {
@@ -189,7 +181,7 @@ static int prepare(object *obj) {
         /* cluster objects */
         cluster_do_clustering(obj, obj->flag[0]);
 
-        obj->get_bounds(obj);
+        object_get_bounds(obj);
 
         /* mark object as prepared */
         obj->prepared = 1;

@@ -200,20 +200,32 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj) {
+int bounding_points(object *obj, bounds_list *list) {
 
-    if( !obj->prepared ) {
-        prepare(obj);
+    int num_corners = num_n_faces(obj->dimensions, 0);
+
+    vectNd corner, tmp;
+    vectNd_calloc(&corner, obj->dimensions);
+    vectNd_calloc(&tmp, obj->dimensions);
+
+    /* enumerate all corner points */
+    for(int i=0; i<num_corners; ++i) {
+        vectNd_copy(&corner, &obj->pos[0]);
+
+        int offsets = i;
+        for(int j=0; j<obj->dimensions; ++j) {
+            int value = offsets % 2;
+            offsets >>= 1;
+
+            vectNd_scale(&obj->dir[j], 0.5-value, &tmp);
+            vectNd_add(&corner, &tmp, &corner);
+        }
+
+        /* add each corner to bounding set */
+        bounds_list_add(list, &corner, 0.0);
     }
-
-    /* center of hcube is center of bounding sphere */
-    vectNd_copy(&obj->bounds.center, &obj->pos[0]);
-
-    double sum = 0;
-    for(int i=0; i<obj->n_size; ++i) {
-        sum += pow(obj->size[i]/2.0, 2.0);
-    }
-    obj->bounds.radius = sqrt(sum) + EPSILON;
+    vectNd_free(&corner);
+    vectNd_free(&tmp);
 
     return 1;
 }

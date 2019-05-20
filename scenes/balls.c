@@ -136,8 +136,7 @@ static int recursive_add_edges(scene *scn, double radius, vectNd *curr) {
             object_add_pos(obj,curr);
             object_add_pos(obj,&next);
             object_add_size(obj,radius);
-            object_add_flag(obj,1); /* flat? */
-            obj->get_bounds(obj);
+            object_add_flag(obj,1); /* open ends */
 
             recursive_add_edges(scn,radius,&next);
         }

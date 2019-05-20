@@ -64,15 +64,16 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj)
-{
-    double radius = 1.0;
-    obj->bounds.radius = radius + EPSILON;
+int bounding_points(object *obj, bounds_list *list) {
+    /* The list passed in will have been initialized with bounds_list_init */
 
-    /* The bounding sphere's center is allocated in object_alloc(). */
-
-    /* compute center and radius of (hyper)sphere that contains the object */
-    /* For objects that are infinitely large, radius should be -1. */
+    /* Provide a list of spheres (or points) such that any sphere that
+     * completely contains these spheres will also completely contain the
+     * object.
+     *
+     * The bounds_list_add function is used to add the points/spheres to the
+     * list.
+     * */
 
     return 1;
 }

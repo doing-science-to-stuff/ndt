@@ -88,26 +88,30 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj) {
-    int dim = obj->dimensions;
+int bounding_points(object *obj, bounds_list *list) {
+    vectNd corner, tmp;
+    vectNd_calloc(&corner, obj->dimensions);
+    vectNd_calloc(&tmp, obj->dimensions);
 
-    /* sum all axis vectors */
-    vectNd sum;
-    vectNd_calloc(&sum,dim);
-    for(int i=0; i<obj->flag[0]; ++i) {
-        vectNd_add(&sum,&obj->dir[i],&sum);
+    /* enumerate all corner points */
+    int num_corners = 1<<(obj->flag[0]);
+    for(int i=0; i<num_corners; ++i) {
+        vectNd_copy(&corner, &obj->pos[0]);
+
+        int offsets = i;
+        for(int j=0; j<obj->flag[0]; ++j) {
+            int value = offsets % 2;
+            offsets >>= 1;
+
+            vectNd_scale(&obj->dir[j], 0.5-value, &tmp);
+            vectNd_add(&corner, &tmp, &corner);
+        }
+
+        /* add each corner to bounding set */
+        bounds_list_add(list, &corner, 0.0);
     }
-
-    /* divide sum by 2 and add to bottom point to get vector to centroid */
-    vectNd_scale(&sum,0.5,&sum);
-    vectNd_add(&obj->pos[0],&sum,&obj->bounds.center);
-
-    /* pos[0] is a corner and center is the midpoint of a diagonal */
-    /* Note: this may only work when all basis vectors are the same length */
-    vectNd_l2norm(&sum,&obj->bounds.radius);
-    obj->bounds.radius += EPSILON;
-
-    vectNd_free(&sum);
+    vectNd_free(&corner);
+    vectNd_free(&tmp);
 
     return 1;
 }

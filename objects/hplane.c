@@ -24,11 +24,9 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj)
-{
+int bounding_points(object *obj, bounds_list *list) {
     /* hyperplanes are infinite in extent */
-    obj->bounds.radius = -1;
-
+    /* leaving the list empty indicates infinite extent */
     return 1;
 }
 

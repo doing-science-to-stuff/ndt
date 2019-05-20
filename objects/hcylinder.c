@@ -85,49 +85,14 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     return 0;
 }
 
-int get_bounds(object *obj) {
-    int dim = obj->dimensions;
-
-    double radius = obj->size[0];
-    if( radius<=0 )
-        fprintf(stderr,"Warning: hyper-cylinder with non-positive radius.\n");
-
-    /* center is average of end points */
-
-    /* sum all axis vectors */
-    double max_length = 0;
-    vectNd sums;
-    vectNd diff;
-    vectNd_calloc(&diff,dim);
-    vectNd_calloc(&sums,dim);
-    double sum_sq = 0.0;
-    for(int i=0; i<dim-2; ++i) {
-        double length;
-        vectNd_sub(&obj->pos[i+1],&obj->pos[0],&diff);
-        vectNd_l2norm(&diff,&length);
-        sum_sq += (length/2.0)*(length/2.0);
-        if( length>max_length )
-            max_length = length;
-        vectNd_add(&sums,&diff,&sums);
-    }
-    vectNd_free(&diff);
-
-    /* divide sum by 2 and add to bottom point to get vector to centroid */
-    vectNd_scale(&sums,0.5,&sums);
-    vectNd_add(&obj->pos[0],&sums,&obj->bounds.center);
-    vectNd_free(&sums);
-
+int bounding_points(object *obj, bounds_list *list) {
     if( obj->flag[0] != 0 ) {
-        /* half distance from centroid to 'end' point + radius */
-        double b = obj->size[0];
-        /* This is where the weird gaps were coming from,
-         * The radius wasn't being taken into consideration. */
-        obj->bounds.radius = sqrt(sum_sq+b*b) + EPSILON;
+        for(int i=0; i<obj->n_pos; ++i) {
+            bounds_list_add(list, &obj->pos[i], obj->size[0]);
+        }
     } else {
-        /* inifinite cylinder */
-        obj->bounds.radius = -1;
+        /* leave list empty for infinite hcylinders */
     }
-
     return 1;
 }
 
