@@ -149,6 +149,7 @@ int bounds_list_centroid(bounds_list *list, vectNd *centroid) {
         curr = curr->next;
     }
     vectNd_scale(&sum, 1.0/count, centroid);
+    vectNd_free(&sum);
 
     return 0;
 }
