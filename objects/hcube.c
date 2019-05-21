@@ -217,7 +217,7 @@ int bounding_points(object *obj, bounds_list *list) {
             int value = offsets % 2;
             offsets >>= 1;
 
-            vectNd_scale(&obj->dir[j], 0.5-value, &tmp);
+            vectNd_scale(&obj->dir[j], (0.5-value) * obj->size[j], &tmp);
             vectNd_add(&corner, &tmp, &corner);
         }
 
