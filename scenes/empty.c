@@ -56,7 +56,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     lgt->green = 300;
     lgt->blue = 300;
 
-    /* create objects array */
+    /* create objects */
     object *obj = NULL;
 
     /* add reflective floor */
