@@ -71,7 +71,7 @@ create the cluster.
 8. If all is correct, click "Create User" at the bottom of the page.
 9. Click "Show" under "Secret access key".
 10. Record the Access key ID which will be needed later.
-11. Record Secret access key which will be needed later.</br>**Warning: This is the last chance you will have to get this secret key.**
+11. Record Secret access key which will be needed later.<br/>**Warning: This is the last chance you will have to get this secret key.**
 12. Click "Download .csv" to get the username and keys in CSV format.  *(optional)*
 13. Click "Close" button at the bottom of the page.
 
@@ -84,7 +84,7 @@ If you failed to record or otherwise misplaced the secret key, a new key pair ca
 5. Click the "Create access key" button in the "Access Keys" section near the middle of the page.
 6. Click "Show" under "Secret access key".
 7. Record the Access key ID which is needed later.
-8. Record the Secret access key which will be needed later.</br>**Warning: This is the last chance you will have to get this secret key.**
+8. Record the Secret access key which will be needed later.<br/>**Warning: This is the last chance you will have to get this secret key.**
 9. Click "Download .csv" to get the User name and keys in CSV format.  *(optional)*
 10. Click "Close" button.
 
@@ -389,7 +389,7 @@ suggestions on how to fix them.
     ```
     * Possible Cause:
         Pip tried to install to a location that regular users do not have
-        access to.</br>
+        access to.<br/>
     Fix:
         Rerun pip installer with the `--user` option, (i.e., `python get-pip.py --user`).
 
@@ -397,7 +397,7 @@ suggestions on how to fix them.
     Access Key ID and Secret Access Key ID were not displayed when creating a
     user.
     * Possible Cause:
-        The checkbox for Access type `Programmatic access` was not checked.</br>
+        The checkbox for Access type `Programmatic access` was not checked.<br/>
     Fix:
         Recreate the user and be sure to check the `Programmatic access` box
         in the Access type section below the User name field.
@@ -409,7 +409,7 @@ suggestions on how to fix them.
     You haven't given this user any permissions. This means that the user has no access to any AWS service or resource. Consider returning to the previous step and adding some type of permissions.
     ```
     * Possible Cause:
-        No permissions checkboxes were selected.</br>
+        No permissions checkboxes were selected.<br/>
     Fix:
         1. Click `Previous` button (twice?) to get to the `Set permissions` screen.
         2. Click `Attach existing policies directly`.
@@ -422,11 +422,11 @@ suggestions on how to fix them.
     aws: command not found
     ```
     * Possible Cause:
-        `awscli` is not installed.</br>
+        `awscli` is not installed.<br/>
     Fix:
         Install `awscli` with `pip install --user --upgrade awscli`
     * Possible Cause:
-        `aws` is not in your `PATH`</br>
+        `aws` is not in your `PATH`<br/>
     Fix:
         Run `export PATH=~/.local/bin:"$PATH"` and update runtime configuration files.
 
@@ -436,11 +436,11 @@ suggestions on how to fix them.
     pcluster: command not found
     ```
     * Possible Cause:
-        `aws-parallelcluster` is not installed.</br>
+        `aws-parallelcluster` is not installed.<br/>
     Fix:
         Install `aws-parallelcluster` with `pip install --user --upgrade aws-parallelcluster`
     * Possible Cause:
-        `pcluster` is not in your `PATH`</br>
+        `pcluster` is not in your `PATH`<br/>
     Fix:
         Run `export PATH="~/.local/bin:$PATH"` and update runtime configuration files.
 
@@ -451,11 +451,11 @@ suggestions on how to fix them.
     Hint: please check your AWS credentials.
     ```
     * Possible Cause:
-        AWS isn't configured yet.</br>
+        AWS isn't configured yet.<br/>
     Fix:
         Run `aws configure`.
     * Possible Cause:
-        A `Default region` was not specified when configuring AWS.</br>
+        A `Default region` was not specified when configuring AWS.<br/>
     Fix:
         Run `aws configure` and be sure to give an answer to `Default region name` (e.g., `us-east-2`).
 
@@ -466,11 +466,11 @@ suggestions on how to fix them.
     Hint: please check your AWS credentials.
     ```
     * Possible Cause:
-        Invalid Access Key IDs entered.</br>
+        Invalid Access Key IDs entered.<br/>
     Fix:
         Generate a new pair of Access Key IDs to be sure they are valid.
     * Possible Cause:
-        Mismatch between Access Key ID and Secret Access Key ID.</br>
+        Mismatch between Access Key ID and Secret Access Key ID.<br/>
     Fix:
         Generate a new pair of Access Key IDs to be sure they match.
 
@@ -481,7 +481,7 @@ suggestions on how to fix them.
     Hint: please check your AWS credentials.
     ```
     * Possible Cause:
-        Access Keys not given when configuring AWS.</br>
+        Access Keys not given when configuring AWS.<br/>
     Fix:
         Rerun `aws configure` and be sure to provide values for `AWS Access Key ID` and `AWS Secret Access Key`.
 
@@ -492,7 +492,7 @@ suggestions on how to fix them.
     Hint: please check your AWS credentials.
     ```
     * Possible Cause:
-        User lacks `AdministratorAccess` permissions.</br>
+        User lacks `AdministratorAccess` permissions.<br/>
     Fix:
         1. Open the [IAM Console](https://console.aws.amazon.com/iam/home#/users).
         2. Click on the User name for the relevant user.
@@ -510,7 +510,7 @@ suggestions on how to fix them.
     Please select one of the Acceptable Values listed above.
     ```
     * Possible Cause:
-        The value entered was not in the list of possibilities.</br>
+        The value entered was not in the list of possibilities.<br/>
     Fix:
         Enter one of the value from the proved list.
         Try copying and pasting the approrpriate value.
@@ -522,7 +522,7 @@ suggestions on how to fix them.
     You can copy a template from here: ~/.local/lib/python2.7/site-packages/pcluster/examples/config
     ```
     * Possible Cause:
-        `aws-parallelcluster` has not been configured yet.</br>
+        `aws-parallelcluster` has not been configured yet.<br/>
     Fix:
         Run `pcluster configure`.
 
@@ -532,7 +532,7 @@ suggestions on how to fix them.
     ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
     ```
     * Possible Cause:
-        SSH identify file not specified.</br>
+        SSH identify file not specified.<br/>
     Fix:
         Add the `-i` flag, (e.g., `pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem`).
 
@@ -542,7 +542,7 @@ suggestions on how to fix them.
     ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
     ```
     * Possible Cause:
-        Incorrect SSH identify file specified.</br>
+        Incorrect SSH identify file specified.<br/>
     Fix:
         Use a PEM file that matches the Key used when configuring the cluster template.
         If needed, go to [Key Pairs](https://console.aws.amazon.com/ec2/v2/#KeyPairs) in the EC2 Dashboard to generate a new key pair, then delete and recreate the cluster using the known good pair.
@@ -560,7 +560,7 @@ suggestions on how to fix them.
     ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
     ```
     * Possible Cause:
-        Permissions are incorrect on your PEM file.</br>
+        Permissions are incorrect on your PEM file.<br/>
     Fix:
         Set the permissions to be only readable by the owner, (e.g., `chown
         400 ~/.ssh/TestClusterSshKey.pem`).
@@ -572,7 +572,7 @@ suggestions on how to fix them.
     ec2-user@a.b.c.d: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
     ```
     * Possible Cause:
-        Permissions are incorrect on your PEM file.</br>
+        Permissions are incorrect on your PEM file.<br/>
     Fix:
         Set the permissions to be readable by the owner, (e.g., `chown
         400 ~/.ssh/TestClusterSshKey.pem`).
@@ -583,7 +583,7 @@ suggestions on how to fix them.
     ```text
     ```
     * Possible Cause:
-        </br>
+        <br/>
     Fix:
 
 -->
