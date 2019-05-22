@@ -1,13 +1,20 @@
-# Running NDT on Amazon Web Services
+# AWS Howto and Troubleshooting
+
+Contents:
+ * [Running NDT on AWS](#running-ndt-on-aws)
+ * [Troubleshooting](#troubleshooting)
+
+---
+
+## Running NDT on AWS
 
 This document provides a minimal set of instructions for getting NDT running
 on an Amazon Web Services HPC cluster.
-To keep these instructions as simple as possible, many common practices
+To keep these instructions as simple as possible, many common
+[practices](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-best-practices.html)
 especially with respect to security have been left out.
 Use at your own risk.
 These instructions were last verified to work on 2019-05-16.
-
----
 
 ### Notational Conventions
 
