@@ -8,7 +8,7 @@ Contents:
 
 ## Running NDT on AWS
 
-This document provides a minimal set of instructions for getting NDT running
+This document provides a minimal set of instructions on how to get NDT running
 on an Amazon Web Services HPC cluster.
 To keep these instructions as simple as possible, many common
 [practices](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-best-practices.html)
