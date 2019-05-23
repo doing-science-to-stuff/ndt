@@ -174,46 +174,46 @@ int bounds_list_radius(bounds_list *list, vectNd *centroid, double *radius) {
 int bounds_list_optimal(bounds_list *list, vectNd *centroid, double *radius) {
     int dim = centroid->n;
     void *nm = NULL;
+    double curr_radius = -1.0;
+    vectNd curr_centroid;
 
     /* initialize Nelder Mead */
     nm_init(&nm, dim);
 
-    /* get initial point to test */
-    bounds_list_centroid(list, centroid);
-    nm_set_seed(nm, centroid);
-
-    #if 0
-    printf("bounding points:\n");
-    bounds_node *curr = list->head;
-    while(curr) {
-        vectNd_print(&curr->bounds.center, "\t");
-        curr = curr->next;
-    }
-    #endif /* 0 */
-
     /* get initial guess for center */
+    vectNd_calloc(&curr_centroid, dim);
+    bounds_list_centroid(list, &curr_centroid);
+    bounds_list_radius(list, &curr_centroid, &curr_radius);
+    nm_set_seed(nm, &curr_centroid);
+
+    /* store initial result for comparison */
     vectNd initial;
-    vectNd_calloc(&initial, centroid->n);
-    vectNd_copy(&initial, centroid);
-    bounds_list_radius(list, centroid, radius);
-    double initial_radius = *radius;
+    vectNd_calloc(&initial, dim);
+    vectNd_copy(&initial, &curr_centroid);
+    double initial_radius = curr_radius;
 
     int max_iterations = 1000;
     while( !nm_done(nm, EPSILON, max_iterations) ) {
-        nm_add_result(nm, centroid, *radius);
-        nm_next_point(nm, centroid);
-        bounds_list_radius(list, centroid, radius);
+        nm_add_result(nm, &curr_centroid, curr_radius);
+        nm_next_point(nm, &curr_centroid);
+        bounds_list_radius(list, &curr_centroid, &curr_radius);
     }
 
     /* get final result */
-    nm_best_point(nm, centroid);
-    bounds_list_radius(list, centroid, radius);
+    nm_best_point(nm, &curr_centroid);
+    bounds_list_radius(list, &curr_centroid, &curr_radius);
 
     /* double check that it is an improvement */
-    if( *radius > initial_radius ) {
-        printf("%s: final readius (%g) is greater than initial radius (%g).\n", __FUNCTION__, initial_radius, *radius);
-        vectNd_copy(centroid, &initial);
-        bounds_list_radius(list, centroid, radius);
+    if( curr_radius - initial_radius > EPSILON ) {
+        printf("%s: final radius (%g) is greater than initial radius (%g).\n", __FUNCTION__, curr_radius, initial_radius);
+        printf("bounding points:\n");
+        bounds_node *curr = list->head;
+        while(curr) {
+            vectNd_print(&curr->bounds.center, "\t");
+            curr = curr->next;
+        }
+        vectNd_copy(&curr_centroid, &initial);
+        bounds_list_radius(list, &curr_centroid, &curr_radius);
     }
 
     #if 0
@@ -224,8 +224,13 @@ int bounds_list_optimal(bounds_list *list, vectNd *centroid, double *radius) {
     }
     #endif /* 0 */
 
+    /* store final results */
+    vectNd_copy(centroid, &curr_centroid);
+    *radius = curr_radius;
+
     /* clean up */
     vectNd_free(&initial);
+    vectNd_free(&curr_centroid);
     nm_free(nm);
 
     return 0;

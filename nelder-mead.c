@@ -75,6 +75,9 @@ void nmSimplexSort(NMSimplex *simplex) {
         }
     }
     vectNd_free(&tmp.parameters);
+    #if 0
+    nmSimplexPrint(simplex);
+    #endif /* 0 */
 }
 
 /* ---------------------------- */
@@ -192,6 +195,7 @@ void nm_add_result(void *nm_ptr, vectNd *parameters, double value) {
         nmSimplexAdd(&nm->simplex, &newSample);
         if( nm->simplex.count >= nm->dimensions+1 )
             nm->state = reflect;
+        vectNd_free(&newSample.parameters);
         return;
     }
 
@@ -251,7 +255,7 @@ void nm_add_result(void *nm_ptr, vectNd *parameters, double value) {
         }
 
         /* accept x_r and terminate iteration */
-        nmSampleCopy(&nm->simplex.points[nm->simplex.count-1], &nm->x_e);
+        nmSampleCopy(&nm->simplex.points[nm->simplex.count-1], &nm->x_r);
         nm->state = reflect;
         vectNd_free(&r.parameters);
         return;
