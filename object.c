@@ -580,8 +580,12 @@ int object_get_bounds(object *obj) {
         return 0;
     }
 
+    #if 0
     bounds_list_centroid(&points, &obj->bounds.center);
     bounds_list_radius(&points, &obj->bounds.center, &obj->bounds.radius);
+    #else
+    bounds_list_optimal(&points, &obj->bounds.center, &obj->bounds.radius);
+    #endif /* 0 */
     if( obj->bounds.radius > 0.0 )
         obj->bounds.radius += EPSILON;
     bounds_list_free(&points);

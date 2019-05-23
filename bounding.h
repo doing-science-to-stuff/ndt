@@ -37,5 +37,6 @@ int bounds_list_free(bounds_list *list);
 
 int bounds_list_centroid(bounds_list *list, vectNd *centroid);
 int bounds_list_radius(bounds_list *list, vectNd *centroid, double *radius);
+int bounds_list_optimal(bounds_list *list, vectNd *centroid, double *radius);
 
 #endif /* BOUNDING_SPHERE_H */

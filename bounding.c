@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include "object.h"
 #include "bounding.h"
+#include "nelder-mead.h"
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -166,6 +167,66 @@ int bounds_list_radius(bounds_list *list, vectNd *centroid, double *radius) {
         curr = curr->next;
     }
     *radius = max;
+
+    return 0;
+}
+
+int bounds_list_optimal(bounds_list *list, vectNd *centroid, double *radius) {
+    int dim = centroid->n;
+    void *nm = NULL;
+
+    /* initialize Nelder Mead */
+    nm_init(&nm, dim);
+
+    /* get initial point to test */
+    bounds_list_centroid(list, centroid);
+    nm_set_seed(nm, centroid);
+
+    #if 0
+    printf("bounding points:\n");
+    bounds_node *curr = list->head;
+    while(curr) {
+        vectNd_print(&curr->bounds.center, "\t");
+        curr = curr->next;
+    }
+    #endif /* 0 */
+
+    /* get initial guess for center */
+    vectNd initial;
+    vectNd_calloc(&initial, centroid->n);
+    vectNd_copy(&initial, centroid);
+    bounds_list_radius(list, centroid, radius);
+    double initial_radius = *radius;
+
+    int max_iterations = 1000;
+    while( !nm_done(nm, EPSILON, max_iterations) ) {
+        nm_add_result(nm, centroid, *radius);
+        nm_next_point(nm, centroid);
+        bounds_list_radius(list, centroid, radius);
+    }
+
+    /* get final result */
+    nm_best_point(nm, centroid);
+    bounds_list_radius(list, centroid, radius);
+
+    /* double check that it is an improvement */
+    if( *radius > initial_radius ) {
+        printf("%s: final readius (%g) is greater than initial radius (%g).\n", __FUNCTION__, initial_radius, *radius);
+        vectNd_copy(centroid, &initial);
+        bounds_list_radius(list, centroid, radius);
+    }
+
+    #if 0
+    if( initial_radius != *radius ) {
+        printf("\n%s: initial radius: %g\n", __FUNCTION__, initial_radius);
+        printf("%s:   final radius: %g\n", __FUNCTION__, *radius);
+        printf("%s: change: %g%%\n", __FUNCTION__, 100.0 * (initial_radius-*radius) / initial_radius);
+    }
+    #endif /* 0 */
+
+    /* clean up */
+    vectNd_free(&initial);
+    nm_free(nm);
 
     return 0;
 }
