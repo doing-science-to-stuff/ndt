@@ -217,10 +217,10 @@ int bounds_list_optimal(bounds_list *list, vectNd *centroid, double *radius) {
     }
 
     #if 0
-    if( initial_radius != *radius ) {
+    if( initial_radius != curr_radius ) {
         printf("\n%s: initial radius: %g\n", __FUNCTION__, initial_radius);
-        printf("%s:   final radius: %g\n", __FUNCTION__, *radius);
-        printf("%s: change: %g%%\n", __FUNCTION__, 100.0 * (initial_radius-*radius) / initial_radius);
+        printf("%s:   final radius: %g\n", __FUNCTION__, curr_radius);
+        printf("%s: change: %g%%\n", __FUNCTION__, 100.0 * (initial_radius-curr_radius) / initial_radius);
     }
     #endif /* 0 */
 
