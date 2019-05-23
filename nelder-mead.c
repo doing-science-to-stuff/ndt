@@ -406,6 +406,19 @@ void nm_next_point(void *nm_ptr, vectNd *vector) {
     return;
 }
 
+int nm_simplex_point(void *nm_ptr, int which, vectNd *point, double *value) {
+    NelderMead *nm = nm_ptr;
+    if( which >= nm->simplex.count )
+        return 0;
+
+    if( point )
+        vectNd_copy(point, &nm->simplex.points[which].parameters);
+    if( value )
+        *value = nm->simplex.points[which].value;
+
+    return 1;
+}
+
 int nm_done(void *nm_ptr, double threshold, int iterations) {
     NelderMead *nm = nm_ptr;
     if( nm->state == initial )

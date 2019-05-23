@@ -13,6 +13,7 @@ void nm_set_seed(void *nm, vectNd *seed);
 void nm_best_point(void *nm, vectNd *result);
 void nm_add_result(void *nm, vectNd *parameters, double value);
 void nm_next_point(void *nm, vectNd *vector);
+int nm_simplex_point(void *nm_ptr, int which, vectNd *point, double *value);
 int nm_done(void *nm, double threshold, int iterations);
 
 #endif /* NELDER_NEAD_H */
