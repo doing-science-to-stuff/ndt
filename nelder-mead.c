@@ -249,13 +249,11 @@ void nm_add_result(void *nm_ptr, vectNd *parameters, double value) {
         if( nm->x_e.value < nm->x_r.value ) {
             /* accept x_e and terminate iteration */
             nmSampleCopy(&nm->simplex.points[nm->simplex.count-1], &nm->x_e);
-            nm->state = reflect;
-            vectNd_free(&r.parameters);
-            return;
+        } else {
+            /* accept x_r and terminate iteration */
+            nmSampleCopy(&nm->simplex.points[nm->simplex.count-1], &nm->x_r);
         }
 
-        /* accept x_r and terminate iteration */
-        nmSampleCopy(&nm->simplex.points[nm->simplex.count-1], &nm->x_r);
         nm->state = reflect;
         vectNd_free(&r.parameters);
         return;
