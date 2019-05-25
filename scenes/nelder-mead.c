@@ -9,7 +9,7 @@
 #include "../nelder-mead.h"
 
 /* This scene demonstrates how Nelder-Mead can be used to find the center of a
- * sphere that it circumscribes a set of points with minimum radius. */
+ * sphere that circumscribes a set of points with minimum radius. */
 
 #define BOUNDING_RADIUS 0.25
 #define SIMPLEX_RADIUS 0.1
