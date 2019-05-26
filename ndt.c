@@ -286,6 +286,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                 clr.r += hitr_r * scn->lights[i]->red/max_light * rvn;
                 clr.g += hitr_g * scn->lights[i]->green/max_light * rvn;
                 clr.b += hitr_b * scn->lights[i]->blue/max_light * rvn;
+                clr.a = 1.0;
 
                 vectNd_free(&light_ref);
             }
@@ -314,6 +315,7 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
     int ret = 0;
 
     pixel->r = pixel->g = pixel->b = 0.0;
+    pixel->a = 1.0;
     if( pixel_frac < (1.0/512.0) )
         return 1;
     //printf("pixel_frac = %g\n", pixel_frac);
@@ -381,11 +383,13 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
                     clr.r = (1-hitr_r)*(clr.r)+(hitr_r)*ref.r;
                     clr.g = (1-hitr_g)*(clr.g)+(hitr_g)*ref.g;
                     clr.b = (1-hitr_b)*(clr.b)+(hitr_b)*ref.b;
+                    clr.a = 1.0;
                 } else {
                 #endif /* WITH_SPECULAR */
                     clr.r += hitr_r*ref.r;
                     clr.g += hitr_g*ref.g;
                     clr.b += hitr_b*ref.b;
+                    clr.a = 1.0;
                 #ifdef WITH_SPECULAR
                 }
                 #endif /* WITH_SPECULAR */
@@ -399,6 +403,7 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
             clr.r += (1.0-hitr_r)*ref.r;
             clr.g += (1.0-hitr_g)*ref.g;
             clr.b += (1.0-hitr_b)*ref.b;
+            clr.a = 1.0;
         }
 
         vectNd_free(&new_ray);
@@ -410,6 +415,7 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
         clr.r = scn->bg_red;
         clr.g = scn->bg_green;
         clr.b = scn->bg_blue;
+        clr.a = scn->bg_alpha;
         ret = 0;
     }
 
@@ -516,6 +522,7 @@ int get_pixel_color(scene *scn, int width, int height, double x, double y,
         vectNd_sub(&pixel, &virtCam, &look);
 
         l_clr.r = l_clr.g = l_clr.b = 0.0;
+        l_clr.a = 1.0;
         get_ray_color(&virtCam, &look, scn, &l_clr, 1.0, depth, max_optic_depth);
 
         if( i > 1 ) {
@@ -527,12 +534,14 @@ int get_pixel_color(scene *scn, int width, int height, double x, double y,
         t_clr.r += l_clr.r;
         t_clr.g += l_clr.g;
         t_clr.b += l_clr.b;
+        t_clr.a += l_clr.a;
         t_samples += 1;
     }
 
     clr->r = t_clr.r/t_samples;
     clr->g = t_clr.g/t_samples;
     clr->b = t_clr.b/t_samples;
+    clr->a = t_clr.a/t_samples;
 
     vectNd_free(&temp);
     vectNd_free(&look);
@@ -611,10 +620,10 @@ int render_pixel(scene *scn, int width, double x_scale, int height, double y_sca
         clr->r = 0.299*left_clr.r+0.587*left_clr.g+0.114*left_clr.b;
         clr->g = 0;
         clr->b = 0.299*right_clr.r+0.587*right_clr.g+0.114*right_clr.b;
+        clr->a = 1.0;
     } else {
         get_pixel_color(scn, width, height, x, y, clr, samples, cam_mode, depth, max_optic_depth);
     }
-    clr->a = 1.0;
 
     return 0;
 }
@@ -1320,7 +1329,9 @@ int print_help_info(int argc, char **argv)
            "\t\t\t\tm: monoscopic [default]\n"
            "\t-n samples\tResampling count for each pixel\n"
            "\t-o directory\tDirectory to look in for object description files\n"
+           #ifdef WITH_SPECULAR
            "\t-p\t\tDisable specular highlighting\n"
+           #endif /* WITH_SPECULAR */
            "\t-q quality\tPreset quality levels (high,med,low,fast)\n"
            "\t-r resolution\tImage size {4k,1080p,720p} or WxH (e.g., 1920x1080)\n"
            "\t-s scene.so\tShared object that specifies the scene\n"

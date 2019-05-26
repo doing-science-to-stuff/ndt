@@ -83,15 +83,16 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     lgt->green = 300;
     lgt->blue = 300;
 
-    /* create objects array */
-    object *obj = NULL;
+    /* create objects */
     vectNd temp;
     vectNd_calloc(&temp,dimensions);
     int num_spheres = pow(2,dimensions);
 
     i = 0;
 
+    #if 0
     /* add reflective floor */
+    object *obj = NULL;
     scene_alloc_object(scn,dimensions,&obj,"hplane");
     obj->red = 0.8;
     obj->green = 0.8;
@@ -105,6 +106,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_reset(&temp);
     vectNd_set(&temp,1,1);
     object_add_dir(obj,&temp);  /* normal */
+    #else
+    scn->bg_alpha = 0.0;
+    #endif /* 0 */
 
     /* create spheres */
     vectNd center;

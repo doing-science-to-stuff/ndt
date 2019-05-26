@@ -53,7 +53,7 @@ typedef struct scene_t
     object **object_ptrs;
     light **lights;
     light ambient;
-    double bg_red, bg_green, bg_blue;
+    double bg_red, bg_green, bg_blue, bg_alpha;
     char name[256];
 } scene;
 

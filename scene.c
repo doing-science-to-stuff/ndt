@@ -37,6 +37,8 @@ int scene_init(scene *scn, char *name, int dim)
 
     scn->dimensions = dim;
 
+    scn->bg_alpha = 1.0;
+
     return 1;
 }
 
