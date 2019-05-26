@@ -90,7 +90,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     i = 0;
 
-    #if 0
+    #if 1
     /* add reflective floor */
     object *obj = NULL;
     scene_alloc_object(scn,dimensions,&obj,"hplane");
