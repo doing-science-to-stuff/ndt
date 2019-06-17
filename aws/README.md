@@ -22,7 +22,7 @@ Different commands need to be run on different machines and possibly by
 different users.
 Which machine (and possibly user) a command should be run as, is indicated by
 the sample command prompt:
- * `localhost$ ` : Regular user on your local machine.
+ * `local$ ` : Regular user on your local machine.
  * `ec2$ ` : The `ec2-user` on the master node of a cluster.
 
 ### Prerequisites
@@ -39,7 +39,7 @@ Since pip installs executables to an odd location, update the `PATH` to
 include this location.
 
 ```text
-localhost$ export PATH=~/.local/bin:"$PATH"
+local$ export PATH=~/.local/bin:"$PATH"
 ```
 
 To make this change persistent, runtime configuration files will need to be updated as well (e.g., in bash, add `export PATH=~/.local/bin:"$PATH"` to the end of `~/.bashrc`).
@@ -48,8 +48,8 @@ To make this change persistent, runtime configuration files will need to be upda
 
 Cluster setup will be managed with the `pcluster` command line interface (CLI) which can be installed via `pip`.
 ```text
-localhost$ pip install --user --upgrade awscli
-localhost$ pip install --user --upgrade aws-parallelcluster
+local$ pip install --user --upgrade awscli
+local$ pip install --user --upgrade aws-parallelcluster
 ```
 **Note: The utility formerly known as [CfnCluster](https://cfncluster.readthedocs.io/en/latest/getting_started.html) was [renamed](https://github.com/aws/aws-parallelcluster/commit/eebd1029846ddea7eda00505d482bc83395890bb) to `pcluster`.**
 
@@ -112,7 +112,7 @@ To create such a pair:
 
 Next the CLI needs to be configured.
 ```text
-localhost$ aws configure
+local$ aws configure
 AWS Access Key ID [None]: <Access key ID from user creation>
 AWS Secret Access Key [None]: <Secret access key from user creation>
 Default region name [None]: us-east-2
@@ -129,7 +129,7 @@ Configure a cluster template by running `pcluster configure`.
 
 The process should look something like this:
 ```text
-localhost$ pcluster configure
+local$ pcluster configure
 Cluster Template [default]: default
 AWS Access Key ID []: <Your Access Key ID>
 AWS Secret Access Key ID []: <Your Secret key ID>
@@ -181,13 +181,13 @@ page to request an increase to the limits for the instance type being used.*
 
 Actually create a cluster:
 ```text
-localhost$ pcluster create my-test-cluster
+local$ pcluster create my-test-cluster
 ```
 **Note: This will take a surprisingly long time (approximately 5-10 minutes).**
 
 Verify that the cluster exists, by listing the current clusters *(optional)*:
 ```text
-localhost$ pcluster list
+local$ pcluster list
 ```
 
 ---
@@ -196,7 +196,7 @@ localhost$ pcluster list
 
 Login to cluster:
 ```text
-localhost$ pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem
+local$ pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem
 ```
 When prompted about the authenticity of the host, answer `yes`.
 
@@ -336,8 +336,8 @@ cluster will be destroyed when the cluster is deleted.**
 
 Using the public IP address, files can be transferred using `scp`.
 ```text
-localhost$ mkdir results
-localhost$ scp -r -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
+local$ mkdir results
+local$ scp -r -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
         ec2-user@a.b.c.d:/shared/ndt/images \
         ./results
 ```
@@ -350,12 +350,12 @@ Where *a.b.c.d* is the public IP address from the instances table.
 When you are done with the cluster, it can be torn down with the `pcluster`
 command.
 ```text
-localhost$ pcluster delete my-test-cluster
+local$ pcluster delete my-test-cluster
 ```
 
 Verify that cluster was deleted, by listing the current clusters *(optional)*:
 ```text
-localhost$ pcluster list
+local$ pcluster list
 ```
 
 ---
