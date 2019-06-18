@@ -14,7 +14,7 @@ To keep these instructions as simple as possible, many common
 [practices](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-best-practices.html)
 especially with respect to security have been left out.
 Use at your own risk.
-These instructions were last verified to work on 2019-05-16.
+These instructions were last verified to work on 2019-06-18.
 
 ### Notational Conventions
 
@@ -24,6 +24,11 @@ Which machine (and possibly user) a command should be run as, is indicated by
 the sample command prompt:
  * `local$ ` : Regular user on your local machine.
  * `ec2$ ` : The `ec2-user` on the master node of a cluster.
+
+Wherever an IP address would appear in an example, the address has been
+replaced with `a.b.c.d`.
+For input values, a note is provided to indicate which IP address `a.b.c.d`
+should be replaced with.
 
 ### Prerequisites
 
@@ -131,8 +136,6 @@ The process should look something like this:
 ```text
 local$ pcluster configure
 Cluster Template [default]: default
-AWS Access Key ID []: <Your Access Key ID>
-AWS Secret Access Key ID []: <Your Secret key ID>
 Acceptable Values for AWS Region ID:
     eu-north-1
     ap-south-1
@@ -197,8 +200,11 @@ local$ pcluster list
 Login to cluster:
 ```text
 local$ pcluster ssh my-test-cluster -i ~/.ssh/TestClusterSshKey.pem
+The authenticity of host 'a.b.c.d (a.b.c.d)' can't be established.
+ECDSA key fingerprint is SHA256:VGhpcyBpcyBub3QgYSByZWFsIGZpbmdlcnByaW50LiAK.
+Are you sure you want to continue connecting (yes/no)? yes
 ```
-When prompted about the authenticity of the host, answer `yes`.
+If prompted about the authenticity of the host, answer `yes`, as show above.
 
 Clone NDT:
 ```text
@@ -227,7 +233,7 @@ ec2$ scp -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
         ./path_to_local_file \
         ec2-user@a.b.c.d:/shared/ndt/path_to_remote_file
 ```
-Where *a.b.c.d* is the public IP address from the instances table.
+Replacing `a.b.c.d` with the public IP address from the instances table.
 
 ---
 
@@ -251,7 +257,8 @@ To create a snapshot of the cluster:
 10. Select "Create Snapshot".
 11. Enter a description (e.g., `NDT Compiled and Ready to Run`).
 12. Click "Create Snapshot" button.
-13. Open the [snapshots console](https://console.aws.amazon.com/ec2/v2/home#Snapshots) to check on the status of the snapshot.
+13. Click the "Close" button.
+14. In the left-nav, in the "ELASTIC BLOCK STORE" section, click on "Snapshots" to open the [snapshots console](https://console.aws.amazon.com/ec2/v2/home#Snapshots) to check on the status of the snapshot.
 
 ---
 
@@ -286,16 +293,20 @@ The status of the submitted job can be tracked with the `qstat` command.
 ec2$ qstat
 job-ID  prior   name       user         state submit/start at     queue         slots ja-task-ID
 ------------------------------------------------------------------------------------------------
-      1 0.55500 ndt        ec2-user     qw    05/13/2019 21:44:55                  10
+      1 0.55500 ndt        ec2-user     qw    06/18/2019 05:28:02                  10
 ```
 
 The state `qw` means the job is waiting for enough resources to be available
 to run the job.
 
+If `qstat` doesn't produce any output, there are no jobs in the queue.
+Which means either `qsub` failed, or the the job started and has already
+terminated.
+
 Progress on adding execution hosts to the cluster can be tracked with the
-`qstat` command.
+`qconf` command.
 ```text
-ec2$ qstat -sh
+ec2$ qconf -sh
 ```
 
 When the job starts, the state will change to `r`.
@@ -316,6 +327,8 @@ If you need to stop a running job, you can do so with the `qdel` command.
 ec2$ qdel 1
 ```
 Where `1` is the job-ID for the running job, as reported by `qstat`.
+
+Jobs that terminate normally do not need to be deleted.
 
 ---
 
@@ -341,11 +354,18 @@ local$ scp -r -i ~/.ssh/~/.ssh/TestClusterSshKey.pem \
         ec2-user@a.b.c.d:/shared/ndt/images \
         ./results
 ```
-Where *a.b.c.d* is the public IP address from the instances table.
+Replacing `a.b.c.d` with the public IP address from the instances table.
 
 ---
 
 ### Deleting a Cluster
+
+Once you are finished running jobs on the cluster and have collected all of
+your output files, log out of the master node with the `logout` command.
+```text
+ec2$ logout
+Connection to a.b.c.d closed.
+```
 
 When you are done with the cluster, it can be torn down with the `pcluster`
 command.
