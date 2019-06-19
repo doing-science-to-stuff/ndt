@@ -489,7 +489,7 @@ suggestions on how to fix them.
 * **Symptom:**
     Running `pcluster configure` produces the error message:
     ```text
-    Failed with error: An error occurred (AuthFailure) when calling the DescribeKeyPairs operation: AWS was not able to validate the provided access credentials
+    Failed with error: An error occurred (AuthFailure) when calling the DescribeRegions operation: AWS was not able to validate the provided access credentials
     Hint: please check your AWS credentials.
     ```
     * Possible Cause:
