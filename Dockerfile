@@ -17,7 +17,9 @@ WORKDIR /app
 RUN cmake .
 RUN make
 
-RUN apt-get -y --auto-remove remove g++ cmake libpng-dev libjpeg-dev libyaml-dev
+RUN apt-get -y --auto-remove remove cmake libpng-dev libjpeg-dev libyaml-dev
+RUN apt-get -y --auto-remove remove libmpich-dev
+RUN apt-get -y --auto-remove remove g++
 
 #CMD /app/ndt -s /app/scenes/random.so
 CMD /bin/bash
