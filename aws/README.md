@@ -1,4 +1,4 @@
-# AWS Howto and Troubleshooting
+# AWS How-to and Troubleshooting
 
 Contents:
  * [Running NDT on AWS](#running-ndt-on-aws)
