@@ -454,7 +454,7 @@ int get_pixel_color(scene *scn, int width, int height, double x, double y,
     double clr_diff = 256;
 
     dbl_pixel_t t_clr;
-    t_clr.r = t_clr.g = t_clr.b = 0.0;
+    t_clr.r = t_clr.g = t_clr.b = t_clr.a = 0.0;
     int t_samples = 0;
     int i=0;
     double pixel_width = 1.0/width;
@@ -684,9 +684,13 @@ int recursive_resample(scene *scn, int width, double x_scale,
 
 int resample_pixel(scene *scn, int width, double x_scale, int height, double y_scale, int i, int j, stereo_mode mode, int samples, int aa_diff, int aa_depth, image_t *img, dbl_pixel_t *clr, int max_optic_depth) {
     dbl_pixel_t p1, p2, p3, p4;
-    double var;
+    double var = 0.0;
     int ret = 0;
 
+    memset(&p1, '\0', sizeof(p1));
+    memset(&p2, '\0', sizeof(p2));
+    memset(&p3, '\0', sizeof(p3));
+    memset(&p4, '\0', sizeof(p4));
     dbl_image_get_pixel(img,i,j,&p1);
     dbl_image_get_pixel(img,i+1,j,&p2);
     dbl_image_get_pixel(img,i,j+1,&p3);
