@@ -41,11 +41,13 @@ static int add_faces(object *cube, int m) {
 
     printf("Adding %i-dimensional faces.\n", m);
 
-    int *dirs_count, *pos_count;
-    dirs_count = calloc(m, sizeof(int));
+    int *dirs_count = NULL, *pos_count = NULL;
+    if( m > 0 ) {
+        dirs_count = calloc(m, sizeof(int));
+        for(int i=0; i<m; ++i)
+            dirs_count[i] = m-i-1;
+    }
     pos_count = calloc(n-m, sizeof(int));
-    for(int i=0; i<n; ++i)
-        dirs_count[i] = m-i-1;
     int offset_id = 0;
     int real_offset_id = 0;
     for(int f=0; f<num_faces; ++f) {
@@ -159,16 +161,16 @@ static int add_faces(object *cube, int m) {
         /* update counters */
         ++real_offset_id;
         int i=0;
-        while(pos_count[i] == 1) {
+        while(i < (n-m) && pos_count[i] == 1) {
             pos_count[i] = 0;
             ++i;
         }
         if( i < n-m ) {
             pos_count[i] += 1;
-        } else {
+        } else if( m > 0 ) {
             /* pos counter reached end, so update dirs_counter */
             int j=0;
-            while(dirs_count[j] == n-j-1 ) {
+            while(j < m && dirs_count[j] == n-j-1 ) {
                 if( j < m-1 ) {
                     dirs_count[j] = dirs_count[j+1]+1;
                 } else {
