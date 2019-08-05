@@ -75,7 +75,7 @@ static int add_faces(object *cube, int m) {
         }
 
         object *obj = NULL;
-        if( m > 2 || (n == 3 && m == 2) ) {
+        if( m > 1 && m != n-2 ) {
             /* add a orthotope for face */
             obj = object_alloc(cube->dimensions, "orthotope", "");
             snprintf(obj->name, sizeof(obj->name), "face %i", f);
@@ -88,8 +88,8 @@ static int add_faces(object *cube, int m) {
                 object_add_dir(obj, &dir);
             }
             object_add_pos(obj, &pos);
-        } else if( m == 2 ) {
-            /* add a orthotope for face */
+        } else if( m == n-2 ) {
+            /* add a hcylinder for face */
             obj = object_alloc(cube->dimensions, "hcylinder", "");
             snprintf(obj->name, sizeof(obj->name), "'edge' %i", f);
             object_add_size(obj, EDGE_SIZE + (n-m) * (EDGE_SIZE*0.05 + EPSILON) );
@@ -131,7 +131,12 @@ static int add_faces(object *cube, int m) {
         }
 
         /* set color based on dimensions */
-        if( m == n-1 ) {
+        if( m == n ) {
+            /* entire object, which doesn't work */
+            obj->red = 0.8;
+            obj->green = 0.0;
+            obj->blue = 0.8;
+        } else if( m == n-1 ) {
             /* main faces */
             obj->red = 0.0;
             obj->green = 0.0;
