@@ -85,6 +85,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
     clr.r = hit_r * scn->ambient.red;
     clr.g = hit_g * scn->ambient.green;
     clr.b = hit_b * scn->ambient.blue;
+    clr.a = 1.0;
 
     /* all of these are initialized within the loop */
     vectNd_alloc(&rev_view,dim);
