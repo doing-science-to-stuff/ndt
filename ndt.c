@@ -326,7 +326,6 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
 
     vectNd hit;
     vectNd hit_normal;
-    double hitr_r, hitr_g, hitr_b;
     object *obj_ptr=NULL;
     int dim = src->n;
     dbl_pixel_t clr;
@@ -358,10 +357,11 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
     {
         apply_lights(scn,dim,obj_ptr,src,look,&hit,&hit_normal,&clr);
 
+        #if 1
         /* get reflectivity of object */
+        double hitr_r, hitr_g, hitr_b;
         obj_ptr->get_reflect(obj_ptr, &hit, &hitr_r, &hitr_g, &hitr_b);
 
-        #if 1
         /* compute reflection and refraction */
         /* see:
          * http://www.unc.edu/~marzuola/Math547_S13/Math547_S13_Projects/P_Smith_Section001_RayTracing.pdf
