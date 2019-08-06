@@ -270,11 +270,13 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     /* setup lighting */
     light *lgt=NULL;
+    #if 1
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_AMBIENT;
     lgt->red = 0.25;
     lgt->green = 0.25;
     lgt->blue = 0.25;
+    #endif /* 0 */
 
     #if 1
     scene_alloc_light(scn,&lgt);
@@ -290,7 +292,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     #endif /* 0 */
 
     #if 0
-    if( !with_wall ) {
+    if( !with_walls ) {
         scene_alloc_light(scn,&lgt);
         lgt->type = LIGHT_POINT;
         vectNd_calloc(&lgt->pos,dimensions);
