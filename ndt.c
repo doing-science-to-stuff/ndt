@@ -1146,7 +1146,7 @@ static int mpi_broadcast_scene(scene *scn) {
     MPI_Bcast(&scn->dimensions, 1, MPI_INT, source_rank, MPI_COMM_WORLD);
 
     /* send scene */
-    MPI_Bcast(scene_buffer, length, MPI_CHAR, source_rank, MPI_COMM_WORLD);
+    MPI_Bcast(scene_buffer, length, MPI_UNSIGNED_CHAR, source_rank, MPI_COMM_WORLD);
 
     if( mpiRank != source_rank ) {
         /* parse scene_buffer on destination */
@@ -1198,9 +1198,9 @@ static int mpi_send_scene(scene *scn, int source_rank, int dest_rank) {
 
     /* send scene */
     if( mpiRank == source_rank ) {
-        MPI_Send(scene_buffer, length, MPI_CHAR, dest_rank, 0, MPI_COMM_WORLD);
+        MPI_Send(scene_buffer, length, MPI_UNSIGNED_CHAR, dest_rank, 0, MPI_COMM_WORLD);
     } else {
-        MPI_Recv(scene_buffer, length, MPI_CHAR, source_rank, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(scene_buffer, length, MPI_UNSIGNED_CHAR, source_rank, 0, MPI_COMM_WORLD, &status);
     }
 
     if( mpiRank != source_rank ) {
@@ -1759,6 +1759,7 @@ int main(int argc, char **argv)
             } else {
                 scene_setup(&scn,dimensions,i,frames,scene_config);
             }
+            //scene_print(&scn);
 
             #ifdef WITH_YAML
             if( write_yaml ) {
@@ -1865,8 +1866,12 @@ int main(int argc, char **argv)
             /* setup camera, as requested */
             if( enable_vr ) {
                 scn.cam.type = CAMERA_VR;
+                scn.cam.vFov = camera_v_fov;
+                scn.cam.hFov = camera_h_fov;
             } else if( enable_pano ) {
                 scn.cam.type = CAMERA_PANO;
+                scn.cam.vFov = camera_v_fov;
+                scn.cam.hFov = camera_h_fov;
             }
             camera_aim(&scn.cam);
 

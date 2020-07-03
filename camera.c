@@ -201,7 +201,13 @@ int camera_aim_naive(camera *cam)
     double focal_distance = cam->focal_distance;
 
     /* reset camera to default location and orientation */
+    camera_type_t keep_type = cam->type;
+    double keep_hFov = cam->hFov;
+    double keep_vFov = cam->vFov;
     camera_reset(cam);
+    cam->type = keep_type;
+    cam->hFov = keep_hFov;
+    cam->vFov = keep_vFov;
 
     /* copy aim parameters back into camera */
     vectNd_copy(&cam->viewPoint, pos);
@@ -499,9 +505,11 @@ void camera_target_point(camera *cam, double x, double y, double dist, vectNd *p
     vectNd temp;
     vectNd_alloc(&temp,pixel->n);
     if( cam->type == CAMERA_VR ) {
+        //printf("%s: hFov,vFov: %g, %g\n", __FUNCTION__, cam->hFov, cam->vFov);
         /* compute point in virtual spherical screen */
         double azi = x * cam->hFov;
         double alt = y * cam->vFov;
+        //printf("%s: x,y: %g,%g; azi,alt: %g,%g\n", __FUNCTION__, x, y, azi, alt);
 
         /* convert spherical coordinates to camera local x,y,z */
         double view_x = dist * sin(azi) * cos(alt);
@@ -578,6 +586,10 @@ void camera_print(camera *cam)
     vectNd_print(&cam->viewPoint,"\tviewPoint");
     vectNd_print(&cam->viewTarget,"\tviewTarget");
     vectNd_print(&cam->up,"\tup");
+    printf("\ttype: %i\n", cam->type);
+    if( cam->type == CAMERA_VR || cam->type == CAMERA_PANO ) {
+        printf("\t\tvFov,hFov: %g,%g\n", cam->vFov, cam->hFov);
+    }
     if( cam->rotation != 0 )
         printf("\trotation: %g\n", cam->rotation);
     if( cam->eye_offset != EYE_OFFSET )

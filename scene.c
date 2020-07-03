@@ -361,6 +361,7 @@ static int scene_print_r(object **obj, int n, int depth) {
 
 int scene_print(scene *scn) {
     printf("\nStart %s\n", __FUNCTION__);
+    camera_print(&scn->cam);
     scene_print_r(scn->object_ptrs, scn->num_objects, 0);
     printf("End %s\n\n", __FUNCTION__);
 
@@ -789,6 +790,22 @@ static void scene_yaml_emit_camera(yaml_emitter_t *emitter, camera *cam) {
         scene_yaml_mapped_int(emitter,"flip_y", NULL, cam->flip_y);
     if( cam->zoom != 1.0 )
         scene_yaml_mapped_double(emitter,"zoom", NULL, cam->zoom);
+
+    if( cam->type!=CAMERA_NORMAL ) {
+        switch( cam->type ) {
+            case CAMERA_VR:
+                scene_yaml_mapped_string(emitter,"type", "", "vr");
+                break;
+            case CAMERA_PANO:
+                scene_yaml_mapped_string(emitter,"type", "", "pano");
+                break;
+            default:
+                scene_yaml_mapped_string(emitter,"type", "", "UNKNOWN");
+                break;
+        }
+        scene_yaml_mapped_double(emitter, "vFov", "", cam->vFov);
+        scene_yaml_mapped_double(emitter, "hFov", "", cam->hFov);
+    }
 
     if( cam->aperture_radius != 0 ) {
         scene_yaml_mapped_double(emitter,"aperture_radius", NULL, cam->aperture_radius);
@@ -1918,6 +1935,16 @@ static int scene_yaml_parse_camera(yaml_parser_t *parser, camera *cam) {
                     scene_yaml_parse_double(parser, &cam->focal_distance);
                 } else if( strcasecmp("zoom", value) == 0 ) {
                     scene_yaml_parse_double(parser, &cam->zoom);
+                } else if( strcasecmp("type", value) == 0 ) {
+                    printf("got here %s: %i\n", __FILE__, __LINE__);
+                    char str[64];
+                    scene_yaml_parse_string(parser, str, sizeof(str));
+                    if( strcasecmp(str,"vr")==0 )
+                        cam->type = CAMERA_VR;
+                    else if( strcasecmp(str,"pano")==0 )
+                        cam->type = CAMERA_PANO;
+                    else
+                        cam->type = CAMERA_NORMAL;
                 } else if( strcasecmp("hFov", value) == 0 ) {
                     scene_yaml_parse_double(parser, &cam->hFov);
                 } else if( strcasecmp("vFov", value) == 0 ) {
