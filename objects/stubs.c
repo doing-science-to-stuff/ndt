@@ -55,6 +55,8 @@ int type_name(char *name, int size) {
 
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
     /* report how many of each type of parameter is needed */
+    /* Note: obj->dimensions will contain the dimensions of the object being
+     * created. */
     *n_pos = 0;
     *n_dir = 0;
     *n_size = 0;
