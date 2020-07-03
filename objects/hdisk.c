@@ -15,7 +15,7 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static int prepare(object *obj) {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !obj->prepared ) {
 
         /* create a hyper-plane for hdisk to use internally */

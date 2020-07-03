@@ -53,7 +53,7 @@ static int prepare(object *face) {
         ones_set = 1;
     }
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !face->prepared ) {
         prepped_t *prepped = calloc(1,sizeof(prepped_t));
         face->prepped = prepped;

@@ -176,7 +176,7 @@ static int cluster_do_clustering(object *clstr, int k)
 static int prepare(object *obj) {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !obj->prepared ) {
         /* cluster objects */
         cluster_do_clustering(obj, obj->flag[0]);

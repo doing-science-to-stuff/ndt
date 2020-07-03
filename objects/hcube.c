@@ -156,7 +156,7 @@ static int prepare(object *hcube)
 {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !hcube->prepared ) {
         add_faces(hcube, hcube->dimensions-1);
 

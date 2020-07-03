@@ -23,7 +23,7 @@ typedef struct prepared_data {
 static int prepare(object *cyl) {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !cyl->prepared ) {
         int dim;
         vectNd *bottom = &cyl->pos[0];

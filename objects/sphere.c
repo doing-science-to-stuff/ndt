@@ -18,7 +18,7 @@ typedef struct prepared_data {
 static int prepare(object *obj) {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !obj->prepared ) {
         obj->prepped = calloc(1,sizeof(prepped_t));
         double radius = obj->size[0];

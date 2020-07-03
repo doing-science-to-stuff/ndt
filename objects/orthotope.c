@@ -23,7 +23,7 @@ typedef struct prepared_data {
 static int prepare(object *sub) {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !sub->prepared ) {
         prepped_t *prepped = calloc(1,sizeof(prepped_t));
 

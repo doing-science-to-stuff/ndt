@@ -18,12 +18,12 @@ typedef struct prepared_data {
 static int prepare(object *obj) {
     pthread_mutex_lock(&lock);
 
-    /* fill in any ray invarient parameters */
+    /* fill in any ray invariant parameters */
     if( !obj->prepared ) {
         /* allocate prepared data structure */
         obj->prepped = calloc(1,sizeof(prepped_t));
 
-        /* compute pre-computable (i.e. ray-invarient) data values */
+        /* compute pre-computable (i.e. ray-invariant) data values */
 
         /* mark object as prepared */
         obj->prepared = 1;
@@ -75,6 +75,9 @@ int bounding_points(object *obj, bounds_list *list) {
      *
      * The bounds_list_add function is used to add the points/spheres to the
      * list.
+     *
+     * Note: leave the list empty to indicate that object may have infinite
+     * extent.
      * */
 
     return 1;
