@@ -22,7 +22,7 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     *n_pos = 0;
     *n_dir = 0;
     *n_size = 0;
-    *n_flags = 1;
+    *n_flags = 1;   /* number of sub-clusters for k-means */
     *n_obj = 0;
 
     return 0;
