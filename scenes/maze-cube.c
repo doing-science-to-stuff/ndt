@@ -59,6 +59,141 @@ int add_mirror(scene *scn, int dimensions, int which, int which2,
 }
 
 void add_maze_faces(object *puzzle, maze_t *maze, double edge_size) {
+
+    printf("%s\n", __FUNCTION__);
+    int dim = puzzle->dimensions;
+    double scale = edge_size/maze->faces[0].rows;
+
+    /* for each face in maze */
+    for(int face=0; face < maze->numFaces; ++face) {
+        int d1 = maze->faces[face].d1;
+        int d2 = maze->faces[face].d2;
+        int rows = maze->faces[face].rows;
+        int cols = maze->faces[face].cols;
+        /* for high and low values in all dimensions not in face's plane */
+        vectNd offset;
+        vectNd_alloc(&offset,dim);
+        vectNd counter;
+        vectNd_alloc(&counter,dim-2);
+        int done = 0;
+        printf("d1=%i; d2=%i\n", d1, d2);
+        for(int i=0; i<dim; ++i)
+            vectNd_set(&offset,i,-1.0);
+        vectNd_set(&offset,d1,0.0);
+        vectNd_set(&offset,d2,0.0);
+        while( !done ) {
+            vectNd_print(&counter,"\tcounter");
+
+            /* create cluster */
+            char faceName[64];
+            snprintf(faceName,sizeof(faceName),"face %i,%i", d1, d2);
+            object *faceCluster = object_alloc(dim, "cluster", faceName);
+            object_add_flag(faceCluster,4);
+
+            /* fill in face with hcube for each cell */
+            for(int row=0; row<rows; ++row) {
+                for(int col=0; col<cols; ++col) {
+                    int cell = face_get_cell(&maze->faces[face], row, col);
+                    if(cell==0)
+                        continue;
+
+                    /* create hcube for face cell */
+                    char cellName[64];
+                    snprintf(cellName,sizeof(cellName),"cell %i,%i for face %i", row, col, face);
+                    object *box = object_alloc(dim, "hcube", cellName);
+
+                    /* configure hcube */
+                    vectNd cellPos;
+                    vectNd_alloc(&cellPos,dim);
+                    vectNd_reset(&cellPos);
+                    vectNd_set(&cellPos, d1, (row-0.5*rows)*scale);
+                    vectNd_set(&cellPos, d2, (col-0.5*cols)*scale);
+                    object_add_pos(box, &cellPos);
+                    //vectNd_print(&cellPos, "cellPos");
+
+                    /* set up basis for hcube */
+                    vectNd dir;
+                    vectNd_alloc(&dir, dim);
+                    for(int i=0; i<dim; ++i) {
+                        vectNd_reset(&dir);
+                        vectNd_set(&dir, i, 1);
+                        object_add_dir(box, &dir);
+                        object_add_size(box, scale);
+                    }
+
+                    switch(face) {
+                        case 0: 
+                            box->red = 1.0;
+                            box->green = 1.0;
+                            box->blue = 1.0;
+                            break;
+                        case 1: 
+                            box->red = 0.0;
+                            box->green = 1.0;
+                            box->blue = 0.0;
+                            break;
+                        case 2: 
+                            box->red = 0.0;
+                            box->green = 0.0;
+                            box->blue = 1.0;
+                            break;
+                        default:
+                            box->red = 1.0;
+                            box->green = 0.0;
+                            box->blue = 0.0;
+                            break;
+                    }
+
+                    /* add cell to face */
+                    object_add_obj(faceCluster, box);
+
+                    vectNd_free(&dir);
+                    vectNd_free(&cellPos);
+                }
+            }
+
+            /* convert counter into offset vector, skipping d1 and d2 */
+            int k = 0, j = 0;
+            vectNd_reset(&offset);
+            while(k < dim-2 && j < dim) {
+                while( j == d1 || j == d2 ) {
+                    ++j;
+                    continue;
+                }
+                printf("copying counter[%i] (%g) into offset[%i]\n", k, counter.v[k], j);
+                int dimK = maze->dimensions[k]-1;
+                double dist = dimK*(counter.v[k] - 0.5) - 0.5*scale;
+                vectNd_set(&offset, j++, dist);
+                k++;
+            }
+            vectNd_print(&offset, "offset");
+
+            /* move face into position */
+            vectNd scaledOffset;
+            vectNd_alloc(&scaledOffset,dim);
+            vectNd_print(&offset,"\toffset");
+            vectNd_scale(&offset, scale+0.0001, &scaledOffset);
+            object_move(faceCluster, &scaledOffset);
+            vectNd_print(&scaledOffset,"\tscaledOffset");
+
+            /* update counter */
+            j = 0;
+            while(j < dim-2 && counter.v[j] == 1 ) {
+                vectNd_set(&counter,j++,0);
+            }
+            if( j < dim-2 )
+                vectNd_set(&counter,j,1);
+            else
+                done = 1;
+
+            /* add face cluster to puzzle */
+            object_add_obj(puzzle, faceCluster);
+            faceCluster = NULL;
+        }
+        vectNd_free(&counter);
+        vectNd_free(&offset);
+    }
+        
 }
 
 void add_movable_piece(object *puzzle, maze_t *maze, double edge_size, int frame, int frames) {
@@ -203,6 +338,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     ground->blue = 0.04;
     #endif /* 0 */
 
+    #if 1
     /* add mirrors */
     double mirror_size = 130;
     double mirror_height = 60;
@@ -215,6 +351,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     /* positive w */
     add_mirror(scn, dimensions, 3, 1, mirror_size, mirror_height, mirror_dist);
     #endif /* 0 */
+    #endif /* 0 */
 
     double edge_size = 15;
 
@@ -224,7 +361,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     object_add_flag(clstr, 8);  /* set number of clusters */
 
     /* create objects */
-    #if 1
+    #if 0
     /* add placeholder cube */
     /* use object_alloc instead of scene_alloc_object when the object will be
      * added to a cluster */
