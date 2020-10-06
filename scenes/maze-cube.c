@@ -172,7 +172,7 @@ void add_maze_faces(object *puzzle, maze_t *maze, double edge_size) {
             vectNd scaledOffset;
             vectNd_alloc(&scaledOffset,dim);
             vectNd_print(&offset,"\toffset");
-            vectNd_scale(&offset, scale+0.0001, &scaledOffset);
+            vectNd_scale(&offset, scale+0.01, &scaledOffset);
             object_move(faceCluster, &scaledOffset);
             vectNd_print(&scaledOffset,"\tscaledOffset");
 
@@ -353,7 +353,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     #endif /* 0 */
     #endif /* 0 */
 
-    double edge_size = 15;
+    double edge_size = 20;
 
     /* cluster will contain puzzle and be used to rotate it */
     object *clstr = NULL;
