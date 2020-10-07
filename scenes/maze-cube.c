@@ -10,7 +10,9 @@
 #include "../../PuzzleMaze/maze.c"
 
 static maze_t maze;
-static int framesPerMove = 4;
+static int framesPerMove = 10;  /* 30s for 34 moves in original puzzle */
+double edge_size = 20;
+
 
 /* scene_frames is optional, but gives the total number of frames to render
  * for an animated scene. */
@@ -160,21 +162,23 @@ void add_maze_faces(object *puzzle, maze_t *maze, double edge_size) {
                     ++j;
                     continue;
                 }
-                printf("copying counter[%i] (%g) into offset[%i]\n", k, counter.v[k], j);
+                /* subtract 1 here to account for thickness of face */
                 int dimK = maze->dimensions[k]-1;
-                double dist = dimK*(counter.v[k] - 0.5) - 0.5*scale;
+                /* subtract 0.5 from counter to center at 0 */
+                /* subtract 0.5 to shift both faces by half of their thickness */
+                double dist = dimK*(counter.v[k]-0.5)-0.5;
+                //printf("copying counter[%i] (%g) into offset[%i], dimK=%i, dist=%g\n", k, counter.v[k], j, dimK, dist);
                 vectNd_set(&offset, j++, dist);
                 k++;
             }
-            vectNd_print(&offset, "offset");
 
             /* move face into position */
             vectNd scaledOffset;
             vectNd_alloc(&scaledOffset,dim);
-            vectNd_print(&offset,"\toffset");
+            //vectNd_print(&offset,"\toffset");
             vectNd_scale(&offset, scale+0.01, &scaledOffset);
             object_move(faceCluster, &scaledOffset);
-            vectNd_print(&scaledOffset,"\tscaledOffset");
+            //vectNd_print(&scaledOffset,"\tscaledOffset");
 
             /* update counter */
             j = 0;
@@ -352,8 +356,6 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     add_mirror(scn, dimensions, 3, 1, mirror_size, mirror_height, mirror_dist);
     #endif /* 0 */
     #endif /* 0 */
-
-    double edge_size = 20;
 
     /* cluster will contain puzzle and be used to rotate it */
     object *clstr = NULL;
