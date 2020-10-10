@@ -10,8 +10,8 @@
 #include "../../PuzzleMaze/maze.c"
 
 static maze_t maze;
-static int framesPerMove = 10;  /* 30s for 34 moves in original puzzle */
-double edge_size = 20;
+static int framesPerMove = 4;  /* 30s for 91*2 moves in original puzzle */
+double edge_size = 30;
 
 
 /* scene_frames is optional, but gives the total number of frames to render
@@ -286,16 +286,20 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd viewPoint;
     vectNd viewTarget;
     vectNd up_vect;
+    vectNd lookVec;
     vectNd_calloc(&viewPoint,dimensions);
     vectNd_calloc(&viewTarget,dimensions);
     vectNd_calloc(&up_vect,dimensions);
+    vectNd_alloc(&lookVec, dimensions);
 
     vectNd_setStr(&viewTarget,"-20,-10,20,0");
     vectNd_setStr(&viewPoint,"160,30,-120,0");
     vectNd_set(&up_vect,1,1);  /* 0,1,0,0... */
+    vectNd_sub(&viewPoint, &viewTarget, &lookVec);
+    //vectNd_rotate2(&viewPoint, &viewTarget, &lookVec, &up_vect, 10.0*M_PI/180.0, &viewPoint);
     camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0.0);
     vectNd_free(&up_vect);
-    vectNd_free(&viewPoint);
+    //vectNd_free(&viewPoint);
     vectNd_free(&viewTarget);
 
     /* basic setup */
@@ -312,17 +316,44 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     light *lgt=NULL;
     scene_alloc_light(scn,&lgt);
     lgt->type = LIGHT_AMBIENT;
-    lgt->red = 0.5;
-    lgt->green = 0.5;
-    lgt->blue = 0.5;
+    lgt->red = 0.4;
+    lgt->green = 0.4;
+    lgt->blue = 0.4;
 
     scene_alloc_light(scn,&lgt);
+    #if 0
     lgt->type = LIGHT_POINT;
     vectNd_calloc(&lgt->pos,dimensions);
     vectNd_setStr(&lgt->pos,"0,40,0,-40");
     lgt->red = 300;
     lgt->green = 300;
     lgt->blue = 300;
+    #else
+    lgt->type = LIGHT_DIRECTIONAL;
+    vectNd_calloc(&lgt->dir,dimensions);
+    vectNd_setStr(&lgt->dir,"0,-1,0,-1");
+    lgt->red = 0.4;
+    lgt->green = 0.4;
+    lgt->blue = 0.4;
+    #endif
+
+    scene_alloc_light(scn,&lgt);
+    lgt->type = LIGHT_DIRECTIONAL;
+    vectNd_calloc(&lgt->dir,dimensions);
+    vectNd_setStr(&lgt->dir,"-180,-40,0,0");
+    lgt->red = 0.1;
+    lgt->green = 0.1;
+    lgt->blue = 0.1;
+    vectNd_free(&viewPoint);
+
+    scene_alloc_light(scn,&lgt);
+    lgt->type = LIGHT_DIRECTIONAL;
+    vectNd_calloc(&lgt->dir,dimensions);
+    vectNd_setStr(&lgt->dir,"0,-40,140,0");
+    lgt->red = 0.1;
+    lgt->green = 0.1;
+    lgt->blue = 0.1;
+    vectNd_free(&viewPoint);
 
     vectNd temp;
     vectNd_calloc(&temp,dimensions);
@@ -332,7 +363,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     object *ground=NULL;
     scene_alloc_object(scn,dimensions,&ground,"hplane");
     vectNd_reset(&temp);
-    vectNd_set(&temp,1,-25);
+    vectNd_set(&temp,1,-45);
     object_add_pos(ground,&temp);  /* position */
     vectNd_reset(&temp);
     vectNd_set(&temp,1,1);
@@ -344,9 +375,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     #if 1
     /* add mirrors */
-    double mirror_size = 130;
-    double mirror_height = 60;
-    double mirror_dist = 40;
+    double mirror_size = 140;
+    double mirror_height = 80;
+    double mirror_dist = 66;
     /* positive z */
     add_mirror(scn, dimensions, 2, 1, mirror_size, mirror_height, mirror_dist);
     /* negative x */
@@ -406,7 +437,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_set(&rotV1,1,0.0);
     double angle = (M_PI/2.0) - atan(1.0/sqrt(dimensions-1));
     object_rotate2(clstr, &rotateCenter, &rotV1, &rotV2, angle);
-    //object_rotate(clstr, &rotateCenter, 0, 2, frame*2.0*M_PI/frames);
+    object_rotate(clstr, &rotateCenter, 0, 2, frame*2.0*M_PI/frames);
     #endif // 1
     
     return 1;
