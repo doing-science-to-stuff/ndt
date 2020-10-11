@@ -101,7 +101,7 @@ void add_maze_faces(object *puzzle, maze_t *maze, double edge_size) {
 
                     /* create hcube for face cell */
                     char cellName[64];
-                    snprintf(cellName,sizeof(cellName),"cell %i,%i for face %i", row, col, face);
+                    snprintf(cellName,sizeof(cellName),"cell %i,%i for face %i", col, row, face);
                     object *box = object_alloc(dim, "hcube", cellName);
 
                     /* configure hcube */
@@ -298,6 +298,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     vectNd_sub(&viewPoint, &viewTarget, &lookVec);
     //vectNd_rotate2(&viewPoint, &viewTarget, &lookVec, &up_vect, 10.0*M_PI/180.0, &viewPoint);
     camera_set_aim(&scn->cam, &viewPoint, &viewTarget, &up_vect, 0.0);
+    camera_set_flip(&scn->cam, 1, 0);
     vectNd_free(&up_vect);
     //vectNd_free(&viewPoint);
     vectNd_free(&viewTarget);
