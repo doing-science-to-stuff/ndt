@@ -203,11 +203,13 @@ static int prepare(object *obj) {
         for(int i=0; i<obj->n_obj; ++i) {
             obj->obj[i]->intersect(obj->obj[i], &intO, &intV, &intRes, &intNorm, NULL);
             object_get_bounds(obj->obj[i]);
+            #if 0
             if( obj->obj[i]->bounds.radius < 0 ) {
                 printf("\n\ncomputed bounds for '%s'.\n", obj->obj[i]->name);
                 printf("  radius=%g\t", obj->obj[i]->bounds.radius);
                 vectNd_print(&obj->obj[i]->bounds.center, "\tbounds");
             }
+            #endif // 0
         }
         vectNd_free(&intO);
         vectNd_free(&intV);
