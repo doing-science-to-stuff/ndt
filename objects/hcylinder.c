@@ -78,15 +78,15 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     /* report how many of each type of parameter is needed */
     *n_pos = obj->dimensions - 1;
     *n_dir = 0;
-    *n_size = 1;
-    *n_flags = 1;
+    *n_size = 1;    /* radius */
+    *n_flags = 0;   /* flag[0]=1: infinite; 0 flags or flag[0]=0: finite */
     *n_obj = 0;
 
     return 0;
 }
 
 int bounding_points(object *obj, bounds_list *list) {
-    if( obj->flag[0] != 0 ) {
+    if( obj->flag[0] == 0 ) {
         for(int i=0; i<obj->n_pos; ++i) {
             bounds_list_add(list, &obj->pos[i], obj->size[0]);
         }
@@ -99,6 +99,10 @@ int bounding_points(object *obj, bounds_list *list) {
 static int between_ends(object *cyl, vectNd *point) {
     int dim;
     dim  = point->n;
+
+    /* skip check and return true for infinite cylinders */
+    if( obj->n_flag!=0 && obj->flag[0] != 0 )
+        return 1;
 
     /* check length of projection onto each axis against axis length */
     vectNd Bc;
