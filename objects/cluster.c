@@ -77,10 +77,17 @@ static int check_bounds(object *obj, bounding_sphere *bounds) {
 
 static int cluster_do_clustering(object *clstr, int k)
 {
-    if( k<2 || clstr->n_obj < 2*k )
-        return 0;
-
     /* setup kmeans */
+    if( k > clstr->n_obj ) {
+        //printf("cluster '%s' has too few objects (%i) for requested number of clusters (%i).\n", clstr->name, clstr->n_obj, k);
+        k = clstr->n_obj;
+    }
+
+    if( k < 1 ) {
+        //printf("%s called with k=0 or empty object list.\n", __FUNCTION__);
+        return -1;
+    }
+
     kmean_vector_list_t centers;
     kmeans_new_list(&centers, clstr->n_obj, clstr->dimensions);
 
@@ -102,7 +109,7 @@ static int cluster_do_clustering(object *clstr, int k)
     for(int i=0; i<k; ++i) {
         subs[i] = object_alloc(clstr->dimensions, "cluster", "sub cluster");
         object_add_flag(subs[i], k);
-        snprintf(subs[i]->name, sizeof(subs[i]->name), "%s%i", clstr->name, i);
+        snprintf(subs[i]->name, sizeof(subs[i]->name), "%s %i", clstr->name, i);
     }
     for(int i=0; i<clstr->n_obj; ++i) {
         int which = centers.data[i].which;
@@ -115,6 +122,9 @@ static int cluster_do_clustering(object *clstr, int k)
         if( subs[i]->n_obj == clstr->n_obj )
             did_split = 0;
     }
+
+    if( k<2 || clstr->n_obj < 2*k )
+        return 0;
 
     if( did_split==1 ) {
         /* recurse on each sub-clusters */
@@ -133,7 +143,7 @@ static int cluster_do_clustering(object *clstr, int k)
         }
     } else {
         for(int i=0; i<k; ++i) {
-            /* prevent freeing of sub-objects in, now useless, clusters */
+            /* prevent freeing of sub-objects in, now useless clusters */
             subs[i]->n_obj = 0;
 
             /* destroy unused cluster */
@@ -154,8 +164,10 @@ static int cluster_do_clustering(object *clstr, int k)
     object_add_pos(outline, &clstr->bounds.center);
     object_add_size(outline, clstr->bounds.radius-EPSILON);
     vectNd_print(&clstr->bounds.center, "\tcenter");
-    printf("\toutline radius = %g\n", clstr->bounds.radius);
+    printf("\toutline for '%s' has radius = %g\n", clstr->name, clstr->bounds.radius);
     object_add_obj(clstr, outline);
+    printf("\toutline for '%s' has radius = %g\n", clstr->name, clstr->bounds.radius);
+    vectNd_print(&clstr->bounds.center, "\tcenter");
     #endif /* 0 */
 
     kmeans_free_list(&centers);
@@ -173,11 +185,35 @@ static int cluster_do_clustering(object *clstr, int k)
     return 1;
 }
 
+static int isPreparing = 0;
 static int prepare(object *obj) {
-    pthread_mutex_lock(&lock);
+    if( !isPreparing )
+        pthread_mutex_lock(&lock);
+    ++isPreparing;
 
     /* fill in any ray invariant parameters */
     if( !obj->prepared ) {
+        /* make an intersect call on each object to get bounds */
+        vectNd intO, intV, intRes, intNorm;
+        vectNd_calloc(&intO, obj->dimensions);
+        vectNd_calloc(&intV, obj->dimensions);
+        vectNd_calloc(&intRes, obj->dimensions);
+        vectNd_calloc(&intNorm, obj->dimensions);
+        vectNd_set(&intV, 0, 1.0);
+        for(int i=0; i<obj->n_obj; ++i) {
+            obj->obj[i]->intersect(obj->obj[i], &intO, &intV, &intRes, &intNorm, NULL);
+            object_get_bounds(obj->obj[i]);
+            if( obj->obj[i]->bounds.radius < 0 ) {
+                printf("\n\ncomputed bounds for '%s'.\n", obj->obj[i]->name);
+                printf("  radius=%g\t", obj->obj[i]->bounds.radius);
+                vectNd_print(&obj->obj[i]->bounds.center, "\tbounds");
+            }
+        }
+        vectNd_free(&intO);
+        vectNd_free(&intV);
+        vectNd_free(&intRes);
+        vectNd_free(&intNorm);
+
         /* cluster objects */
         cluster_do_clustering(obj, obj->flag[0]);
 
@@ -187,7 +223,9 @@ static int prepare(object *obj) {
         obj->prepared = 1;
     }
 
-    pthread_mutex_unlock(&lock);
+    --isPreparing;
+    if( isPreparing==0 )
+        pthread_mutex_unlock(&lock);
 
     return 1;
 }
