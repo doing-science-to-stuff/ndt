@@ -101,7 +101,7 @@ static int between_ends(object *cyl, vectNd *point) {
     dim  = point->n;
 
     /* skip check and return true for infinite cylinders */
-    if( obj->n_flag!=0 && obj->flag[0] != 0 )
+    if( cyl->n_flag!=0 && cyl->flag[0] != 0 )
         return 1;
 
     /* check length of projection onto each axis against axis length */
