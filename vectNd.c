@@ -2,7 +2,7 @@
  * vectNd.c
  * ndt: n-dimensional tracer
  *
- * Copyright (c) 2019 Bryan Franklin. All rights reserved.
+ * Copyright (c) 2019-2020 Bryan Franklin. All rights reserved.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -239,8 +239,14 @@ int vectNd_rotate(vectNd *v, vectNd *center, int i, int j, double angle, vectNd 
     if( i==j )
         return VECTND_FAIL;
 
-    if( angle==0 )
+    if( angle==0.0 )
         return VECTND_SUCCESS;
+
+    int dim = v->n;
+    if( i >= dim || j >= dim ) {
+        fprintf(stderr, "%s: attempt to rotate %i dimensional vector in %i,%i plane.\n", __FUNCTION__, dim, i, j);
+        return VECTND_FAIL;
+    }
 
     /* if no result vector is given, write result to input vector */
     if( res == NULL )
