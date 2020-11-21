@@ -11,6 +11,7 @@
 #include "../kmeans.h"
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutexattr_t lock_attr;
 
 int type_name(char *name, int size) {
     strncpy(name,"cluster",size);
@@ -185,11 +186,20 @@ static int cluster_do_clustering(object *clstr, int k)
     return 1;
 }
 
-static int isPreparing = 0;
+static pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER;
+static int lock_inited = 0;
 static int prepare(object *obj) {
-    if( !isPreparing )
-        pthread_mutex_lock(&lock);
-    ++isPreparing;
+
+    pthread_mutex_lock(&lock2);
+    if( !lock_inited ) {
+        pthread_mutexattr_init(&lock_attr);
+        pthread_mutexattr_settype(&lock_attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&lock, &lock_attr);
+        lock_inited = 1;
+    }
+    pthread_mutex_unlock(&lock2);
+
+    pthread_mutex_lock(&lock);
 
     /* fill in any ray invariant parameters */
     if( !obj->prepared ) {
@@ -225,9 +235,7 @@ static int prepare(object *obj) {
         obj->prepared = 1;
     }
 
-    --isPreparing;
-    if( isPreparing==0 )
-        pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&lock);
 
     return 1;
 }
