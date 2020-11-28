@@ -14,7 +14,7 @@
 
 if [ -z "$5" ]; then
     echo "Usage:"
-    echo "  $0 startFrame endFrame step outStart pattern"
+    echo "  $0 startFrame endFrame step outStart pattern [dest_pattern]"
     echo ""
     echo "Pattern should have 6 X (i.e. XXXXXX) where number will be filled in."
     echo ""
@@ -25,7 +25,11 @@ STARTF=$1
 ENDF=$2
 STEP=`echo "$3" | sed 's/-/_/'`  # dc requires this for negative numbers
 OUTF=$4
-PATTERN=$5
+PATTERN="${5}"
+DST_PATTERN="${PATTERN}"
+if [ ! -z "${6}" ]; then
+    DST_PATTERN=${6}
+fi
 
 echo "Looping from ${STARTF} to ${ENDF} by ${STEP}."
 echo "Output starts at ${OUTF} with pattern ${PATTERN}."
@@ -39,7 +43,7 @@ while true; do
 
     # constuct file names from pattern
     SRC=`echo ${PATTERN} | sed 's/XXXXXX/'${PIF}'/g'`
-    DST=`echo ${PATTERN} | sed 's/XXXXXX/'${POF}'/g'`
+    DST=`echo ${DST_PATTERN} | sed 's/XXXXXX/'${POF}'/g'`
 
     # duplicate file accordingly
     #cp -v "${SRC}" "${DST}" || exit 1
