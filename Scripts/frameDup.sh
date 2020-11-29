@@ -39,7 +39,7 @@ OFRAME=${OUTF}
 while true; do
     # pad frame numbers with zeros
     PIF=`echo ${IFRAME} | awk '{printf "%04i", $1}'`
-    POF=`echo ${OFRAME} | awk '{printf "%04i", $1}'`
+    POF=`echo ${OFRAME} | awk '{printf "%06i", $1}'`
 
     # constuct file names from pattern
     SRC=`echo ${PATTERN} | sed 's/XXXXXX/'${PIF}'/g'`
@@ -51,6 +51,7 @@ while true; do
 
     # check exit condition here, so final copy happens
     if [ ${IFRAME} -eq ${ENDF} ]; then
+        echo "Final output frame numbered ${OFRAME}."
         exit 0
     fi
 
