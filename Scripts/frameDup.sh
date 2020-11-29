@@ -45,6 +45,12 @@ while true; do
     SRC=`echo ${PATTERN} | sed 's/XXXXXX/'${PIF}'/g'`
     DST=`echo ${DST_PATTERN} | sed 's/XXXXXX/'${POF}'/g'`
 
+    # avoid clobbering existing files
+    if [ -f "${DST}" ]; then
+        echo "${DST} already exists."
+        exit 1
+    fi
+
     # duplicate file accordingly
     #cp -v "${SRC}" "${DST}" || exit 1
     ln "${SRC}" "${DST}" || exit 1
