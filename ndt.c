@@ -805,10 +805,14 @@ void *render_lines_thread(void *arg)
             #ifdef WITH_MPI
             if( mpiRank == 0 || (mpiRank == 1 && mpi_mode == MPI_MODE_FRAME) ) {
             #endif /* WITH_MPI */
-                if( num <= 0 )
-                    printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
-                else
-                    printf("\r% 6.2f%%  (%i active save%s)   ", 100.0*j/info.height, num, (num==1)?"":"s");
+                if( num <= 0 ) {
+                    char remainStr[32] = "";
+                    if( remaining >= 0 )
+                        snprintf(remainStr, sizeof(remainStr), " (%.2fs remaining)", remaining);
+                    printf("  \r% 6.2f%%%s", 100.0*j/(info.height+1),remainStr);
+                } else {
+                    printf("   \r% 6.2f%%  (%i active save%s)", 100.0*j/info.height, num, (num==1)?"":"s");
+                }
 
                 fflush(stdout);
             #ifdef WITH_MPI
@@ -850,10 +854,14 @@ void *resample_lines_thread(void *arg)
             #ifdef WITH_MPI
             if( mpiRank == 0 || (mpiRank == 1 && mpi_mode == MPI_MODE_FRAME) ) {
             #endif /* WITH_MPI */
-                if( num <= 0 )
-                    printf("\r% 6.2f%% (%.2fs remaining)  ", 100.0*j/(info.height+1),remaining);
-                else
-                    printf("\r% 6.2f%%  (%i active save%s)   ", 100.0*j/info.height, num, (num==1)?"":"s");
+                if( num <= 0 ) {
+                    char remainStr[32] = "";
+                    if( remaining >= 0 )
+                        snprintf(remainStr, sizeof(remainStr), " (%.2fs remaining)", remaining);
+                    printf("  \r% 6.2f%%%s", 100.0*j/(info.height+1),remainStr);
+                } else {
+                    printf("   \r% 6.2f%%  (%i active save%s)", 100.0*j/info.height, num, (num==1)?"":"s");
+                }
 
                 fflush(stdout);
             #ifdef WITH_MPI
