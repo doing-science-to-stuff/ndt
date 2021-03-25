@@ -368,25 +368,28 @@ int object_validate(object *obj) {
     int n_size;
     int n_flag;
     int n_obj;
+    char obj_name[OBJ_NAME_MAX_LEN+8] = "";
+    if( obj->name[0]!='\0' )
+        snprintf(obj_name, sizeof(obj_name), "'%s' ", obj->name);
     obj->params(obj, &n_pos, &n_dir, &n_size, &n_flag, &n_obj);
     if( n_pos > obj->n_pos ) {
-        fprintf(stderr, "insufficient positions set for %s object %p (%i set, %i required).\n", type, obj, obj->n_pos, n_pos);
+        fprintf(stderr, "insufficient positions set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_pos, n_pos);
         exit(1);
     }
     if( n_dir > obj->n_dir ) {
-        fprintf(stderr, "insufficient directions set for %s object %p (%i set, %i required).\n", type, obj, obj->n_dir, n_dir);
+        fprintf(stderr, "insufficient directions set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_dir, n_dir);
         exit(1);
     }
     if( n_size > obj->n_size ) {
-        fprintf(stderr, "insufficient sizes set for %s object %p (%i set, %i required).\n", type, obj, obj->n_size, n_size);
+        fprintf(stderr, "insufficient sizes set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_size, n_size);
         exit(1);
     }
     if( n_flag > obj->n_flag ) {
-        fprintf(stderr, "insufficient flags set for %s object %p (%i set, %i required).\n", type, obj, obj->n_flag, n_flag);
+        fprintf(stderr, "insufficient flags set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_flag, n_flag);
         exit(1);
     }
     if( n_obj > obj->n_obj ) {
-        fprintf(stderr, "insufficient objects set for %s object %p (%i set, %i required).\n", type, obj, obj->n_obj, n_obj);
+        fprintf(stderr, "insufficient objects set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_obj, n_obj);
         exit(1);
     }
 
