@@ -31,6 +31,8 @@ typedef struct dbl_pixel
 #ifndef MAX
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif /* MAX */
+#if 1
+/* quadratic color model is what most software uses */
 #define pixel_d2c(c,d) { (c).r = sqrt(MAX(0.0,MIN(1.0,(d).r)))*255; \
                          (c).g = sqrt(MAX(0.0,MIN(1.0,(d).g)))*255; \
                          (c).b = sqrt(MAX(0.0,MIN(1.0,(d).b)))*255; \
@@ -39,6 +41,17 @@ typedef struct dbl_pixel
                          (d).g = pow((c).g/255.0,2.0); \
                          (d).b = pow((c).b/255.0,2.0); \
                          (d).a = pow((c).a/255.0,2.0); }
+#else
+/* use linear color model instead of quadratic */
+#define pixel_d2c(c,d) { (c).r = MAX(0.0,MIN(1.0,(d).r))*255; \
+                         (c).g = MAX(0.0,MIN(1.0,(d).g))*255; \
+                         (c).b = MAX(0.0,MIN(1.0,(d).b))*255; \
+                         (c).a = MAX(0.0,MIN(1.0,(d).a))*255; }
+#define pixel_c2d(d,c) { (d).r = (c).r/255.0; \
+                         (d).g = (c).g/255.0; \
+                         (d).b = (c).b/255.0; \
+                         (d).a = (c).a/255.0; }
+#endif
 
 #ifndef IMAGE_FORMAT
 #if defined(WITH_PNG)
