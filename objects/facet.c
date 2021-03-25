@@ -16,7 +16,7 @@ typedef struct prepared_data {
     /* data that is ray invariant and can be pre-computed in prepare function */
     vectNd edge[3];
     vectNd unit_edge[3];
-    double length[3];    /* length of each 'edge' */
+    double length[3];   /* length of each 'edge' */
     double v0_angle;    /* interior angle at vertex 2 */
     double angle[3];    /* angle at each vertex */
     vectNd basis[2];    /* othogonal basis vectors for plane */
