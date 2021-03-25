@@ -42,6 +42,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 {
     fprintf(stderr, "\n\nNot compiled with YAML support.\n");
+    fprintf(stderr, "Make sure libyaml is installed.\n");
     fprintf(stderr, "Recompile using -DWITH_YAML, to enable YAML support.\n\n");
     exit(1);
 }
