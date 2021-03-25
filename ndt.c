@@ -503,7 +503,7 @@ int get_pixel_color(scene *scn, int width, int height, double x, double y,
         }
 
         /* apply aperture sampling for depth of field */
-        if( samples > 1 ) {
+        if( recursive_aa != 0 || samples > 1 ) {
             double x,y;
             /* perturb look vector slightly */
             /* see: Ray Tracing From The Ground Up, p. 171 */
