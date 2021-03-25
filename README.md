@@ -15,15 +15,16 @@ are available via [macports](https://www.macports.org) on macOS.
 
  * libjpeg and/or libpng
  * libyaml (optional)
+ * MPI (optional, but requires libyaml)
 
 In [Debian](https://www.debian.org/) Linux:
 ```text
-$ sudo apt-get install cmake libjpeg-dev libpng-dev libyaml-dev
+$ sudo apt-get install cmake libjpeg-dev libpng-dev libyaml-dev libmpich-dev
 ```
 
 In macOS using [macports](https://www.macports.org):
 ```text
-$ sudo port install cmake jpeg libpng libyaml
+$ sudo port install cmake jpeg libpng libyaml mpich-clang
 ```
 
 ### Linux or macOS
