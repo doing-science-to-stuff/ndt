@@ -24,6 +24,9 @@
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
+#define LIGHT_NAME_MAX_LEN 32
+#define SCENE_NAME_MAX_LEN 256
+
 typedef enum LIGHT_TYPE_ENUM {
     FOREACH_LIGHT_TYPE(GENERATE_ENUM)
 } light_type;
@@ -42,6 +45,7 @@ typedef struct light_t
     double angle;
     vectNd u1, v1;    /* ortho-normal basis for area lights */
     unsigned int prepared:1;
+    char name[LIGHT_NAME_MAX_LEN];
 } light;
 
 typedef struct scene_t
@@ -54,7 +58,7 @@ typedef struct scene_t
     light **lights;
     light ambient;
     double bg_red, bg_green, bg_blue, bg_alpha;
-    char name[256];
+    char name[SCENE_NAME_MAX_LEN];
 } scene;
 
 int scene_init(scene *scn, char *name, int dim);

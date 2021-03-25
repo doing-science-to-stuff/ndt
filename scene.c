@@ -725,6 +725,7 @@ static void scene_yaml_emit_light(yaml_emitter_t *emitter, light *lgt) {
 
     light_type type = lgt->type;
     scene_yaml_mapped_string(emitter,"type",NULL,(char*)LIGHT_TYPE_STRING[type]);
+    scene_yaml_mapped_string(emitter,"name",NULL,(char*)lgt->name);
 
     /* color/brightness info */
     scene_yaml_scalar_string(emitter,NULL,NULL,"color");
@@ -1819,6 +1820,8 @@ static int scene_yaml_parse_light(yaml_parser_t *parser, light *lgt) {
                     lgt->red = red;
                     lgt->green = green;
                     lgt->blue = blue;
+                } else if( strcasecmp("name", value) == 0 ) {
+                    scene_yaml_parse_string(parser, lgt->name, sizeof(lgt->name));
                 } else if( strcasecmp("pos", value) == 0 ) {
                     scene_yaml_parse_vect(parser, &lgt->pos);
                 } else if( strcasecmp("target", value) == 0 ) {
