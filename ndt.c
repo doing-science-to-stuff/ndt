@@ -1556,6 +1556,7 @@ int main(int argc, char **argv)
             case 'p':
                 #ifdef WITH_SPECULAR
                 specular_enabled = 0;
+                printf("disabling specular highlights.\n");
                 #else
                 printf("Specular highlights disabled, -p ignored.\n");
                 #endif /* WITH_SPECULAR */
@@ -1711,7 +1712,7 @@ int main(int argc, char **argv)
                 break;
             default:
                 printf("Unknown option '%c' (%d)\n", ch, ch);
-                printf("Try the -? option\n");
+                printf("Try the -h option.\n");
                 #ifdef WITH_MPI
                 MPI_Finalize();
                 #endif /* WITH_MPI */
