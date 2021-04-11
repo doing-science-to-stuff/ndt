@@ -57,7 +57,7 @@ add_custom_target(docker-run
 
 # add a debug build target
 add_custom_target(debug-build
-                  COMMAND bash -c 'cmake -DCMAKE_BUILD_TYPE=Debug . && make'
+                  COMMAND bash -c 'cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_C_FLAGS_DEBUG="-O0" . && CFLAGS=-Wall VERBOSE=1 make'
                   )
 
 # add a valgrind testing target
