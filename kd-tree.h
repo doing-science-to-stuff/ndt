@@ -12,6 +12,7 @@ typedef struct aabb {
 
 int aabb_init(aabb_t *bb, int dimensions);
 int aabb_free(aabb_t *bb);
+int aabb_copy(aabb_t *dst, aabb_t *src);
 int aabb_add(aabb_t *dst, aabb_t *src);
 
 /* kd_item */
@@ -36,7 +37,7 @@ typedef struct kd_node {
     int num_items;
 } kd_node_t;
 
-int kd_node_init(kd_node_t *node);
+int kd_node_init(kd_node_t *node, int dimensions);
 int kd_node_free(kd_node_t *node);
 
 /* kd_tree */
@@ -45,9 +46,9 @@ typedef struct kd_tree {
     kd_node_t *root;
 } kd_tree_t;
 
-int kd_tree_init(kd_tree_t *tree);
+int kd_tree_init(kd_tree_t *tree, int dimensions);
 int kd_tree_free(kd_tree_t *tree);
-int kd_tree_build(kd_tree_t *tree, object *objs, int n);
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, object *objs, int n, object **objs, int *n);
+int kd_tree_build(kd_tree_t *tree, kd_item_t *items, int n);
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_t **items, int *n);
 
 #endif /* KD_TREE_H */
