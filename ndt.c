@@ -1886,7 +1886,12 @@ int main(int argc, char **argv)
         if( mpi_mode == MPI_MODE_ROW || mpi_mode == MPI_MODE_PIXEL || mpiRank == render_rank ) {
         #endif /* WITH_MPI */
             printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
+
+            #ifdef WITH_KDTREE
+            /* TODO: build kd-tree */
+            #else
             scene_cluster(&scn, cluster_k);
+            #endif /* WITH_KDTREE */
 
             scene_validate_objects(&scn);
 

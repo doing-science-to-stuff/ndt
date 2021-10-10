@@ -122,7 +122,8 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     /* pick split point */
     int split_dim = 0;
     double split_pos = 0.0;
-    /* TODO: Pick dimension and point. */
+    /* pick dimension and point. */
+    /* TODO */
 
     /* make child nodes */
     node->left = calloc(1, sizeof(kd_node_t));
@@ -137,6 +138,7 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     vectNd_set(&node->right->bb.lower, split_dim, split_pos);
 
     /* assign items to child nodes */
+    /* TODO */
 
     /* recurse */
     if( node->left->num_items < node->num_items )
@@ -160,11 +162,15 @@ int kd_tree_build(kd_tree_t *tree, kd_item_t *items, int n) {
 
 static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_t **items, int *n) {
     /* check for intersection with bb */
+    /* TODO */
 
     /* return if not intersected */
+    /* TODO */
 
     if( node->left==NULL && node->right==NULL ) {
         /* is a leaf, copy leaf items into items list. */
+        /* TODO */
+
     } else {
         /* otherwise, call for both children */
         kd_node_intersect(node->left, o, v, items, n);
