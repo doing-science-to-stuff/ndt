@@ -25,6 +25,17 @@ int kd_item_init(kd_item_t *item, int dimensions);
 int kd_item_free(kd_item_t *item);
 int kd_item_copy(kd_item_t *dst, kd_item_t *src);
 
+/* kd_item_list */
+
+typedef struct kd_item_list {
+    kd_item_t *items;
+    size_t n, cap;
+} kd_item_list_t;
+
+int kd_item_list_init(kd_item_list_t *list);
+int kd_item_list_free(kd_item_list_t *list);
+int kd_item_list_add(kd_item_list_t *list, kd_item_t *item);
+
 /* kd_node */
 
 typedef struct kd_node {
@@ -32,8 +43,7 @@ typedef struct kd_node {
     struct kd_node *left, *right;
     int dim;
     double boundary;
-    kd_item_t *items;
-    int num_items;
+    kd_item_list_t items;
 } kd_node_t;
 
 int kd_node_init(kd_node_t *node, int dimensions);
@@ -47,7 +57,7 @@ typedef struct kd_tree {
 
 int kd_tree_init(kd_tree_t *tree, int dimensions);
 int kd_tree_free(kd_tree_t *tree);
-int kd_tree_build(kd_tree_t *tree, kd_item_t *items, int n);
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_t **items, int *n);
+int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items);
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_list_t *items);
 
 #endif /* KD_TREE_H */

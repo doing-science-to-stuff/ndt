@@ -126,21 +126,62 @@ int kd_item_copy(kd_item_t *dst, kd_item_t *src) {
     return 1;
 }
 
+int kd_item_add(kd_item_t **list, int *n, kd_item_t *item) {
+    return 0;
+}
+
+/* kd_item_list */
+
+int kd_item_list_init(kd_item_list_t *list) {
+    memset(list, '\0', sizeof(kd_item_list_t));
+    return 1;
+}
+
+int kd_item_list_free(kd_item_list_t *list) {
+    free(list->items); list->items = NULL;
+    memset(list, '\0', sizeof(kd_item_list_t));
+    return 1;
+}
+
+int kd_item_list_add(kd_item_list_t *list, kd_item_t *item) {
+    /* resize, if needed */
+    if( list->n >= list->cap ) {
+        size_t new_size = (list->cap*2)+1;
+        kd_item_t *tmp = (kd_item_t*)malloc(new_size*sizeof(kd_item_t));
+        if( !tmp )
+            return 0;
+        size_t num = list->n;
+        for(int i=0; i<num; ++i) {
+            kd_item_copy(&tmp[i], &list->items[i]);
+        }
+        list->items = tmp;
+        list->cap = new_size;
+    }
+
+    return kd_item_copy(&list->items[list->n++], item);
+}
+
 /* kd_node */
 
 int kd_node_init(kd_node_t *node, int dimensions) {
     memset(node, '\0', sizeof(kd_node_t));
     node->dim = -1; /* mark as unspecified */
-    node->items = NULL;
-    node->num_items = 0;
-    vectNd_calloc(&node->bb.lower, dimensions);
-    vectNd_calloc(&node->bb.upper, dimensions);
+    kd_item_list_init(&node->items);
+    aabb_init(&node->bb, dimensions);
     return 1;
 }
 
 int kd_node_free(kd_node_t *node) {
-    vectNd_free(&node->bb.lower);
-    vectNd_free(&node->bb.upper);
+    if( node->left ) {
+        kd_node_free(node->left);
+        node->left = NULL;
+    }
+    if( node->right ) {
+        kd_node_free(node->right);
+        node->right = NULL;
+    }
+    kd_item_list_free(&node->items);
+    aabb_free(&node->bb);
     return 1;
 }
 
@@ -180,14 +221,23 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
 
     int dimensions = node->bb.lower.n;
 
-    if( levels_remaining <= 0 || node->num_items < min_per_node )
+    if( levels_remaining <= 0 || node->items.n < min_per_node )
         return 1;
 
     /* pick split point */
-    int split_dim = 0;
-    double split_pos = 0.0;
-    /* pick dimension and point. */
-    /* TODO */
+    int split_dim = node->dim;
+    size_t num = node->items.n;
+    double nl, nu;
+    vectNd_get(&node->bb.lower, split_dim, &nu);
+    vectNd_get(&node->bb.upper, split_dim, &nl);
+    for(int i=0; i<num; ++i) {
+        double il, iu;
+        vectNd_get(&node->items.items[i].bb.lower, split_dim, &il);
+        vectNd_get(&node->items.items[i].bb.upper, split_dim, &iu);
+        if( il < nl ) nl = il;
+        if( iu > nu ) nu = iu;
+    }
+    double split_pos = (nl+nu)/2.0; /* splitting evently is unlikely to be optimal, but is easy enough for testing. */
 
     /* make child nodes */
     node->left = calloc(1, sizeof(kd_node_t));
@@ -202,50 +252,63 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     vectNd_set(&node->right->bb.lower, split_dim, split_pos);
 
     /* assign items to child nodes */
-    /* TODO */
+    for(int i=0; i<num; ++i) {
+        double il, iu;
+        vectNd_get(&node->items.items[i].bb.lower, split_dim, &il);
+        vectNd_get(&node->items.items[i].bb.upper, split_dim, &iu);
+        if( il < split_pos )
+            kd_item_list_add(&node->left->items, &node->items.items[i]);
+        /* items that cross the split_pos will end up in both */
+        if( iu > split_pos )
+            kd_item_list_add(&node->right->items, &node->items.items[i]);
+    }
 
-    /* recurse */
-    if( node->left->num_items > 0 && node->left->num_items < node->num_items )
+    /* recurse to children only if useful split occured */
+    node->left->dim = (node->dim+1)%dimensions;
+    node->right->dim = (node->dim+1)%dimensions;
+    if( node->left->items.n > 0 && node->left->items.n < node->items.n )
         kd_tree_split_node(node->left, levels_remaining-1, min_per_node);
-    if( node->right->num_items > 0 && node->right->num_items < node->num_items )
+    if( node->right->items.n > 0 && node->right->items.n < node->items.n )
         kd_tree_split_node(node->right, levels_remaining-1, min_per_node);
 
     return 0;
 }
 
-int kd_tree_build(kd_tree_t *tree, kd_item_t *items, int n) {
+int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* populate root node with all items */
-    for(int i=0; i<n; ++i) {
-        kd_item_copy(&tree->root->items[i], &items[i]);
-        aabb_add(&tree->root->bb, &items[i].bb);
+    size_t num = items->n;
+    for(int i=0; i<num; ++i) {
+        kd_item_list_add(&tree->root->items, &items->items[i]);
+        aabb_add(&tree->root->bb, &items->items[i].bb);
     }
 
     /* recursively split root node */
     return kd_tree_split_node(tree->root, -1, -1);
 }
 
-static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_t **items, int *n) {
+static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list_t *items) {
     /* check for intersection with bb */
     if( !aabb_intersect(&node->bb, o, v) )
         return 0; /* return if not intersected */
 
     if( node->left==NULL && node->right==NULL ) {
         /* is a leaf, copy leaf items into items list. */
-        /* TODO */
-
+        int num = node->items.n;
+        for(int i=0; i<num; ++i)
+            kd_item_list_add(items, &node->items.items[i]);
     } else {
         /* otherwise, call for both children */
-        kd_node_intersect(node->left, o, v, items, n);
-        kd_node_intersect(node->right, o, v, items, n);
+        kd_node_intersect(node->left, o, v, items);
+        kd_node_intersect(node->right, o, v, items);
     }
 
     return 0;
 }
 
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_t **items, int *n) {
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_list_t *items) {
     /* find all leaf nodes that ray o+x*v cross, and return items they contain */
     if( !tree )
         return 0;
-    return kd_node_intersect(tree->root, o, v, items, n);
+    return kd_node_intersect(tree->root, o, v, items);
 }
 
