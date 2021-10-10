@@ -2,7 +2,6 @@
 #define KD_TREE_H
 
 #include "vectNd.h"
-#include "object.h"
 
 /* aabb */
 

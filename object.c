@@ -623,6 +623,26 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
     return ret;
 }
 
+#ifdef WITH_KDTREE
+int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
+    /* traverse kd-tree to get list of hitable objects */
+    int n = 0;
+    kd_item_t *items = NULL;
+    object **objs = NULL;
+    kd_tree_intersect(kd, pos, look, &items, &n);
+    objs = calloc(n, sizeof(object*));
+    for(int i=0; i<n; ++i)
+        objs[i] = (object*)items[i].ptr;
+
+    /* pass list fo real trace function. */
+    int ret = trace(pos, look, objs, n, hit, hit_normal, ptr, dist_limit);
+    free(items); items=NULL;
+    free(objs); objs=NULL;
+
+    return ret;
+}
+#endif /* WITH_KDTREE */
+
 int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
     double min_dist = -1;
     vectNd res;

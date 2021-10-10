@@ -8,6 +8,9 @@
 #define OBJECT_H
 #include "vectNd.h"
 #include "bounding.h"
+#ifdef WITH_KDTREE
+#include "kd-tree.h"
+#endif /* WITH_KDTREE */
 
 #define EPSILON (1e-4)
 
@@ -106,6 +109,9 @@ int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double 
 int object_get_bounds(object *obj);
 
 /* tracing rays to objects */
+#ifdef WITH_KDTREE
+int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit);
+#endif /* WITH_KDTREE */
 int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit);
 
 #endif /* OBJECT_H */

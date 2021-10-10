@@ -133,6 +133,8 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     /* set bounding boxes for child nodes */
     aabb_copy(&node->left->bb, &node->bb);
     aabb_copy(&node->right->bb, &node->bb);
+    vectNd_set(&node->left->bb.upper, split_dim, split_pos);
+    vectNd_set(&node->right->bb.lower, split_dim, split_pos);
 
     /* assign items to child nodes */
 
@@ -156,7 +158,7 @@ int kd_tree_build(kd_tree_t *tree, kd_item_t *items, int n) {
     return kd_tree_split_node(tree->root, -1, -1);
 }
 
-static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_t *items, int *n) {
+static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_t **items, int *n) {
     /* check for intersection with bb */
 
     /* return if not intersected */

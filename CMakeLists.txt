@@ -39,6 +39,7 @@ set(CMAKE_ENABLE_EXPORTS TRUE)
 
 add_subdirectory (objects)
 add_subdirectory (scenes)
+#add_definitions(-DWITH_KDTREE)
 
 AUX_SOURCE_DIRECTORY(. SOURCE_FILES)
 add_executable(ndt ${SOURCE_FILES})

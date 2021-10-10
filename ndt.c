@@ -64,6 +64,10 @@ int mpi_collect_image(image_t*);
 int mpi_broadcast_image(image_t *img, int source_rank);
 #endif /* WITH_MPI */
 
+#ifdef WITH_KDTREE
+kd_tree_t *kd_tree_ptr = NULL;
+#endif /* WITH_KDTREE */
+
 static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src, vectNd *look, vectNd *hit, vectNd *hit_normal, dbl_pixel_t *color) {
     dbl_pixel_t clr;
     double hit_r, hit_g, hit_b;
@@ -199,8 +203,13 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                 }
 
                 /* trace from light to object */
+                #ifdef WITH_KDTREE
+                got_hit = trace_kd(&lgt_pos, &light_vec, kd_tree_ptr,
+                    &light_hit, &light_hit_normal, &light_obj_ptr, dist_limit);
+                #else
                 got_hit = trace(&lgt_pos, &light_vec, scn->object_ptrs, scn->num_objects,
                     &light_hit, &light_hit_normal, &light_obj_ptr, dist_limit);
+                #endif /* WITH_KDTREE */
                 if( !got_hit || light_obj_ptr != obj_ptr ) {
                     /* light didn't hit the target object */
                     continue;
@@ -223,8 +232,13 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                 vectNd_scale(&near_pos,-EPSILON,&near_pos);
                 vectNd_add(&near_pos,hit,&near_pos);
                 vectNd_scale(&scn->lights[i]->dir, -1.0, &light_vec);
+                #ifdef WITH_KDTREE
+                got_hit = trace_kd(&near_pos, &rev_light, kd_tree_ptr,
+                    &light_hit, &light_hit_normal, &light_obj_ptr, 0.0);
+                #else
                 got_hit = trace(&near_pos, &rev_light, scn->object_ptrs, scn->num_objects,
                     &light_hit, &light_hit_normal, &light_obj_ptr, 0.0);
+                #endif /* WITH_KDTREE */
 
                 /* success is not hitting anything */
                 if( got_hit ) {
@@ -337,7 +351,11 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
     vectNd_calloc(&hit_normal,dim);
 
     obj_ptr = NULL;
+    #ifdef WITH_KDTREE
+    trace_kd(src, look, kd_tree_ptr, &hit, &hit_normal, &obj_ptr, -1.0);
+    #else
     trace(src, look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr, -1.0);
+    #endif /* WITH_KDTREE */
 
     /* record depth for depth maps */
     double trace_dist = -1;
