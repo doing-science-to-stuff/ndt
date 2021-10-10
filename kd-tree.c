@@ -41,6 +41,70 @@ int aabb_add(aabb_t *dst, aabb_t *src) {
     return 1;
 }
 
+/* test if ray o+v*t intersects bounding box bb */
+static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v) {
+    int dimensions = o->n;
+    vectNd pl, pu, tmp;
+    vectNd_alloc(&pl, dimensions);
+    vectNd_alloc(&pu, dimensions);
+    vectNd_alloc(&tmp, dimensions);
+    for(int i=0; i<dimensions; ++i) {
+        double vo, vv, vl, vu;
+        vectNd_get(o, i, &vo);
+        vectNd_get(v, i, &vv);
+        vectNd_get(&bb->lower, i, &vl);
+        vectNd_get(&bb->upper, i, &vu);
+
+        /* find paramters tu and tl for o+v*{tl,tu} */
+        double vvMvo = vv-vo;
+        if( fabs(vvMvo) < 1e6 )
+            continue;   /* v is parallel to dimension i */
+        double tl, tu;
+        tl = (vl-vo) / vvMvo;
+        tu = (vu-vo) / vvMvo;
+
+        if( tl < -1e6 && tu < -1e6 ) {
+            vectNd_free(&pl);
+            vectNd_free(&pu);
+            vectNd_free(&tmp);
+            return 0;   /* bb is behind o along v */
+        }
+
+        /* compute intersection points along faces */
+        vectNd_scale(v, tl, &tmp);
+        vectNd_add(o, &tmp, &pl);
+        vectNd_scale(v, tu, &tmp);
+        vectNd_add(o, &tmp, &pu);
+
+        int il=1, iu=1;
+        for(int j=0; j<dimensions; ++j) {
+            if( j==i ) continue;
+
+            double plj, puj, bbl, bbu;
+            vectNd_get(&pl, j, &plj);
+            vectNd_get(&pu, j, &puj);
+            vectNd_get(&bb->lower, j, &bbl);
+            vectNd_get(&bb->upper, j, &bbu);
+            if( plj < bbl || plj > bbu )
+                il = 0;
+            if( puj < bbl || puj > bbu )
+                iu = 0;
+        }
+
+        if( il!=0 || iu!=0 ) {
+            vectNd_free(&pl);
+            vectNd_free(&pu);
+            vectNd_free(&tmp);
+            return 1;   /* pl or pu is inside one of the faces of bb */
+        }
+    }
+    vectNd_free(&pl);
+    vectNd_free(&pu);
+    vectNd_free(&tmp);
+
+    return 0;
+}
+
 /* kd_item */
 
 int kd_item_init(kd_item_t *item, int dimensions) {
@@ -141,9 +205,9 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     /* TODO */
 
     /* recurse */
-    if( node->left->num_items < node->num_items )
+    if( node->left->num_items > 0 && node->left->num_items < node->num_items )
         kd_tree_split_node(node->left, levels_remaining-1, min_per_node);
-    if( node->right->num_items < node->num_items )
+    if( node->right->num_items > 0 && node->right->num_items < node->num_items )
         kd_tree_split_node(node->right, levels_remaining-1, min_per_node);
 
     return 0;
@@ -162,10 +226,8 @@ int kd_tree_build(kd_tree_t *tree, kd_item_t *items, int n) {
 
 static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_t **items, int *n) {
     /* check for intersection with bb */
-    /* TODO */
-
-    /* return if not intersected */
-    /* TODO */
+    if( !aabb_intersect(&node->bb, o, v) )
+        return 0; /* return if not intersected */
 
     if( node->left==NULL && node->right==NULL ) {
         /* is a leaf, copy leaf items into items list. */
@@ -182,6 +244,8 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_t **
 
 int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_t **items, int *n) {
     /* find all leaf nodes that ray o+x*v cross, and return items they contain */
+    if( !tree )
+        return 0;
     return kd_node_intersect(tree->root, o, v, items, n);
 }
 
