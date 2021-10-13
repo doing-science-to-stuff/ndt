@@ -1,16 +1,23 @@
+/*
+ * kd-tree.c
+ * ndt: n-dimensional tracer
+ *
+ * Copyright (c) 2021 Bryan Franklin. All rights reserved.
+ */
 #include "kd-tree.h"
+#include <stdio.h>
 
 /* aabb */
 
 int aabb_init(aabb_t *bb, int dimensions) {
-    vectNd_calloc(&bb->lower, dimensions);
-    vectNd_calloc(&bb->upper, dimensions);
+    vectNd_alloc(&bb->lower, dimensions);
+    vectNd_alloc(&bb->upper, dimensions);
     return 1;
 }
 
 int aabb_free(aabb_t *bb) {
     vectNd_free(&bb->lower);
-    vectNd_free(&bb->lower);
+    vectNd_free(&bb->upper);
     return 1;
 }
 
@@ -41,6 +48,26 @@ int aabb_add(aabb_t *dst, aabb_t *src) {
     return 1;
 }
 
+int aabb_add_point(aabb_t *bb, vectNd *pnt) {
+    double bbl, bbu, pv;
+    int dimensions = pnt->n;
+    for(int i=0; i<dimensions; ++i) {
+        vectNd_get(&bb->lower, i, &bbl);
+        vectNd_get(&bb->upper, i, &bbu);
+        vectNd_get(pnt, i, &pv);
+
+        if( pv < bbl ) {
+            bbl = pv;
+            vectNd_set(&bb->lower, i, bbl);
+        }
+        if( pv > bbu ) {
+            bbu = pv;
+            vectNd_set(&bb->upper, i, bbu);
+        }
+    }
+    return 1;
+}
+
 /* test if ray o+v*t intersects bounding box bb */
 static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v) {
     int dimensions = o->n;
@@ -57,13 +84,13 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v) {
 
         /* find paramters tu and tl for o+v*{tl,tu} */
         double vvMvo = vv-vo;
-        if( fabs(vvMvo) < 1e6 )
+        if( fabs(vvMvo) < EPSILON )
             continue;   /* v is parallel to dimension i */
         double tl, tu;
         tl = (vl-vo) / vvMvo;
         tu = (vu-vo) / vvMvo;
 
-        if( tl < -1e6 && tu < -1e6 ) {
+        if( tl < -EPSILON && tu < -EPSILON ) {
             vectNd_free(&pl);
             vectNd_free(&pu);
             vectNd_free(&tmp);
@@ -126,18 +153,19 @@ int kd_item_copy(kd_item_t *dst, kd_item_t *src) {
     return 1;
 }
 
-int kd_item_add(kd_item_t **list, int *n, kd_item_t *item) {
-    return 0;
-}
-
 /* kd_item_list */
 
 int kd_item_list_init(kd_item_list_t *list) {
     memset(list, '\0', sizeof(kd_item_list_t));
+    list->items = (kd_item_t**)malloc(101*sizeof(kd_item_t));
     return 1;
 }
 
-int kd_item_list_free(kd_item_list_t *list) {
+int kd_item_list_free(kd_item_list_t *list, int free_items) {
+    if( free_items ) {
+        for(int i=0; i<list->n; ++i)
+            kd_item_free(list->items[i]);
+    }
     free(list->items); list->items = NULL;
     memset(list, '\0', sizeof(kd_item_list_t));
     return 1;
@@ -147,18 +175,18 @@ int kd_item_list_add(kd_item_list_t *list, kd_item_t *item) {
     /* resize, if needed */
     if( list->n >= list->cap ) {
         size_t new_size = (list->cap*2)+1;
-        kd_item_t *tmp = (kd_item_t*)malloc(new_size*sizeof(kd_item_t));
-        if( !tmp )
-            return 0;
+        kd_item_t **tmp = (kd_item_t**)malloc(new_size*sizeof(kd_item_t));
+        if( !tmp ) return 0;
         size_t num = list->n;
-        for(int i=0; i<num; ++i) {
-            kd_item_copy(&tmp[i], &list->items[i]);
-        }
+        memcpy(tmp, list->items, num*sizeof(kd_item_t*));
+        free(list->items);
         list->items = tmp;
         list->cap = new_size;
     }
 
-    return kd_item_copy(&list->items[list->n++], item);
+    /* write item pointer into list */
+    list->items[list->n++] = item;
+    return 1;
 }
 
 /* kd_node */
@@ -180,7 +208,7 @@ int kd_node_free(kd_node_t *node) {
         kd_node_free(node->right);
         node->right = NULL;
     }
-    kd_item_list_free(&node->items);
+    kd_item_list_free(&node->items, 0);
     aabb_free(&node->bb);
     return 1;
 }
@@ -221,7 +249,7 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
 
     int dimensions = node->bb.lower.n;
 
-    if( levels_remaining <= 0 || node->items.n < min_per_node )
+    if( levels_remaining == 0 || node->items.n < min_per_node )
         return 1;
 
     /* pick split point */
@@ -232,12 +260,13 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     vectNd_get(&node->bb.upper, split_dim, &nl);
     for(int i=0; i<num; ++i) {
         double il, iu;
-        vectNd_get(&node->items.items[i].bb.lower, split_dim, &il);
-        vectNd_get(&node->items.items[i].bb.upper, split_dim, &iu);
+        vectNd_get(&node->items.items[i]->bb.lower, split_dim, &il);
+        vectNd_get(&node->items.items[i]->bb.upper, split_dim, &iu);
         if( il < nl ) nl = il;
         if( iu > nu ) nu = iu;
     }
     double split_pos = (nl+nu)/2.0; /* splitting evently is unlikely to be optimal, but is easy enough for testing. */
+    printf("dim: %i; split pos: %g\n", split_dim, split_pos);
 
     /* make child nodes */
     node->left = calloc(1, sizeof(kd_node_t));
@@ -254,13 +283,13 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     /* assign items to child nodes */
     for(int i=0; i<num; ++i) {
         double il, iu;
-        vectNd_get(&node->items.items[i].bb.lower, split_dim, &il);
-        vectNd_get(&node->items.items[i].bb.upper, split_dim, &iu);
+        vectNd_get(&node->items.items[i]->bb.lower, split_dim, &il);
+        vectNd_get(&node->items.items[i]->bb.upper, split_dim, &iu);
         if( il < split_pos )
-            kd_item_list_add(&node->left->items, &node->items.items[i]);
+            kd_item_list_add(&node->left->items, node->items.items[i]);
         /* items that cross the split_pos will end up in both */
         if( iu > split_pos )
-            kd_item_list_add(&node->right->items, &node->items.items[i]);
+            kd_item_list_add(&node->right->items, node->items.items[i]);
     }
 
     /* recurse to children only if useful split occured */
@@ -278,12 +307,14 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* populate root node with all items */
     size_t num = items->n;
     for(int i=0; i<num; ++i) {
-        kd_item_list_add(&tree->root->items, &items->items[i]);
-        aabb_add(&tree->root->bb, &items->items[i].bb);
+        kd_item_list_add(&tree->root->items, items->items[i]);
+        aabb_add(&tree->root->bb, &items->items[i]->bb);
     }
 
     /* recursively split root node */
-    return kd_tree_split_node(tree->root, -1, -1);
+    printf("building k-d tree with %zu items.\n", items->n);
+    /* return kd_tree_split_node(tree->root, -1, -1); */
+    return kd_tree_split_node(tree->root, 100, 2);
 }
 
 static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list_t *items) {
@@ -295,7 +326,7 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list
         /* is a leaf, copy leaf items into items list. */
         int num = node->items.n;
         for(int i=0; i<num; ++i)
-            kd_item_list_add(items, &node->items.items[i]);
+            kd_item_list_add(items, node->items.items[i]);
     } else {
         /* otherwise, call for both children */
         kd_node_intersect(node->left, o, v, items);
@@ -307,8 +338,10 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list
 
 int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_list_t *items) {
     /* find all leaf nodes that ray o+x*v cross, and return items they contain */
-    if( !tree )
+    if( !tree ) {
+        printf("tree is null.\n");
         return 0;
+    }
     return kd_node_intersect(tree->root, o, v, items);
 }
 

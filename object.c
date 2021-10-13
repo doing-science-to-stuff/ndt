@@ -624,6 +624,57 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
 }
 
 #ifdef WITH_KDTREE
+int object_kdlist_add(kd_item_list_t *list, object *obj) {
+
+    printf("Adding object %s.\n", obj->name);
+    /* recurse into clusters */
+    char typename[OBJ_TYPE_MAX_LEN] = "";
+    obj->type_name(typename,sizeof(typename));
+    printf("  type: %s\n", typename);
+    if( !strncmp(typename, "cluster", sizeof(typename)) ) {
+        printf("  %i objects in cluster.\n", obj->n_obj);
+        for(int i=0; i<obj->n_obj; ++i) {
+            object_kdlist_add(list, obj->obj[i]);
+        }
+        return 1;
+    }
+
+    /* add non-clusters */
+    kd_item_t *item = calloc(1, sizeof(kd_item_t));
+    kd_item_init(item, obj->dimensions);
+    vectNd radiuses, with_radius;
+    vectNd_alloc(&radiuses, obj->dimensions);
+    vectNd_alloc(&with_radius, obj->dimensions);
+
+    bounds_list points;
+    bounds_list_init(&points);
+
+    obj->bounding_points(obj, &points);
+    bounds_node *curr = points.head;
+    while( curr!=NULL ) {
+        /* account for the radius of cluster */
+        vectNd_fill(&radiuses, curr->bounds.radius);
+        for(int j=0; j<obj->dimensions; ++j) {
+            vectNd_copy(&with_radius, &curr->bounds.center);
+            vectNd_add(&curr->bounds.center, &radiuses, &with_radius);
+            aabb_add_point(&item->bb, &curr->bounds.center);
+            vectNd_copy(&with_radius, &curr->bounds.center);
+            vectNd_sub(&curr->bounds.center, &radiuses, &with_radius);
+            aabb_add_point(&item->bb, &curr->bounds.center);
+        }
+
+        curr = curr->next;
+    }
+    bounds_list_free(&points);
+    vectNd_free(&with_radius);
+    vectNd_free(&radiuses);
+
+    item->ptr = obj;
+
+    kd_item_list_add(list, item);
+    return 1;
+}
+
 int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
     /* traverse kd-tree to get list of hitable objects */
     int n = 0;
@@ -631,10 +682,11 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
     kd_item_list_init(&items);
     object **objs = NULL;
     kd_tree_intersect(kd, pos, look, &items);
-    objs = calloc(items.n, sizeof(object*));
+    n = items.n;
+    objs = calloc(n, sizeof(object*));
     for(int i=0; i<n; ++i)
-        objs[i] = (object*)items.items[i].ptr;
-    kd_item_list_free(&items);
+        objs[i] = (object*)items.items[i]->ptr;
+    kd_item_list_free(&items, 0);
 
     /* pass list fo real trace function. */
     int ret = trace(pos, look, objs, n, hit, hit_normal, ptr, dist_limit);

@@ -65,7 +65,7 @@ int mpi_broadcast_image(image_t *img, int source_rank);
 #endif /* WITH_MPI */
 
 #ifdef WITH_KDTREE
-kd_tree_t *kd_tree_ptr = NULL;
+kd_tree_t kdtree;
 #endif /* WITH_KDTREE */
 
 static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src, vectNd *look, vectNd *hit, vectNd *hit_normal, dbl_pixel_t *color) {
@@ -204,7 +204,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
 
                 /* trace from light to object */
                 #ifdef WITH_KDTREE
-                got_hit = trace_kd(&lgt_pos, &light_vec, kd_tree_ptr,
+                got_hit = trace_kd(&lgt_pos, &light_vec, &kdtree,
                     &light_hit, &light_hit_normal, &light_obj_ptr, dist_limit);
                 #else
                 got_hit = trace(&lgt_pos, &light_vec, scn->object_ptrs, scn->num_objects,
@@ -233,7 +233,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                 vectNd_add(&near_pos,hit,&near_pos);
                 vectNd_scale(&scn->lights[i]->dir, -1.0, &light_vec);
                 #ifdef WITH_KDTREE
-                got_hit = trace_kd(&near_pos, &rev_light, kd_tree_ptr,
+                got_hit = trace_kd(&near_pos, &rev_light, &kdtree,
                     &light_hit, &light_hit_normal, &light_obj_ptr, 0.0);
                 #else
                 got_hit = trace(&near_pos, &rev_light, scn->object_ptrs, scn->num_objects,
@@ -352,7 +352,7 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
 
     obj_ptr = NULL;
     #ifdef WITH_KDTREE
-    trace_kd(src, look, kd_tree_ptr, &hit, &hit_normal, &obj_ptr, -1.0);
+    trace_kd(src, look, &kdtree, &hit, &hit_normal, &obj_ptr, -1.0);
     #else
     trace(src, look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr, -1.0);
     #endif /* WITH_KDTREE */
@@ -1888,7 +1888,15 @@ int main(int argc, char **argv)
             printf("Scene has %i objects and %i lights\n", scn.num_objects, scn.num_lights);
 
             #ifdef WITH_KDTREE
-            /* TODO: build kd-tree */
+            /* build kd-tree */
+            kd_tree_init(&kdtree, scn.dimensions);
+            kd_item_list_t kditems;
+            kd_item_list_init(&kditems);
+            size_t num = scn.num_objects;
+            for(int i=0; i<num; ++i) {
+                object_kdlist_add(&kditems, scn.object_ptrs[i]);
+            }
+            kd_tree_build(&kdtree, &kditems);
             #else
             scene_cluster(&scn, cluster_k);
             #endif /* WITH_KDTREE */
@@ -1974,6 +1982,10 @@ int main(int argc, char **argv)
             free(depth_img); depth_img = NULL;
         }
         #endif /* WITH_MPI */
+
+        #ifdef WITH_KDTREE
+        kd_tree_free(&kdtree);
+        #endif /* WITH_KDTREE */
 
         /* cleanup */
         scene_free(&scn);

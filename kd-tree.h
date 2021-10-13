@@ -1,3 +1,9 @@
+/*
+ * kd-tree.h
+ * ndt: n-dimensional tracer
+ *
+ * Copyright (c) 2021 Bryan Franklin. All rights reserved.
+ */
 #ifndef KD_TREE_H
 #define KD_TREE_H
 
@@ -13,6 +19,7 @@ int aabb_init(aabb_t *bb, int dimensions);
 int aabb_free(aabb_t *bb);
 int aabb_copy(aabb_t *dst, aabb_t *src);
 int aabb_add(aabb_t *dst, aabb_t *src);
+int aabb_add_point(aabb_t *dst, vectNd *pnt);
 
 /* kd_item */
 
@@ -28,12 +35,12 @@ int kd_item_copy(kd_item_t *dst, kd_item_t *src);
 /* kd_item_list */
 
 typedef struct kd_item_list {
-    kd_item_t *items;
+    kd_item_t **items;
     size_t n, cap;
 } kd_item_list_t;
 
 int kd_item_list_init(kd_item_list_t *list);
-int kd_item_list_free(kd_item_list_t *list);
+int kd_item_list_free(kd_item_list_t *list, int free_items);
 int kd_item_list_add(kd_item_list_t *list, kd_item_t *item);
 
 /* kd_node */
