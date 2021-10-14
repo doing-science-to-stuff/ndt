@@ -58,6 +58,9 @@ int vectNd_setStr(vectNd *v, char *str)
 /* this requires dimmensions-1 vectors */
 int vectNd_cross(vectNd *vects, vectNd *res)
 {
+    if( res == NULL )
+        return VECTND_FAIL;
+
     int dim = -1;
     int i = 0;
 

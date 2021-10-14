@@ -36,7 +36,7 @@ int kd_item_copy(kd_item_t *dst, kd_item_t *src);
 
 typedef struct kd_item_list {
     kd_item_t **items;
-    size_t n, cap;
+    int n, cap;
 } kd_item_list_t;
 
 int kd_item_list_init(kd_item_list_t *list);

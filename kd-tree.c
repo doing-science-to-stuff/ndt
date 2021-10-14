@@ -174,10 +174,10 @@ int kd_item_list_free(kd_item_list_t *list, int free_items) {
 int kd_item_list_add(kd_item_list_t *list, kd_item_t *item) {
     /* resize, if needed */
     if( list->n >= list->cap ) {
-        size_t new_size = (list->cap*2)+1;
+        int new_size = (list->cap*2)+1;
         kd_item_t **tmp = (kd_item_t**)malloc(new_size*sizeof(kd_item_t));
         if( !tmp ) return 0;
-        size_t num = list->n;
+        int num = list->n;
         memcpy(tmp, list->items, num*sizeof(kd_item_t*));
         free(list->items);
         list->items = tmp;

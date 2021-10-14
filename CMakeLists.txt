@@ -30,6 +30,13 @@ find_package(JPEG)
 find_package(YAML)
 find_package(MPI)
 
+# enable useful warnings
+if(MSVC)
+    string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 # add the binary tree to the search path for include files
 # so that we will find ndt_config.h
 include_directories("${PROJECT_BINARY_DIR}")

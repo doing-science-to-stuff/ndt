@@ -37,6 +37,9 @@ int type_name(char *name, int size) {
 }
 
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
+    if( obj==NULL )
+        return -1;
+
     *n_pos = 1; /* center */
     *n_dir = 0;
     *n_size = 1;   /* radius */

@@ -95,6 +95,8 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
 
     printf("Generating frame %i of %i scene '%s' (%.2f%% through animation).\n",
             frame, frames, scn->name, 100.0*t);
+    if( config==NULL )
+        printf("config string omitted.\n");
 
     /* zero out camera */
     camera_reset(&scn->cam);

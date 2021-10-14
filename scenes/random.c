@@ -16,6 +16,7 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     object *obj = NULL;
 
     scene_init(scn, "random", dimensions);
+    printf("setting up frame %i of %i.\n", frame, frames);
 
     printf("%i dimensions\n", dimensions);
     int num_objs = 40;

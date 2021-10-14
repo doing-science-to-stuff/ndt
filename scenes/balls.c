@@ -29,6 +29,10 @@ static ball_t *balls = NULL;
 /* frame rate: 30fps */
 static double fps = 24;
 int scene_frames(int dimensions, char *config) {
+    if( dimensions < 3 )
+        return 0;
+    if( config==NULL )
+        printf("config string omitted.\n");
     return 1500;
 }
 
@@ -162,6 +166,9 @@ static int add_edges(scene *scn, double radius, int dimensions) {
 
 int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config) {
     scene_init(scn, "balls", dimensions);
+    printf("Generating frame %i of %i scene '%s'.\n", frame, frames, scn->name);
+    if( config==NULL )
+        printf("config string omitted.\n");
 
     /* make background sky(ish) blue */
     scn->bg_red = 0.3;

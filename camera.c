@@ -467,7 +467,7 @@ int camera_focus_multi(camera *cam, vectNd *points, int n, double near_padding, 
 
     if( u2 > min_dist || u1 < max_dist ) {
         printf("\n\n");
-        printf("\%s: Unable to find valid aperture size for requested focal range, try adjusting image plane distance (currently %g).", __FUNCTION__, img_plane_dist);
+        printf("%s: Unable to find valid aperture size for requested focal range, try adjusting image plane distance (currently %g).", __FUNCTION__, img_plane_dist);
         printf("achieved range: %.10g,%.10g, requested: %.10g,%.10g\n",
                 min_dist,max_dist, u2,u1);
         printf("u2-min_dist: %g\n", u2-min_dist);

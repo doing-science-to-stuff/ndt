@@ -267,7 +267,7 @@ int scene_cluster(scene *scn, int k)
     for(int i=0; i<scn->num_objects; ++i) {
         if( object_validate(scn->object_ptrs[i]) < 0 ) {
             fprintf(stderr, "Object '%s' (%p) failed to validate.\n",
-                scn->object_ptrs[i]->name, scn->object_ptrs[i]);
+                scn->object_ptrs[i]->name, (void*)scn->object_ptrs[i]);
         }
 
         /* recursively set bounds for entire object tree */
@@ -343,7 +343,7 @@ static int scene_print_r(object **obj, int n, int depth) {
     char prefix[256];
     memset(prefix,' ',sizeof(prefix));
     prefix[sizeof(prefix)-1] = '\0';
-    if( depth*4 < sizeof(prefix) )
+    if( depth*4 < (int)sizeof(prefix) )
         prefix[depth*4] = '\0';
 
     for(int i=0; i<n; ++i) {
@@ -376,7 +376,7 @@ int scene_find_dupes(scene *scn)
     for(i=0; i<scn->num_objects; ++i) {
         for(j=i+1; j<scn->num_objects; ++j) {
             if( scn->object_ptrs[i] == scn->object_ptrs[j] ) {
-                printf("Objects %i and %i are the same object with multiple pointers to it. (%p==%p)\n", i, j, scn->object_ptrs[i], scn->object_ptrs[j]);
+                printf("Objects %i and %i are the same object with multiple pointers to it. (%p==%p)\n", i, j, (void*)scn->object_ptrs[i], (void*)scn->object_ptrs[j]);
                 continue;
             }
 
@@ -404,7 +404,7 @@ int scene_remove_dupes(scene *scn)
     for(i=0; i<scn->num_objects; ++i) {
         for(j=i+1; j<scn->num_objects; ++j) {
             if( scn->object_ptrs[i] == scn->object_ptrs[j] ) {
-                printf("Objects %i and %i are the same object with multiple pointers to it. (%p==%p)\n", i, j, scn->object_ptrs[i], scn->object_ptrs[j]);
+                printf("Objects %i and %i are the same object with multiple pointers to it. (%p==%p)\n", i, j, (void*)scn->object_ptrs[i], (void*)scn->object_ptrs[j]);
                 memmove(scn->object_ptrs+j, scn->object_ptrs+j+1,
                     sizeof(object*)*scn->num_objects-j);
                 scn->num_objects-=1;
@@ -437,6 +437,9 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     scene_init(scn, "test", dimensions);
 
     vectNd_calloc(&temp, dimensions);
+
+    if( config==NULL )
+        printf("%s: no config set.\n", __FUNCTION__);
 
     /* create scene */
     #if 1
@@ -578,6 +581,8 @@ static int scene_yaml_error(yaml_emitter_t *emitter, yaml_event_t *event) {
      * is too small shouldn't be treated as fatal. */
     exit(1);
     #endif /* 1 */
+    if( event==NULL )
+        printf("%s: event is NULL.\n", __FUNCTION__);
 
     return 0;
 }
@@ -687,16 +692,22 @@ static void scene_yaml_scalar_double(yaml_emitter_t *emitter, char *name, char *
 static void scene_yaml_mapped_string(yaml_emitter_t *emitter, char *name, char *tag, char *value) {
     scene_yaml_scalar_string(emitter,NULL,name,name);
     scene_yaml_scalar_string(emitter,NULL,name,value);
+    if( tag==NULL )
+        return;
 }
 
 static void scene_yaml_mapped_int(yaml_emitter_t *emitter, char *name, char *tag, int value) {
     scene_yaml_scalar_string(emitter,NULL,name,name);
     scene_yaml_scalar_int(emitter,NULL,name,value);
+    if( tag==NULL )
+        return;
 }
 
 static void scene_yaml_mapped_double(yaml_emitter_t *emitter, char *name, char *tag, double value) {
     scene_yaml_scalar_string(emitter,NULL,name,name);
     scene_yaml_scalar_double(emitter,NULL,name,value);
+    if( tag==NULL )
+        return;
 }
 
 static void scene_yaml_emit_vect(yaml_emitter_t *emitter, vectNd *vec) {
@@ -718,6 +729,8 @@ static void scene_yaml_emit_vect(yaml_emitter_t *emitter, vectNd *vec) {
 static void scene_yaml_mapped_vect(yaml_emitter_t *emitter, char *name, char *tag, vectNd *vec) {
     scene_yaml_scalar_string(emitter,NULL,name,name);
     scene_yaml_emit_vect(emitter,vec);
+    if( tag==NULL )
+        return;
 }
 
 static void scene_yaml_emit_light(yaml_emitter_t *emitter, light *lgt) {

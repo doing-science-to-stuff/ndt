@@ -16,6 +16,10 @@ int scene_frames(int dimensions, char *config) {
     char *fname = config;
     if( fname == NULL )
         return 0;
+    if( dimensions < 3 )
+        return 0;
+    if( config == NULL )
+        printf("config string omitted.\n");
     #ifdef WITH_YAML
     return scene_yaml_count_frames(fname);
     #else
@@ -33,6 +37,10 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
         fprintf(stderr, "%s: YAML scene requires a filename, use `-u filename`.\n", __FUNCTION__);
         exit(1);
     }
+    if( frames <= 0 )
+        printf("frames is only %i.\n", frames);
+    if( config == NULL )
+        printf("config string omitted.\n");
 
     scene_read_yaml(scn, fname, frame);
 

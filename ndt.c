@@ -1336,6 +1336,8 @@ int print_help_info(int argc, char **argv)
         return 0;
     #endif /* WITH_MPI */
 
+    if( argc < 1 )
+        return 0;
     printf("Usage:\n"
            "\t%s [options]\n"
            "\n"
@@ -1892,7 +1894,7 @@ int main(int argc, char **argv)
             kd_tree_init(&kdtree, scn.dimensions);
             kd_item_list_t kditems;
             kd_item_list_init(&kditems);
-            size_t num = scn.num_objects;
+            int num = scn.num_objects;
             for(int i=0; i<num; ++i) {
                 object_kdlist_add(&kditems, scn.object_ptrs[i]);
             }

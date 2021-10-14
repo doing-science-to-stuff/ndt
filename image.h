@@ -85,7 +85,7 @@ typedef struct image
     int allocated;
     image_type type;
     image_edge_style edge_style;
-    void *pixels;
+    unsigned char *pixels;
 } image_t;
 
 /* image basics */

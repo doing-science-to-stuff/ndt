@@ -97,6 +97,9 @@ int type_name(char *name, int size) {
 }
 
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
+    if( obj==NULL )
+        return -1;
+
     *n_pos = 3;
     *n_dir = 3; /* 3 are needed when flag[0]==1, only 1 otherwise. */
     *n_size = 0;

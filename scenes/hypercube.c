@@ -203,6 +203,10 @@ static int add_faces(object *cube, int m) {
  * for an animated scene. */
 static int frames_per_rotation = 300;
 int scene_frames(int dimensions, char *config) {
+    if( dimensions < 3 )
+        return 0;
+    if( config==NULL )
+        printf("config string omitted.\n");
     return 8 * frames_per_rotation;
 }
 

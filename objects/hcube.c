@@ -190,6 +190,9 @@ int type_name(char *name, int size) {
 }
 
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
+    if( obj==NULL )
+        return -1;
+
     /* report how many of each type of parameter is needed */
     *n_pos = 1;                 /* center of hypercube */
     *n_dir = obj->dimensions;   /* form the basis for hypercube */

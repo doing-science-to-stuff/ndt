@@ -13,6 +13,7 @@ static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct prepared_data {
     /* data that is ray invariant and can be pre-computed in prepare function */
+    char reserved[1];
 } prepped_t;
 
 static int prepare(object *obj) {
@@ -54,6 +55,9 @@ int type_name(char *name, int size) {
 }
 
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
+    if( obj==NULL )
+        return -1;
+
     /* report how many of each type of parameter is needed */
     /* Note: obj->dimensions will contain the dimensions of the object being
      * created. */
@@ -68,6 +72,8 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
 
 int bounding_points(object *obj, bounds_list *list) {
     /* The list passed in will have been initialized with bounds_list_init */
+    if( obj==NULL || list==NULL )
+        return -1;
 
     /* Provide a list of spheres (or points) such that any sphere that
      * completely contains these spheres will also completely contain the
@@ -90,6 +96,8 @@ int intersect(object *obj, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
         prepare(obj);
     }
 
+    if( o==NULL || v==NULL || res==NULL || normal==NULL )
+        return 0;
     /* compute intersection of vector parallel to v passing through o */
     /* Note: *v is a unit vector, so DO NOT call vectNd_unitize here! */
     /* set res to the intersection point and normal to the normal at that point */

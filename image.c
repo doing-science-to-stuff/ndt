@@ -316,7 +316,7 @@ static int image_load_jpeg(image_t *img, char *fname)
                 ((j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1);
     while( cinfo.output_scanline < cinfo.output_height )
     {
-        int i=0;
+        JDIMENSION i=0;
 
         jpeg_read_scanlines(&cinfo, buffer, 1);
 
@@ -576,10 +576,10 @@ static int image_save_png(image_t *img, char *fname)
 
     png_structp png_ptr = png_create_write_struct
         (PNG_LIBPNG_VER_STRING, (png_voidp)user_error_ptr,
-         user_error_fn, user_warning_fn);
+         (png_error_ptr)user_error_fn, (png_error_ptr)user_warning_fn);
 
     if (!png_ptr) {
-        fprintf(stderr,"png_create_write_struct returned %p\n", png_ptr);
+        fprintf(stderr,"png_create_write_struct returned %p\n", (void*)png_ptr);
         fclose(fp); fp=NULL;
         return (-1);
     }
@@ -587,7 +587,7 @@ static int image_save_png(image_t *img, char *fname)
     png_infop info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr)
     {
-        fprintf(stderr,"png_create_info_struct returned %p\n", png_ptr);
+        fprintf(stderr,"png_create_info_struct returned %p\n", (void*)png_ptr);
         png_destroy_write_struct(&png_ptr,
                 (png_infopp)NULL);
         fclose(fp); fp=NULL;

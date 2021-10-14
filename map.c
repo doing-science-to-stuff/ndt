@@ -73,6 +73,9 @@ int map_vect(map_t *map, vectNd *in, vectNd *out)
 
 static int map_spherical(map_t *map, vectNd *v, double *x, double *y) {
 
+    if( map == NULL )
+        return -1;
+
     vectNd mapped;
     vectNd_alloc(&mapped,v->n);
     vectNd_copy(&mapped,v);
@@ -87,6 +90,9 @@ static int map_spherical(map_t *map, vectNd *v, double *x, double *y) {
 }
 
 static int map_cylinderical(map_t *map, vectNd *v, double *x, double *y) {
+    if( map == NULL )
+        return -1;
+
     vectNd mapped;
     vectNd_alloc(&mapped,v->n);
     vectNd_copy(&mapped,v);
@@ -100,6 +106,9 @@ static int map_cylinderical(map_t *map, vectNd *v, double *x, double *y) {
 }
 
 static int map_linear(map_t *map, vectNd *v, double *xp, double *yp) {
+
+    if( map == NULL )
+        return -1;
 
     double x, y;
     x = v->v[0];

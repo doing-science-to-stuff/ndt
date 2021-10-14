@@ -13,6 +13,8 @@ int scene_setup(scene *scn, int dimensions, int frame, int frames, char *config)
     int i;
 
     scene_init(scn, "hypercube_points", dimensions);
+    if( config==NULL )
+        printf("config string omitted.\n");
 
     /* determine center of hypercube */
     vectNd cube_shift;

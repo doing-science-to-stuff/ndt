@@ -14,6 +14,9 @@ int type_name(char *name, int size) {
 }
 
 int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *n_obj) {
+    if( obj==NULL )
+        return -1;
+
     /* report how many of each type of parameter is needed */
     *n_pos = 1;
     *n_dir = 1;
@@ -25,6 +28,9 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
 }
 
 int bounding_points(object *obj, bounds_list *list) {
+    if( obj==NULL || list==NULL )
+        return -1;
+
     /* hyperplanes are infinite in extent */
     /* leaving the list empty indicates infinite extent */
     return 1;

@@ -24,6 +24,8 @@ static int default_color(object *obj, vectNd *at, double *red, double *green, do
     *red = obj->red;
     *green = obj->green;
     *blue = obj->blue;
+    if( at==NULL )
+        return 0;
 
     return 0;
 }
@@ -32,12 +34,16 @@ static int default_reflect(object *obj, vectNd *at, double *red_r, double *green
     *red_r = obj->red_r;
     *green_r = obj->green_r;
     *blue_r = obj->blue_r;
+    if( at==NULL )
+        return 0;
 
     return 0;
 }
 
 static int default_trans(object *obj, vectNd *at, int *transparent) {
     *transparent = obj->transparent;
+    if( at==NULL )
+        return 0;
 
     return 0;
 }
@@ -59,21 +65,21 @@ int register_object(char *filename) {
     struct object_reg_entry *entry;
     entry = calloc(1,sizeof(*entry));
     entry->obj.dl_handle = dl_handle;
-    entry->obj.type_name = dlsym(dl_handle, "type_name");
-    entry->obj.params = dlsym(dl_handle, "params");
-    entry->obj.cleanup = dlsym(dl_handle, "cleanup");
-    entry->obj.bounding_points = dlsym(dl_handle, "bounding_points");
-    entry->obj.intersect = dlsym(dl_handle, "intersect");
-    entry->obj.get_color = dlsym(dl_handle, "get_color");
+    entry->obj.type_name = (int (*)(char *, int))dlsym(dl_handle, "type_name");
+    entry->obj.params = (int (*)(struct gen_object *, int *, int *, int *, int *, int *))dlsym(dl_handle, "params");
+    entry->obj.cleanup = (int (*)(struct gen_object *))dlsym(dl_handle, "cleanup");
+    entry->obj.bounding_points = (int (*)(struct gen_object *, bounds_list *))dlsym(dl_handle, "bounding_points");
+    entry->obj.intersect = (int (*)(struct gen_object *, vectNd *, vectNd *, vectNd *, vectNd *, struct gen_object **))dlsym(dl_handle, "intersect");
+    entry->obj.get_color = (int (*)(struct gen_object *, vectNd *, double *, double *, double *))dlsym(dl_handle, "get_color");
     if( entry->obj.get_color == NULL )
         entry->obj.get_color = default_color;
-    entry->obj.get_reflect = dlsym(dl_handle, "get_reflect");
+    entry->obj.get_reflect = (int (*)(struct gen_object *, vectNd *, double *, double *, double *))dlsym(dl_handle, "get_reflect");
     if( entry->obj.get_reflect == NULL )
         entry->obj.get_reflect = default_reflect;
-    entry->obj.get_trans = dlsym(dl_handle, "get_trans");
+    entry->obj.get_trans = (int (*)(struct gen_object *, vectNd *, int *))dlsym(dl_handle, "get_trans");
     if( entry->obj.get_trans == NULL )
         entry->obj.get_trans = default_trans;
-    entry->obj.refract_ray = dlsym(dl_handle, "refract_ray");
+    entry->obj.refract_ray = (int (*)(struct gen_object *, vectNd *, double *))dlsym(dl_handle, "refract_ray");
 
     /* check for required functions */
     if( entry->obj.type_name == NULL ) {
@@ -333,32 +339,32 @@ int object_validate(object *obj) {
 
     /* check each function pointer */
     if( obj->type_name == NULL ) {
-        fprintf(stderr, "type_name not set on object %p.\n", obj);
+        fprintf(stderr, "type_name not set on object %p.\n", (void*)obj);
         return -1;
     }
 
     if( obj->params == NULL ) {
-        fprintf(stderr, "params not set on %s object %p.\n", type, obj);
+        fprintf(stderr, "params not set on %s object %p.\n", type, (void*)obj);
         return -1;
     }
     if( obj->bounding_points == NULL ) {
-        fprintf(stderr, "bounding_points not set on %s object %p.\n", type, obj);
+        fprintf(stderr, "bounding_points not set on %s object %p.\n", type, (void*)obj);
         return -1;
     }
     if( obj->intersect == NULL ) {
-        fprintf(stderr, "intersect not set on %s object %p.\n", type, obj);
+        fprintf(stderr, "intersect not set on %s object %p.\n", type, (void*)obj);
         return -1;
     }
     if( obj->get_color == NULL ) {
-        fprintf(stderr, "get_color not set on %s object %p.\n", type, obj);
+        fprintf(stderr, "get_color not set on %s object %p.\n", type, (void*)obj);
         return -1;
     }
     if( obj->get_reflect == NULL ) {
-        fprintf(stderr, "get_reflect not set on %s object %p.\n", type, obj);
+        fprintf(stderr, "get_reflect not set on %s object %p.\n", type, (void*)obj);
         return -1;
     }
     if( obj->get_trans == NULL ) {
-        fprintf(stderr, "get_trans not set on %s object %p.\n", type, obj);
+        fprintf(stderr, "get_trans not set on %s object %p.\n", type, (void*)obj);
         return -1;
     }
 
@@ -373,23 +379,23 @@ int object_validate(object *obj) {
         snprintf(obj_name, sizeof(obj_name), "'%s' ", obj->name);
     obj->params(obj, &n_pos, &n_dir, &n_size, &n_flag, &n_obj);
     if( n_pos > obj->n_pos ) {
-        fprintf(stderr, "insufficient positions set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_pos, n_pos);
+        fprintf(stderr, "insufficient positions set for %s object %s%p (%i set, %i required).\n", type, obj_name, (void*)obj, obj->n_pos, n_pos);
         exit(1);
     }
     if( n_dir > obj->n_dir ) {
-        fprintf(stderr, "insufficient directions set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_dir, n_dir);
+        fprintf(stderr, "insufficient directions set for %s object %s%p (%i set, %i required).\n", type, obj_name, (void*)obj, obj->n_dir, n_dir);
         exit(1);
     }
     if( n_size > obj->n_size ) {
-        fprintf(stderr, "insufficient sizes set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_size, n_size);
+        fprintf(stderr, "insufficient sizes set for %s object %s%p (%i set, %i required).\n", type, obj_name, (void*)obj, obj->n_size, n_size);
         exit(1);
     }
     if( n_flag > obj->n_flag ) {
-        fprintf(stderr, "insufficient flags set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_flag, n_flag);
+        fprintf(stderr, "insufficient flags set for %s object %s%p (%i set, %i required).\n", type, obj_name, (void*)obj, obj->n_flag, n_flag);
         exit(1);
     }
     if( n_obj > obj->n_obj ) {
-        fprintf(stderr, "insufficient objects set for %s object %s%p (%i set, %i required).\n", type, obj_name, obj, obj->n_obj, n_obj);
+        fprintf(stderr, "insufficient objects set for %s object %s%p (%i set, %i required).\n", type, obj_name, (void*)obj, obj->n_obj, n_obj);
         exit(1);
     }
 
@@ -626,13 +632,13 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
 #ifdef WITH_KDTREE
 int object_kdlist_add(kd_item_list_t *list, object *obj) {
 
-    printf("Adding object %s.\n", obj->name);
+    //printf("Adding object %s.\n", obj->name);
     /* recurse into clusters */
     char typename[OBJ_TYPE_MAX_LEN] = "";
     obj->type_name(typename,sizeof(typename));
-    printf("  type: %s\n", typename);
+    //printf("  type: %s\n", typename);
     if( !strncmp(typename, "cluster", sizeof(typename)) ) {
-        printf("  %i objects in cluster.\n", obj->n_obj);
+        //printf("  %i objects in cluster.\n", obj->n_obj);
         for(int i=0; i<obj->n_obj; ++i) {
             object_kdlist_add(list, obj->obj[i]);
         }
@@ -687,6 +693,7 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
     for(int i=0; i<n; ++i)
         objs[i] = (object*)items.items[i]->ptr;
     kd_item_list_free(&items, 0);
+    printf("%s: %i items returned.\n", __FUNCTION__, n);
 
     /* pass list fo real trace function. */
     int ret = trace(pos, look, objs, n, hit, hit_normal, ptr, dist_limit);
