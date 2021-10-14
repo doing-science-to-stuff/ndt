@@ -305,16 +305,17 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
 
 int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* populate root node with all items */
-    size_t num = items->n;
+    int num = items->n;
     for(int i=0; i<num; ++i) {
         kd_item_list_add(&tree->root->items, items->items[i]);
         aabb_add(&tree->root->bb, &items->items[i]->bb);
     }
 
     /* recursively split root node */
-    printf("building k-d tree with %zu items.\n", items->n);
-    /* return kd_tree_split_node(tree->root, -1, -1); */
-    return kd_tree_split_node(tree->root, 100, 2);
+    tree->root->dim = 0;
+    printf("building k-d tree with %d items.\n", items->n);
+    return kd_tree_split_node(tree->root, -1, -1);
+    /* return kd_tree_split_node(tree->root, 100, 2); */
 }
 
 static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list_t *items) {
