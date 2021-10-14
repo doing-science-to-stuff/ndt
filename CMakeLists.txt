@@ -31,6 +31,7 @@ find_package(YAML)
 find_package(MPI)
 
 # enable useful warnings
+# see: https://discourse.cmake.org/t/how-to-set-warning-level-correctly-in-modern-cmake/1103
 if(MSVC)
     string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 else()
