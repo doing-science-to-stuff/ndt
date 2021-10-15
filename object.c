@@ -632,13 +632,10 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
 #ifdef WITH_KDTREE
 int object_kdlist_add(kd_item_list_t *list, object *obj) {
 
-    //printf("Adding object %s.\n", obj->name);
     /* recurse into clusters */
     char typename[OBJ_TYPE_MAX_LEN] = "";
     obj->type_name(typename,sizeof(typename));
-    //printf("  type: %s\n", typename);
     if( !strncmp(typename, "cluster", sizeof(typename)) ) {
-        //printf("  %i objects in cluster.\n", obj->n_obj);
         for(int i=0; i<obj->n_obj; ++i) {
             object_kdlist_add(list, obj->obj[i]);
         }
@@ -693,7 +690,6 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
     for(int i=0; i<n; ++i)
         objs[i] = (object*)items.items[i]->ptr;
     kd_item_list_free(&items, 0);
-    printf("%s: %i items returned.\n", __FUNCTION__, n);
 
     /* pass list fo real trace function. */
     int ret = trace(pos, look, objs, n, hit, hit_normal, ptr, dist_limit);
