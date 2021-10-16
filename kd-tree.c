@@ -192,6 +192,18 @@ int kd_item_list_add(kd_item_list_t *list, kd_item_t *item) {
     return 1;
 }
 
+int kd_item_list_remove(kd_item_list_t *list, int idx) {
+    if( idx<0 || idx >= list->n )
+        return 0;
+    /* move last element into deleted position */
+    int last_pos = list->n-1;
+    list->items[idx] = list->items[last_pos];
+    list->items[last_pos] = NULL;
+    /* descrease number of items */
+    list->n = last_pos;
+    return 1;
+}
+
 /* kd_node */
 
 int kd_node_init(kd_node_t *node, int dimensions) {
@@ -246,6 +258,27 @@ int kd_tree_free(kd_tree_t *tree) {
     kd_tree_free_node(tree->root);
     tree->root = NULL;
     return 1;
+}
+
+static double kdtree_split_score(kd_item_list_t *items, int dim, double pos) {
+    if( items == NULL )
+        return -DBL_MAX;
+
+    int num = items->n;
+    int left_num=0, right_num=0, unsplit_num=0;
+    for(int i=0; i<num; ++i) {
+        double il, iu;
+        vectNd_get(&items->items[i]->bb.lower, dim, &il);
+        vectNd_get(&items->items[i]->bb.upper, dim, &iu);
+        if( iu < pos-EPSILON )
+            ++left_num;
+        else if( il > pos+EPSILON )
+            ++right_num;
+        else
+            ++unsplit_num;
+    }
+    double score = num - (abs(left_num-right_num) + 2*unsplit_num);
+    return score;
 }
 
 static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per_node) {
