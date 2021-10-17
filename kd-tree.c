@@ -295,18 +295,28 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
 
     /* pick split point */
     int split_dim = node->dim;
-    int num = node->items.n;
-    double nl, nu;
-    vectNd_get(&node->bb.lower, split_dim, &nu);
-    vectNd_get(&node->bb.upper, split_dim, &nl);
-    for(int i=0; i<num; ++i) {
+    double split_pos = 0.0;
+    int cand_split_dim = node->dim;
+    double split_score = -DBL_MAX, best_score = -DBL_MAX;
+    for(int i=0; i<node->items.n; ++i) {
         double il, iu;
-        vectNd_get(&node->items.items[i]->bb.lower, split_dim, &il);
-        vectNd_get(&node->items.items[i]->bb.upper, split_dim, &iu);
-        if( il < nl ) nl = il;
-        if( iu > nu ) nu = iu;
+        vectNd_get(&node->items.items[i]->bb.lower, cand_split_dim, &il);
+        vectNd_get(&node->items.items[i]->bb.upper, cand_split_dim, &iu);
+        double cand_split_pos = il-2*EPSILON;
+        split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
+        if( split_score > best_score) {
+            split_dim = cand_split_dim;
+            split_pos = cand_split_pos;
+            best_score = split_score;
+        }
+        cand_split_pos = iu+2*EPSILON;
+        split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
+        if( split_score > best_score) {
+            split_dim = cand_split_dim;
+            split_pos = cand_split_pos;
+            best_score = split_score;
+        }
     }
-    double split_pos = (nl+nu)/2.0; /* splitting evently is unlikely to be optimal, but is easy enough for testing. */
 
     /* make child nodes */
     node->left = calloc(1, sizeof(kd_node_t));
@@ -321,54 +331,43 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     vectNd_set(&node->right->bb.lower, split_dim, split_pos);
 
     /* assign items to child nodes */
-    kd_item_list_t unsplit;
-    kd_item_list_init(&unsplit);
-    for(int i=0; i<num; ++i) {
+    for(int i=0; i<node->items.n; ++i) {
         double il, iu;
         vectNd_get(&node->items.items[i]->bb.lower, split_dim, &il);
         vectNd_get(&node->items.items[i]->bb.upper, split_dim, &iu);
-        if( iu < split_pos-EPSILON )
+        if( iu < split_pos-EPSILON ) {
             kd_item_list_add(&node->left->items, node->items.items[i]);
-        else if( il > split_pos+EPSILON )
+            kd_item_list_remove(&node->items, i);
+            --i;
+        } else if( il > split_pos+EPSILON ) {
             kd_item_list_add(&node->right->items, node->items.items[i]);
-        else
-            kd_item_list_add(&unsplit, node->items.items[i]);
-    }
-    kd_item_list_free(&node->items, 0);
-    kd_item_list_init(&node->items);
-
-    /* copy non-split items back into node */
-    if( unsplit.n > 0 ) {
-        for(int i=0; i<unsplit.n; ++i) {
-            kd_item_list_add(&node->items, unsplit.items[i]);
+            kd_item_list_remove(&node->items, i);
+            --i;
         }
     }
-    kd_item_list_free(&unsplit, 0);
 
     /* recurse to children only if useful split occured */
     node->left->dim = (node->dim+1)%dimensions;
     node->right->dim = (node->dim+1)%dimensions;
-    if( node->left->items.n > 0 )
+    if( node->left->items.n > 0 && node->right->items.n > 0 ) {
         kd_tree_split_node(node->left, levels_remaining-1, min_per_node);
-    if( node->right->items.n > 0 )
         kd_tree_split_node(node->right, levels_remaining-1, min_per_node);
+    }
 
     return 0;
 }
 
 int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* populate root node with all items */
-    int num = items->n;
-    for(int i=0; i<num; ++i) {
+    for(int i=0; i<items->n; ++i) {
         kd_item_list_add(&tree->root->items, items->items[i]);
         aabb_add(&tree->root->bb, &items->items[i]->bb);
     }
 
     /* recursively split root node */
     tree->root->dim = 0;
-    printf("building k-d tree with %d items.\n", items->n);
+    //printf("building k-d tree with %d items.\n", items->n);
     return kd_tree_split_node(tree->root, -1, -1);
-    /* return kd_tree_split_node(tree->root, 100, 2); */
 }
 
 static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list_t *items) {
