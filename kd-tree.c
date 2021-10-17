@@ -296,25 +296,26 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     /* pick split point */
     int split_dim = node->dim;
     double split_pos = 0.0;
-    int cand_split_dim = node->dim;
     double split_score = -DBL_MAX, best_score = -DBL_MAX;
-    for(int i=0; i<node->items.n; ++i) {
-        double il, iu;
-        vectNd_get(&node->items.items[i]->bb.lower, cand_split_dim, &il);
-        vectNd_get(&node->items.items[i]->bb.upper, cand_split_dim, &iu);
-        double cand_split_pos = il-2*EPSILON;
-        split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
-        if( split_score > best_score) {
-            split_dim = cand_split_dim;
-            split_pos = cand_split_pos;
-            best_score = split_score;
-        }
-        cand_split_pos = iu+2*EPSILON;
-        split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
-        if( split_score > best_score) {
-            split_dim = cand_split_dim;
-            split_pos = cand_split_pos;
-            best_score = split_score;
+    for(int cand_split_dim=0; cand_split_dim<dimensions; ++cand_split_dim) {
+        for(int i=0; i<node->items.n; ++i) {
+            double il, iu;
+            vectNd_get(&node->items.items[i]->bb.lower, cand_split_dim, &il);
+            vectNd_get(&node->items.items[i]->bb.upper, cand_split_dim, &iu);
+            double cand_split_pos = il-2*EPSILON;
+            split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
+            if( split_score > best_score) {
+                split_dim = cand_split_dim;
+                split_pos = cand_split_pos;
+                best_score = split_score;
+            }
+            cand_split_pos = iu+2*EPSILON;
+            split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
+            if( split_score > best_score) {
+                split_dim = cand_split_dim;
+                split_pos = cand_split_pos;
+                best_score = split_score;
+            }
         }
     }
 
