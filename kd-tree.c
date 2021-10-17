@@ -387,7 +387,7 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list
     /* call for children */
     if( node->left!=NULL )
         num += kd_node_intersect(node->left, o, v, items);
-    if( node->right==NULL )
+    if( node->right!=NULL )
         num += kd_node_intersect(node->right, o, v, items);
 
     return num;
