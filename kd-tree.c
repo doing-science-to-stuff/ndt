@@ -158,6 +158,9 @@ int kd_item_copy(kd_item_t *dst, kd_item_t *src) {
 
 /* kd_item_list */
 
+/* Note: the item list is a list of pointers to kd_item_t structs, and is
+ *       maintained in heap order (by pointer value). */
+
 int kd_item_list_init(kd_item_list_t *list) {
     memset(list, '\0', sizeof(kd_item_list_t));
     list->items = (kd_item_t**)malloc(101*sizeof(kd_item_t));
@@ -171,6 +174,67 @@ int kd_item_list_free(kd_item_list_t *list, int free_items) {
     }
     free(list->items); list->items = NULL;
     memset(list, '\0', sizeof(kd_item_list_t));
+    return 1;
+}
+
+static int kd_item_list_heapup(kd_item_list_t *list, int pos) {
+    int parent_pos = (pos-1)/2;
+
+    kd_item_t **items = list->items;
+    while( parent_pos>=0 && items[pos] < items[parent_pos] ) {
+        kd_item_t *tmp = items[pos];
+        items[pos] = items[parent_pos];
+        items[parent_pos] = tmp;
+        pos = parent_pos;
+        parent_pos = (pos-1)/2;
+    }
+
+    return 1;
+}
+
+static int kd_item_list_heapdown(kd_item_list_t *list, int pos) {
+    int left_pos = pos*2+1;
+    int right_pos = pos*2+2;
+    if( left_pos >= list->n )
+        return 1;
+
+    kd_item_t *val = list->items[pos];
+    kd_item_t *left = list->items[left_pos];
+
+    int swap_pos = left_pos;
+    if( right_pos < list->n ) {
+        kd_item_t *right = list->items[right_pos];
+        if( left > right ) {
+            swap_pos = right_pos;
+        }
+    }
+
+    kd_item_t **items = list->items;
+    if( val > items[swap_pos]) {
+        kd_item_t *tmp = items[pos];
+        items[pos] = items[swap_pos];
+        items[swap_pos] = tmp;
+
+        kd_item_list_heapdown(list, swap_pos);
+    }
+
+    return 1;
+}
+
+int kd_item_list_min(kd_item_list_t *list, kd_item_t **item) {
+    /* report minimum */
+    *item = list->items[0];
+
+    /* copy last element to root */
+    list->items[0] = list->items[list->n-1];
+
+    /* decrease size by one */
+    --list->n;
+    list->items[list->n] = NULL;
+
+    /* new root item to correct position */
+    kd_item_list_heapdown(list, 0);
+
     return 1;
 }
 
@@ -188,19 +252,34 @@ int kd_item_list_add(kd_item_list_t *list, kd_item_t *item) {
     }
 
     /* write item pointer into list */
-    list->items[list->n++] = item;
+    int pos = list->n++;
+    list->items[pos] = item;
+
+    /* restore heap property */
+    kd_item_list_heapup(list, pos);
+
     return 1;
 }
 
 int kd_item_list_remove(kd_item_list_t *list, int idx) {
+
     if( idx<0 || idx >= list->n )
         return 0;
-    /* move last element into deleted position */
-    int last_pos = list->n-1;
-    list->items[idx] = list->items[last_pos];
-    list->items[last_pos] = NULL;
+
+    /* set idx element to NULL and move it to the root */
+    list->items[idx] = NULL;
+    kd_item_list_heapup(list, idx);
+
+    /* copy last element to the root */
+    list->items[0] = list->items[list->n-1];
+    list->items[list->n-1] = NULL;
+
     /* descrease number of items */
-    list->n = last_pos;
+    --list->n;
+
+    /* heap it back down */
+    kd_item_list_heapdown(list, 0);
+
     return 1;
 }
 
@@ -225,6 +304,24 @@ int kd_node_free(kd_node_t *node) {
     }
     kd_item_list_free(&node->items, 0);
     aabb_free(&node->bb);
+    return 1;
+}
+
+static int kd_tree_print_node(kd_node_t *node, int depth) {
+    int pad_n = depth * 4;
+    char *padding = calloc(pad_n+1,sizeof(char));
+    if( padding == NULL )
+        return 0;
+    memset(padding, ' ', pad_n*sizeof(char));
+
+    printf("%sdim: %i; items: %i\n", padding, node->dim, node->items.n);
+    if( node->left )
+        kd_tree_print_node(node->left, depth+1);
+    if( node->right )
+        kd_tree_print_node(node->right, depth+1);
+
+    free(padding); padding=NULL;
+
     return 1;
 }
 
@@ -260,9 +357,14 @@ int kd_tree_free(kd_tree_t *tree) {
     return 1;
 }
 
-static double kdtree_split_score(kd_item_list_t *items, int dim, double pos) {
+int kd_tree_print(kd_tree_t *tree) {
+    printf("K-D Tree:\n");
+    return kd_tree_print_node(tree->root, 0);
+}
+
+static int kdtree_split_score(kd_item_list_t *items, int dim, double pos, double *score) {
     if( items == NULL )
-        return -DBL_MAX;
+        return 0;
 
     int num = items->n;
     int left_num=0, right_num=0, unsplit_num=0;
@@ -277,8 +379,8 @@ static double kdtree_split_score(kd_item_list_t *items, int dim, double pos) {
         else
             ++unsplit_num;
     }
-    double score = num - (abs(left_num-right_num) + 2*unsplit_num);
-    return score;
+    *score = num - (abs(left_num-right_num) + 2*unsplit_num);
+    return (left_num>0 && right_num>0)?1:0;
 }
 
 static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per_node) {
@@ -297,26 +399,32 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     int split_dim = node->dim;
     double split_pos = 0.0;
     double split_score = -DBL_MAX, best_score = -DBL_MAX;
-    for(int cand_split_dim=0; cand_split_dim<dimensions; ++cand_split_dim) {
+    int found_split = 0;
+    for(int cand_dim=0; cand_dim<dimensions; ++cand_dim) {
         for(int i=0; i<node->items.n; ++i) {
             double il, iu;
-            vectNd_get(&node->items.items[i]->bb.lower, cand_split_dim, &il);
-            vectNd_get(&node->items.items[i]->bb.upper, cand_split_dim, &iu);
-            double cand_split_pos = il-2*EPSILON;
-            split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
-            if( split_score > best_score) {
-                split_dim = cand_split_dim;
-                split_pos = cand_split_pos;
+            vectNd_get(&node->items.items[i]->bb.lower, cand_dim, &il);
+            vectNd_get(&node->items.items[i]->bb.upper, cand_dim, &iu);
+            double cand_pos = il-2*EPSILON;
+            if( kdtree_split_score(&node->items, cand_dim, cand_pos, &split_score)
+                && split_score > best_score) {
+                split_dim = cand_dim;
+                split_pos = cand_pos;
                 best_score = split_score;
+                found_split = 1;
             }
-            cand_split_pos = iu+2*EPSILON;
-            split_score = kdtree_split_score(&node->items, cand_split_dim, cand_split_pos);
-            if( split_score > best_score) {
-                split_dim = cand_split_dim;
-                split_pos = cand_split_pos;
+            cand_pos = iu+2*EPSILON;
+            if( kdtree_split_score(&node->items, cand_dim, cand_pos, &split_score)
+                && split_score > best_score) {
+                split_dim = cand_dim;
+                split_pos = cand_pos;
                 best_score = split_score;
+                found_split = 1;
             }
         }
+    }
+    if( !found_split ) {
+        return 1;
     }
 
     /* make child nodes */
@@ -344,6 +452,11 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
             kd_item_list_add(&node->right->items, node->items.items[i]);
             kd_item_list_remove(&node->items, i);
             --i;
+        } else {
+            kd_item_list_add(&node->left->items, node->items.items[i]);
+            kd_item_list_add(&node->right->items, node->items.items[i]);
+            kd_item_list_remove(&node->items, i);
+            --i;
         }
     }
 
@@ -368,7 +481,9 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* recursively split root node */
     tree->root->dim = 0;
     //printf("building k-d tree with %d items.\n", items->n);
-    return kd_tree_split_node(tree->root, -1, -1);
+    int ret = kd_tree_split_node(tree->root, -1, -1);
+    kd_tree_print(tree);
+    return ret;
 }
 
 static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list_t *items) {
