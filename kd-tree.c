@@ -73,25 +73,26 @@ int aabb_add_point(aabb_t *bb, vectNd *pnt) {
 
 /* test if ray o+v*t intersects bounding box bb */
 static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v) {
+    //return 1;
     int dimensions = o->n;
     vectNd pl, pu, tmp;
     vectNd_alloc(&pl, dimensions);
     vectNd_alloc(&pu, dimensions);
     vectNd_alloc(&tmp, dimensions);
     for(int i=0; i<dimensions; ++i) {
-        double vo, vv, vl, vu;
-        vectNd_get(o, i, &vo);
-        vectNd_get(v, i, &vv);
-        vectNd_get(&bb->lower, i, &vl);
-        vectNd_get(&bb->upper, i, &vu);
+        double oi, vi, li, ui;
+        vectNd_get(o, i, &oi);
+        vectNd_get(v, i, &vi);
+        vectNd_get(&bb->lower, i, &li);
+        vectNd_get(&bb->upper, i, &ui);
 
         /* find paramters tu and tl for o+v*{tl,tu} */
-        double vvMvo = vv-vo;
-        if( fabs(vvMvo) < EPSILON )
+        double vMo_i = vi-oi;
+        if( fabs(vMo_i) < EPSILON )
             continue;   /* v is parallel to dimension i */
         double tl, tu;
-        tl = (vl-vo) / vvMvo;
-        tu = (vu-vo) / vvMvo;
+        tl = (li-oi) / vMo_i;
+        tu = (ui-oi) / vMo_i;
 
         if( tl < -EPSILON && tu < -EPSILON ) {
             vectNd_free(&pl);
@@ -107,21 +108,23 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v) {
         vectNd_add(o, &tmp, &pu);
 
         int il=1, iu=1;
-        for(int j=0; j<dimensions; ++j) {
+        for(int j=0; j<dimensions && il && iu; ++j) {
             if( j==i ) continue;
 
-            double plj, puj, bbl, bbu;
+            double plj, puj, bblj, bbuj;
             vectNd_get(&pl, j, &plj);
             vectNd_get(&pu, j, &puj);
-            vectNd_get(&bb->lower, j, &bbl);
-            vectNd_get(&bb->upper, j, &bbu);
-            if( plj < bbl || plj > bbu )
+            vectNd_get(&bb->lower, j, &bblj);
+            vectNd_get(&bb->upper, j, &bbuj);
+            bblj -= EPSILON;
+            bbuj += EPSILON;
+            if( plj < bblj || plj > bbuj )
                 il = 0;
-            if( puj < bbl || puj > bbu )
+            if( puj < bblj || puj > bbuj )
                 iu = 0;
         }
 
-        if( il!=0 || iu!=0 ) {
+        if( il || iu ) {
             vectNd_free(&pl);
             vectNd_free(&pu);
             vectNd_free(&tmp);
