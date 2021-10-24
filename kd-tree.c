@@ -78,19 +78,11 @@ int aabb_add_point(aabb_t *bb, vectNd *pnt) {
 }
 
 /* test if ray o+v*t intersects bounding box bb */
-static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl, double *tu) {
+static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, double *tu_ptr) {
     int dimensions = v->n;
 
-    //return 1;
-    #if 0
-    printf("%s\n", __FUNCTION__);
-    vectNd_print(o, "o");
-    vectNd_print(v, "v");
-    aabb_print(bb);
-    #endif /* 0 */
-
     /* find smallest and largest values of t where o+v*t is inside bb */
-    double t_l = -DBL_MAX, t_u = DBL_MAX;
+    double tl = -DBL_MAX, tu = DBL_MAX;
     double v_i, o_i;
     double bbl_i, bbu_i;
     for(int i=0; i<dimensions; ++i) {
@@ -100,30 +92,38 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl, double *
         vectNd_get(&bb->upper, i, &bbu_i);
 
         if( fabs(v_i) < EPSILON2 ) {
+            #if 0
             if( o_i < bbl_i-EPSILON || o_i > bbu_i+EPSILON )
                 return 0;
-            #if 0
-            printf("  v_i: %g\n", v_i);
-            #endif /* 1 */
+            #endif /* 0? */
             continue;
         }
 
         double tl_i, tu_i;
         tl_i = (bbl_i - o_i) / v_i;
         tu_i = (bbu_i - o_i) / v_i;
-        //printf("  i: %i; tl_i, tu_i: %g, %g\n", i, tl_i, tu_i);
+        if( tl_i > tu_i ) {
+            /* if upper bound is closer to o than lower bound,
+             * swap tl_i and tu_i. */
+            double tmp = tl_i;
+            tl_i = tu_i;
+            tu_i = tmp;
+        }
 
         /* get minimum upper bound and maximum lower bound */
-        if( tl_i > t_l )    t_l = tl_i;
-        if( tu_i < t_u )    t_u = tu_i;
+        if( tl_i > tl )    tl = tl_i;
+        if( tu_i < tu )    tu = tu_i;
+        if( tu < -EPSILON )
+            return 0;
     }
+    tl -= EPSILON;
+    tu += EPSILON;
 
     /* record results */
-    if( tl!=NULL ) *tl = t_l;
-    if( tu!=NULL ) *tu = t_u;
+    if( tl_ptr!=NULL ) *tl_ptr = tl;
+    if( tu_ptr!=NULL ) *tu_ptr = tu;
 
-    //printf("t_l, t_u: %g, %g\n", t_l, t_u);
-    return (t_l<=t_u) || rand()%2;
+    return (tu >= -EPSILON) && (tl <= tu);
 }
 
 /* find t where o+v*t crossed an axis-aligned plane x_dim=pos. */
@@ -485,9 +485,10 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* recursively split root node */
     tree->root->dim = 0;
     //printf("building k-d tree with %d items.\n", items->n);
-    //int ret = kd_tree_split_node(tree->root, -1, -1);
-    int ret = kd_tree_split_node(tree->root, 1, 1);
-    kd_tree_print(tree);
+    int ret = 1;
+    ret = kd_tree_split_node(tree->root, -1, -1);
+    //ret = kd_tree_split_node(tree->root, 1, 1);
+    //kd_tree_print(tree);
     return ret;
 }
 
