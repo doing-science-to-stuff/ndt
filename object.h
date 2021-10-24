@@ -13,6 +13,9 @@
 #endif /* WITH_KDTREE */
 
 #define EPSILON (1e-4)
+#ifndef EPSILON2
+#define EPSILON2 ((EPSILON)*(EPSILON))
+#endif /* EPSILON2 */
 
 #define OBJ_TYPE_MAX_LEN 64
 #define OBJ_NAME_MAX_LEN 32

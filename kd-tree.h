@@ -17,6 +17,7 @@ typedef struct aabb {
 
 int aabb_init(aabb_t *bb, int dimensions);
 int aabb_free(aabb_t *bb);
+int aabb_print(aabb_t *bb);
 int aabb_copy(aabb_t *dst, aabb_t *src);
 int aabb_add(aabb_t *dst, aabb_t *src);
 int aabb_add_point(aabb_t *dst, vectNd *pnt);

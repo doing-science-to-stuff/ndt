@@ -24,6 +24,12 @@ int aabb_free(aabb_t *bb) {
     return 1;
 }
 
+int aabb_print(aabb_t *bb) {
+    vectNd_print(&bb->lower, "bb lower");
+    vectNd_print(&bb->upper, "bb upper");
+    return 1;
+}
+
 int aabb_copy(aabb_t *dst, aabb_t *src) {
     vectNd_copy(&dst->lower, &src->lower);
     vectNd_copy(&dst->upper, &src->upper);
@@ -72,71 +78,60 @@ int aabb_add_point(aabb_t *bb, vectNd *pnt) {
 }
 
 /* test if ray o+v*t intersects bounding box bb */
-static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v) {
+static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl, double *tu) {
+    int dimensions = v->n;
+
     //return 1;
-    int dimensions = o->n;
-    vectNd pl, pu, tmp;
-    vectNd_alloc(&pl, dimensions);
-    vectNd_alloc(&pu, dimensions);
-    vectNd_alloc(&tmp, dimensions);
+    #if 0
+    printf("%s\n", __FUNCTION__);
+    vectNd_print(o, "o");
+    vectNd_print(v, "v");
+    aabb_print(bb);
+    #endif /* 0 */
+
+    /* find smallest and largest values of t where o+v*t is inside bb */
+    double t_l = -DBL_MAX, t_u = DBL_MAX;
+    double v_i, o_i;
+    double bbl_i, bbu_i;
     for(int i=0; i<dimensions; ++i) {
-        double oi, vi, li, ui;
-        vectNd_get(o, i, &oi);
-        vectNd_get(v, i, &vi);
-        vectNd_get(&bb->lower, i, &li);
-        vectNd_get(&bb->upper, i, &ui);
+        vectNd_get(v, i, &v_i);
+        vectNd_get(o, i, &o_i);
+        vectNd_get(&bb->lower, i, &bbl_i);
+        vectNd_get(&bb->upper, i, &bbu_i);
 
-        /* find paramters tu and tl for o+v*{tl,tu} */
-        double vMo_i = vi-oi;
-        if( fabs(vMo_i) < EPSILON )
-            continue;   /* v is parallel to dimension i */
-        double tl, tu;
-        tl = (li-oi) / vMo_i;
-        tu = (ui-oi) / vMo_i;
-
-        if( tl < -EPSILON && tu < -EPSILON ) {
-            vectNd_free(&pl);
-            vectNd_free(&pu);
-            vectNd_free(&tmp);
-            return 0;   /* bb is behind o along v */
+        if( fabs(v_i) < EPSILON2 ) {
+            if( o_i < bbl_i-EPSILON || o_i > bbu_i+EPSILON )
+                return 0;
+            #if 0
+            printf("  v_i: %g\n", v_i);
+            #endif /* 1 */
+            continue;
         }
 
-        /* compute intersection points along faces */
-        vectNd_scale(v, tl, &tmp);
-        vectNd_add(o, &tmp, &pl);
-        vectNd_scale(v, tu, &tmp);
-        vectNd_add(o, &tmp, &pu);
+        double tl_i, tu_i;
+        tl_i = (bbl_i - o_i) / v_i;
+        tu_i = (bbu_i - o_i) / v_i;
+        //printf("  i: %i; tl_i, tu_i: %g, %g\n", i, tl_i, tu_i);
 
-        int il=1, iu=1;
-        for(int j=0; j<dimensions && il && iu; ++j) {
-            if( j==i ) continue;
-
-            double plj, puj, bblj, bbuj;
-            vectNd_get(&pl, j, &plj);
-            vectNd_get(&pu, j, &puj);
-            vectNd_get(&bb->lower, j, &bblj);
-            vectNd_get(&bb->upper, j, &bbuj);
-            bblj -= EPSILON;
-            bbuj += EPSILON;
-            if( plj < bblj || plj > bbuj )
-                il = 0;
-            if( puj < bblj || puj > bbuj )
-                iu = 0;
-        }
-
-        if( il || iu ) {
-            vectNd_free(&pl);
-            vectNd_free(&pu);
-            vectNd_free(&tmp);
-            return 1;   /* pl or pu is inside one of the faces of bb */
-        }
+        /* get minimum upper bound and maximum lower bound */
+        if( tl_i > t_l )    t_l = tl_i;
+        if( tu_i < t_u )    t_u = tu_i;
     }
-    vectNd_free(&pl);
-    vectNd_free(&pu);
-    vectNd_free(&tmp);
 
+    /* record results */
+    if( tl!=NULL ) *tl = t_l;
+    if( tu!=NULL ) *tu = t_u;
+
+    //printf("t_l, t_u: %g, %g\n", t_l, t_u);
+    return (t_l<=t_u) || rand()%2;
+}
+
+/* find t where o+v*t crossed an axis-aligned plane x_dim=pos. */
+#if 0
+static int ray_plane_intersect(vectNd *o, vectNd *v, int dim, double pos, double *t) {
     return 0;
 }
+#endif /* 1 */
 
 /* kd_item */
 
@@ -441,6 +436,11 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     aabb_copy(&node->right->bb, &node->bb);
     vectNd_set(&node->left->bb.upper, split_dim, split_pos);
     vectNd_set(&node->right->bb.lower, split_dim, split_pos);
+    #if 0
+    printf("Split node at %g in dimension %i\n", split_pos, split_dim);
+    aabb_print(&node->left->bb);
+    aabb_print(&node->right->bb);
+    #endif /* 0 */
 
     /* assign items to child nodes */
     for(int i=0; i<node->items.n; ++i) {
@@ -480,11 +480,13 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
         kd_item_list_add(&tree->root->items, items->items[i]);
         aabb_add(&tree->root->bb, &items->items[i]->bb);
     }
+    //aabb_print(&tree->root->bb);
 
     /* recursively split root node */
     tree->root->dim = 0;
     //printf("building k-d tree with %d items.\n", items->n);
-    int ret = kd_tree_split_node(tree->root, -1, -1);
+    //int ret = kd_tree_split_node(tree->root, -1, -1);
+    int ret = kd_tree_split_node(tree->root, 1, 1);
     kd_tree_print(tree);
     return ret;
 }
@@ -494,7 +496,7 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list
         return 0;
 
     /* check for intersection with bb */
-    if( !aabb_intersect(&node->bb, o, v) )
+    if( !aabb_intersect(&node->bb, o, v, NULL, NULL) )
         return 0; /* return if not intersected */
 
     /* copy items into items list. */
@@ -503,10 +505,14 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list
         kd_item_list_add(items, node->items.items[i]);
 
     /* call for children */
-    if( node->left!=NULL )
+    if( node->left!=NULL ) {
+        //printf("%s: recursing left\n", __FUNCTION__);
         num += kd_node_intersect(node->left, o, v, items);
-    if( node->right!=NULL )
+    }
+    if( node->right!=NULL ) {
+        //printf("%s: recursing right\n", __FUNCTION__);
         num += kd_node_intersect(node->right, o, v, items);
+    }
 
     return num;
 }

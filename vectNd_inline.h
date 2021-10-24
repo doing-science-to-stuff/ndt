@@ -7,6 +7,9 @@
 #ifndef EPSILON
 #define EPSILON (1e-4)
 #endif /* EPSILON */
+#ifndef EPSILON2
+#define EPSILON2 ((EPSILON)*(EPSILON))
+#endif /* EPSILON2 */
 
 #ifndef __SSE__
 #error "SSE not available"
