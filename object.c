@@ -630,14 +630,14 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
 }
 
 #ifdef WITH_KDTREE
-int object_kdlist_add(kd_item_list_t *list, object *obj) {
+int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
 
     /* recurse into clusters */
     char typename[OBJ_TYPE_MAX_LEN] = "";
     obj->type_name(typename,sizeof(typename));
     if( !strncmp(typename, "cluster", sizeof(typename)) ) {
         for(int i=0; i<obj->n_obj; ++i) {
-            object_kdlist_add(list, obj->obj[i]);
+            object_kdlist_add(list, obj->obj[i], i);
         }
         return 1;
     }
@@ -672,7 +672,8 @@ int object_kdlist_add(kd_item_list_t *list, object *obj) {
     vectNd_free(&with_radius);
     vectNd_free(&radiuses);
 
-    item->ptr = obj;
+    item->id = obj_id;
+    item->obj_ptr = obj;
 
     kd_item_list_add(list, item);
     return 1;
@@ -680,26 +681,20 @@ int object_kdlist_add(kd_item_list_t *list, object *obj) {
 
 int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
     /* traverse kd-tree to get list of hitable objects */
-    kd_item_list_t items;
-    kd_item_list_init(&items);
-    kd_tree_intersect(kd, pos, look, &items);
-    int num = 0;
-    //int orig_n = items.n;
-    object **objs = calloc(items.n, sizeof(object*));
-    kd_item_t *prev_ptr = NULL;
-    while( items.n > 0 ) {
-        kd_item_t *item_ptr = NULL;
-        kd_item_list_min(&items, &item_ptr);
-        if( item_ptr->ptr!=NULL && item_ptr != prev_ptr )
-            objs[num++] = item_ptr->ptr;
-        prev_ptr = item_ptr;
+    int num_objs = kd->num_objs;
+    char *obj_mask = calloc(num_objs, sizeof(char));
+    kd_tree_intersect(kd, pos, look, obj_mask);
+    object **active_objs = calloc(num_objs, sizeof(object*));
+    int active_num = 0;
+    for(int i=0; i<num_objs; ++i) {
+        if( obj_mask[i]!=0 )
+            active_objs[active_num++] = (object*)kd->obj_ptrs[i];
     }
-    //printf("%i items returned, with %i unique objects.\n", orig_n, num);
-    kd_item_list_free(&items, 0);
+    free(obj_mask); obj_mask=NULL;
 
-    /* pass list fo real trace function. */
-    int ret = trace(pos, look, objs, num, hit, hit_normal, ptr, dist_limit);
-    free(objs); objs=NULL;
+    /* pass list to real trace function. */
+    int ret = trace(pos, look, active_objs, active_num, hit, hit_normal, ptr, dist_limit);
+    free(active_objs); active_objs=NULL;
 
     return ret;
 }

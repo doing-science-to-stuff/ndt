@@ -26,7 +26,8 @@ int aabb_add_point(aabb_t *dst, vectNd *pnt);
 
 typedef struct kd_item {
     aabb_t bb;
-    void *ptr;
+    int id;
+    void *obj_ptr;
 } kd_item_t;
 
 int kd_item_init(kd_item_t *item, int dimensions);
@@ -61,6 +62,8 @@ int kd_node_free(kd_node_t *node);
 /* kd_tree */
 
 typedef struct kd_tree {
+    void **obj_ptrs;
+    int num_objs;
     kd_node_t *root;
 } kd_tree_t;
 
@@ -68,6 +71,6 @@ int kd_tree_init(kd_tree_t *tree, int dimensions);
 int kd_tree_free(kd_tree_t *tree);
 int kd_tree_print(kd_tree_t *tree);
 int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items);
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_list_t *items);
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask);
 
 #endif /* KD_TREE_H */

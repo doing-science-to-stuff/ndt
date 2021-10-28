@@ -1896,7 +1896,7 @@ int main(int argc, char **argv)
             kd_item_list_init(&kditems);
             int num = scn.num_objects;
             for(int i=0; i<num; ++i) {
-                object_kdlist_add(&kditems, scn.object_ptrs[i]);
+                object_kdlist_add(&kditems, scn.object_ptrs[i], i);
             }
             kd_tree_build(&kdtree, &kditems);
             #else

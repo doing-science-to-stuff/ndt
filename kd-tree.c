@@ -67,11 +67,11 @@ int aabb_add_point(aabb_t *bb, vectNd *pnt) {
 
         if( pv < bbl ) {
             bbl = pv;
-            vectNd_set(&bb->lower, i, bbl);
+            vectNd_set(&bb->lower, i, bbl-EPSILON);
         }
         if( pv > bbu ) {
             bbu = pv;
-            vectNd_set(&bb->upper, i, bbu);
+            vectNd_set(&bb->upper, i, bbu+EPSILON);
         }
     }
     return 1;
@@ -114,7 +114,7 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, doub
         if( tl_i > tl )    tl = tl_i;
         if( tu_i < tu )    tu = tu_i;
         if( tu < -EPSILON )
-            return 0;
+            return 0;   /* entire intersection is behind o wrt v */
     }
     tl -= EPSILON;
     tu += EPSILON;
@@ -127,11 +127,21 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, doub
 }
 
 /* find t where o+v*t crossed an axis-aligned plane x_dim=pos. */
-#if 0
-static int ray_plane_intersect(vectNd *o, vectNd *v, int dim, double pos, double *t) {
-    return 0;
+static inline int ray_plane_intersect(vectNd *o, vectNd *v, int dim, double pos, double *t) {
+    
+    double v_i, o_i;
+    vectNd_get(v, dim, &v_i);
+
+    if( fabs(v_i) < EPSILON2 ) {
+        /* v is parallel to plane */
+        return 0; /* t would be inf or -inf */
+    }
+
+    vectNd_get(o, dim, &o_i);
+    *t = (pos - o_i) / v_i;
+
+    return 1;
 }
-#endif /* 1 */
 
 /* kd_item */
 
@@ -150,19 +160,18 @@ int kd_item_free(kd_item_t *item) {
 int kd_item_copy(kd_item_t *dst, kd_item_t *src) {
     vectNd_copy(&dst->bb.lower, &src->bb.lower);
     vectNd_copy(&dst->bb.upper, &src->bb.upper);
-    dst->ptr = src->ptr;
+    dst->id = src->id;
+    dst->obj_ptr = src->obj_ptr;
     return 1;
 }
 
 /* kd_item_list */
 
-/* Note: the item list is a list of pointers to kd_item_t structs, and is
- *       maintained in heap order (by pointer value). */
-
 int kd_item_list_init(kd_item_list_t *list) {
     memset(list, '\0', sizeof(kd_item_list_t));
-    list->items = (kd_item_t**)malloc(101*sizeof(kd_item_t));
-    return 1;
+    list->cap = 101;
+    list->items = (kd_item_t**)malloc(list->cap*sizeof(kd_item_t));
+    return (list->items!=NULL);
 }
 
 int kd_item_list_free(kd_item_list_t *list, int free_items) {
@@ -172,67 +181,6 @@ int kd_item_list_free(kd_item_list_t *list, int free_items) {
     }
     free(list->items); list->items = NULL;
     memset(list, '\0', sizeof(kd_item_list_t));
-    return 1;
-}
-
-static int kd_item_list_heapup(kd_item_list_t *list, int pos) {
-    int parent_pos = (pos-1)/2;
-
-    kd_item_t **items = list->items;
-    while( parent_pos>=0 && items[pos] < items[parent_pos] ) {
-        kd_item_t *tmp = items[pos];
-        items[pos] = items[parent_pos];
-        items[parent_pos] = tmp;
-        pos = parent_pos;
-        parent_pos = (pos-1)/2;
-    }
-
-    return 1;
-}
-
-static int kd_item_list_heapdown(kd_item_list_t *list, int pos) {
-    int left_pos = pos*2+1;
-    int right_pos = pos*2+2;
-    if( left_pos >= list->n )
-        return 1;
-
-    kd_item_t *val = list->items[pos];
-    kd_item_t *left = list->items[left_pos];
-
-    int swap_pos = left_pos;
-    if( right_pos < list->n ) {
-        kd_item_t *right = list->items[right_pos];
-        if( left > right ) {
-            swap_pos = right_pos;
-        }
-    }
-
-    kd_item_t **items = list->items;
-    if( val > items[swap_pos]) {
-        kd_item_t *tmp = items[pos];
-        items[pos] = items[swap_pos];
-        items[swap_pos] = tmp;
-
-        kd_item_list_heapdown(list, swap_pos);
-    }
-
-    return 1;
-}
-
-int kd_item_list_min(kd_item_list_t *list, kd_item_t **item) {
-    /* report minimum */
-    *item = list->items[0];
-
-    /* copy last element to root */
-    list->items[0] = list->items[list->n-1];
-
-    /* decrease size by one */
-    --list->n;
-    list->items[list->n] = NULL;
-
-    /* new root item to correct position */
-    kd_item_list_heapdown(list, 0);
-
     return 1;
 }
 
@@ -253,9 +201,6 @@ int kd_item_list_add(kd_item_list_t *list, kd_item_t *item) {
     int pos = list->n++;
     list->items[pos] = item;
 
-    /* restore heap property */
-    kd_item_list_heapup(list, pos);
-
     return 1;
 }
 
@@ -264,19 +209,12 @@ int kd_item_list_remove(kd_item_list_t *list, int idx) {
     if( idx<0 || idx >= list->n )
         return 0;
 
-    /* set idx element to NULL and move it to the root */
-    list->items[idx] = NULL;
-    kd_item_list_heapup(list, idx);
-
-    /* copy last element to the root */
-    list->items[0] = list->items[list->n-1];
+    /* move last element to deleted position */
+    list->items[idx] = list->items[list->n-1];
     list->items[list->n-1] = NULL;
 
     /* descrease number of items */
     --list->n;
-
-    /* heap it back down */
-    kd_item_list_heapdown(list, 0);
 
     return 1;
 }
@@ -323,8 +261,6 @@ static int kd_tree_print_node(kd_node_t *node, int depth) {
     return 1;
 }
 
-/* kd_tree */
-
 static int kd_tree_free_node(kd_node_t *node) {
     if( !node )
         return 0;
@@ -342,6 +278,8 @@ static int kd_tree_free_node(kd_node_t *node) {
     return 1;
 }
 
+/* kd_tree */
+
 int kd_tree_init(kd_tree_t *tree, int dimensions) {
     memset(tree, '\0', sizeof(*tree));
     tree->root = calloc(1, sizeof(kd_node_t));
@@ -351,6 +289,7 @@ int kd_tree_init(kd_tree_t *tree, int dimensions) {
 
 int kd_tree_free(kd_tree_t *tree) {
     kd_tree_free_node(tree->root);
+    free(tree->obj_ptrs); tree->obj_ptrs = NULL;
     tree->root = NULL;
     return 1;
 }
@@ -424,6 +363,8 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     if( !found_split ) {
         return 1;
     }
+    node->dim = split_dim;
+    node->boundary = split_pos;
 
     /* make child nodes */
     node->left = calloc(1, sizeof(kd_node_t));
@@ -476,10 +417,22 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
 
 int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* populate root node with all items */
+    tree->obj_ptrs = calloc(items->n, sizeof(void*));
     for(int i=0; i<items->n; ++i) {
-        kd_item_list_add(&tree->root->items, items->items[i]);
-        aabb_add(&tree->root->bb, &items->items[i]->bb);
+        /* assign id */
+        kd_item_t *item = items->items[i];
+        item->id = i;
+
+        /* assign to master list */
+        tree->obj_ptrs[i] = (void*)item->obj_ptr;
+
+        /* add to top level list */
+        kd_item_list_add(&tree->root->items, item);
+
+        /* adjust top-level AABB */
+        aabb_add(&tree->root->bb, &item->bb);
     }
+    tree->num_objs = items->n;
     //aabb_print(&tree->root->bb);
 
     /* recursively split root node */
@@ -492,38 +445,71 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     return ret;
 }
 
-static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, kd_item_list_t *items) {
+static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, char *ids, double tl, double tu) {
     if( node==NULL )
         return 0;
 
-    /* check for intersection with bb */
-    if( !aabb_intersect(&node->bb, o, v, NULL, NULL) )
-        return 0; /* return if not intersected */
-
-    /* copy items into items list. */
+    /* mark item ids in list. */
+    int node_dim = node->dim;
+    double node_boundary = node->boundary;
     int num = node->items.n;
-    for(int i=0; i<num; ++i)
-        kd_item_list_add(items, node->items.items[i]);
-
-    /* call for children */
-    if( node->left!=NULL ) {
-        //printf("%s: recursing left\n", __FUNCTION__);
-        num += kd_node_intersect(node->left, o, v, items);
+    kd_item_t **items = node->items.items;
+    for(int i=0; i<num; ++i) {
+        int id = items[i]->id;
+        ids[id] = 1;
     }
-    if( node->right!=NULL ) {
-        //printf("%s: recursing right\n", __FUNCTION__);
-        num += kd_node_intersect(node->right, o, v, items);
+
+    /* adjust for direction of v in split dimension */
+    double v_dim;
+    kd_node_t *near = node->left, *far = node->right;
+    vectNd_get(v, node_dim, &v_dim);
+    if( v_dim < -EPSILON ) {
+        near = node->right;
+        far = node->left;
+    }
+
+    /* check for intersection with bb */
+    double tp;
+    if( ray_plane_intersect(o, v, node_dim, node_boundary, &tp) ) {
+        /* use t values to identify children to recurse to */
+        if( tu < tp-EPSILON ) {
+            /* recurse to near sub-AABB with tl and tu */
+            num += kd_node_intersect(near, o, v, ids, tl, tu);
+        } else if( tl > tp+EPSILON ) {
+            /* recurse to far sub-AABB with tl and tu */
+            num += kd_node_intersect(far, o, v, ids, tl, tu);
+        } else {
+            /* ray crosses dividing plane inside AABB,
+             * recurse both directions, using tl,tp and tp,tu */
+            num += kd_node_intersect(near, o, v, ids, tl, tp+EPSILON);
+            num += kd_node_intersect(far, o, v, ids, tp-EPSILON, tu);
+        }
+    } else {
+        /* plane is parallel to v, compare o_dim and pos */
+        double o_dim;
+        vectNd_get(o, node_dim, &o_dim);
+        if( o_dim < node->boundary+EPSILON ) {
+            /* recurse left with tl and tu */
+            num += kd_node_intersect(near, o, v, ids, tl, tu);
+        }
+        if( o_dim > node->boundary-EPSILON ) {
+            /* recurse right with tl and tu */
+            num += kd_node_intersect(far, o, v, ids, tl, tu);
+        }
     }
 
     return num;
 }
 
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, kd_item_list_t *items) {
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask) {
     /* find all leaf nodes that ray o+x*v cross, and return items they contain */
     if( !tree ) {
         printf("tree is null.\n");
         return 0;
     }
-    return kd_node_intersect(tree->root, o, v, items);
+    double tl, tu;
+    if( aabb_intersect(&tree->root->bb, o, v, &tl, &tu) )
+        return kd_node_intersect(tree->root, o, v, obj_mask, tl, tu);
+    return 0;
 }
 
