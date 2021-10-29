@@ -126,23 +126,6 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, doub
     return (tu >= -EPSILON) && (tl <= tu);
 }
 
-/* find t where o+v*t crossed an axis-aligned plane x_dim=pos. */
-static inline int ray_plane_intersect(vectNd *o, vectNd *v, int dim, double pos, double *t) {
-    
-    double v_i, o_i;
-    vectNd_get(v, dim, &v_i);
-
-    if( fabs(v_i) < EPSILON2 ) {
-        /* v is parallel to plane */
-        return 0; /* t would be inf or -inf */
-    }
-
-    vectNd_get(o, dim, &o_i);
-    *t = (pos - o_i) / v_i;
-
-    return 1;
-}
-
 /* kd_item */
 
 int kd_item_init(kd_item_t *item, int dimensions) {
@@ -169,7 +152,7 @@ int kd_item_copy(kd_item_t *dst, kd_item_t *src) {
 
 int kd_item_list_init(kd_item_list_t *list) {
     memset(list, '\0', sizeof(kd_item_list_t));
-    list->cap = 101;
+    list->cap = 1;
     list->items = (kd_item_t**)malloc(list->cap*sizeof(kd_item_t));
     return (list->items!=NULL);
 }
@@ -445,60 +428,69 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     return ret;
 }
 
-static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, char *ids, double tl, double tu) {
+#define INV_EPSILON (1.0/(EPSILON))
+#define INV_EPSILON2 (1.0/(EPSILON2))
+
+static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v_inv, char *ids, double tl, double tu) {
     if( node==NULL )
         return 0;
 
+    kd_node_t lnode;
+    memcpy(&lnode, node, sizeof(*node));
+    int node_dim = lnode.dim;
+    double node_boundary = lnode.boundary;
+
+    /* adjust for direction of v in split dimension */
+    double v_inv_i, o_i;
+    kd_node_t *near = lnode.left, *far = lnode.right;
+    vectNd_get(v_inv, node_dim, &v_inv_i);
+    vectNd_get(o, node_dim, &o_i);
+    if( v_inv_i < EPSILON2 ) {
+        near = lnode.right;
+        far = lnode.left;
+    }
+
+    /* check for intersection with bb */
+    if( -INV_EPSILON2 <= v_inv_i && v_inv_i <= INV_EPSILON2 ) {
+        /* compute intersection with dividing plane */
+        /* find t where o+v*t crossed an axis-aligned plane x_dim=pos. */
+        double tp = (node_boundary - o_i) * v_inv_i;
+
+        /* use t values to identify children to recurse to */
+        if( tu < tp-EPSILON ) {
+            /* recurse to near sub-AABB with tl and tu */
+            kd_node_intersect(near, o, v_inv, ids, tl, tu);
+        } else if( tl > tp+EPSILON ) {
+            /* recurse to far sub-AABB with tl and tu */
+            kd_node_intersect(far, o, v_inv, ids, tl, tu);
+        } else {
+            /* ray crosses dividing plane inside AABB,
+             * recurse both directions, using tl,tp and tp,tu */
+            kd_node_intersect(near, o, v_inv, ids, tl, tp+EPSILON);
+            kd_node_intersect(far, o, v_inv, ids, tp-EPSILON, tu);
+        }
+    } else {
+        /* plane is parallel to v, compare o_dim and pos */
+        if( o_i < node_boundary+EPSILON ) {
+            /* recurse left with tl and tu */
+            kd_node_intersect(near, o, v_inv, ids, tl, tu);
+        }
+        if( o_i > node_boundary-EPSILON ) {
+            /* recurse right with tl and tu */
+            kd_node_intersect(far, o, v_inv, ids, tl, tu);
+        }
+    }
+
     /* mark item ids in list. */
-    int node_dim = node->dim;
-    double node_boundary = node->boundary;
-    int num = node->items.n;
-    kd_item_t **items = node->items.items;
+    int num = lnode.items.n;
+    kd_item_t **items = lnode.items.items;
     for(int i=0; i<num; ++i) {
+        #warning "This should be a list of just ids for better cache performance!"
         int id = items[i]->id;
         ids[id] = 1;
     }
 
-    /* adjust for direction of v in split dimension */
-    double v_dim;
-    kd_node_t *near = node->left, *far = node->right;
-    vectNd_get(v, node_dim, &v_dim);
-    if( v_dim < -EPSILON ) {
-        near = node->right;
-        far = node->left;
-    }
-
-    /* check for intersection with bb */
-    double tp;
-    if( ray_plane_intersect(o, v, node_dim, node_boundary, &tp) ) {
-        /* use t values to identify children to recurse to */
-        if( tu < tp-EPSILON ) {
-            /* recurse to near sub-AABB with tl and tu */
-            num += kd_node_intersect(near, o, v, ids, tl, tu);
-        } else if( tl > tp+EPSILON ) {
-            /* recurse to far sub-AABB with tl and tu */
-            num += kd_node_intersect(far, o, v, ids, tl, tu);
-        } else {
-            /* ray crosses dividing plane inside AABB,
-             * recurse both directions, using tl,tp and tp,tu */
-            num += kd_node_intersect(near, o, v, ids, tl, tp+EPSILON);
-            num += kd_node_intersect(far, o, v, ids, tp-EPSILON, tu);
-        }
-    } else {
-        /* plane is parallel to v, compare o_dim and pos */
-        double o_dim;
-        vectNd_get(o, node_dim, &o_dim);
-        if( o_dim < node->boundary+EPSILON ) {
-            /* recurse left with tl and tu */
-            num += kd_node_intersect(near, o, v, ids, tl, tu);
-        }
-        if( o_dim > node->boundary-EPSILON ) {
-            /* recurse right with tl and tu */
-            num += kd_node_intersect(far, o, v, ids, tl, tu);
-        }
-    }
-
-    return num;
+    return 1;
 }
 
 int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask) {
@@ -508,8 +500,24 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask) {
         return 0;
     }
     double tl, tu;
+    int ret = 0;
+    int dimensions = v->n;
+    vectNd v_inv;
+    vectNd_alloc(&v_inv, dimensions);
+    for(int i=0; i<dimensions; ++i) {
+        double v_i, v_inv_i;
+        vectNd_get(v, i, &v_i);
+        if( v_i < EPSILON2 && v_i >= 0.0 )
+            v_inv_i = INV_EPSILON2;
+        else if( v_i > -EPSILON2 && v_i <= 0.0 )
+            v_inv_i = -INV_EPSILON2;
+        else
+            v_inv_i = 1.0/v_i;
+        vectNd_set(&v_inv, i, v_inv_i);
+    }
     if( aabb_intersect(&tree->root->bb, o, v, &tl, &tu) )
-        return kd_node_intersect(tree->root, o, v, obj_mask, tl, tu);
-    return 0;
+        ret = kd_node_intersect(tree->root, o, &v_inv, obj_mask, tl, tu);
+    vectNd_free(&v_inv);
+    return ret;
 }
 
