@@ -204,11 +204,9 @@ int kd_item_list_remove(kd_item_list_t *list, int idx) {
 
 /* kd_node */
 
-int kd_node_init(kd_node_t *node, int dimensions) {
+int kd_node_init(kd_node_t *node) {
     memset(node, '\0', sizeof(kd_node_t));
     node->dim = -1; /* mark as unspecified */
-    kd_item_list_init(&node->items);
-    aabb_init(&node->bb, dimensions);
     return 1;
 }
 
@@ -221,8 +219,6 @@ int kd_node_free(kd_node_t *node) {
         kd_node_free(node->right);
         node->right = NULL;
     }
-    kd_item_list_free(&node->items, 0);
-    aabb_free(&node->bb);
     return 1;
 }
 
@@ -233,7 +229,7 @@ static int kd_tree_print_node(kd_node_t *node, int depth) {
         return 0;
     memset(padding, ' ', pad_n*sizeof(char));
 
-    printf("%sdim: %i; items: %i\n", padding, node->dim, node->items.n);
+    printf("%sdim: %i; boundary: %g; items: %i\n", padding, node->dim, node->boundary, node->num);
     if( node->left )
         kd_tree_print_node(node->left, depth+1);
     if( node->right )
@@ -266,7 +262,8 @@ static int kd_tree_free_node(kd_node_t *node) {
 int kd_tree_init(kd_tree_t *tree, int dimensions) {
     memset(tree, '\0', sizeof(*tree));
     tree->root = calloc(1, sizeof(kd_node_t));
-    kd_node_init(tree->root, dimensions);
+    kd_node_init(tree->root);
+    aabb_init(&tree->bb, dimensions);
     return 1;
 }
 
@@ -303,14 +300,12 @@ static int kdtree_split_score(kd_item_list_t *items, int dim, double pos, double
     return (left_num>0 && right_num>0)?1:0;
 }
 
-static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per_node) {
+static int kd_tree_split_node(kd_node_t *node, kd_item_list_t *items, int levels_remaining, int min_per_node, int dimensions) {
 
-    int dimensions = node->bb.lower.n;
-
-    if( levels_remaining == 0 || node->items.n < min_per_node ) {
+    if( levels_remaining == 0 || node->num < min_per_node ) {
         printf("giving up on line %d.\n", __LINE__);
         printf("  levels_remaining: %i\n", levels_remaining);
-        printf("  node->items.n: %i\n", node->items.n);
+        printf("  node->items.n: %i\n", node->num);
         printf("  min_per_node: %i\n", min_per_node);
         return 1;
     }
@@ -321,12 +316,12 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     double split_score = -DBL_MAX, best_score = -DBL_MAX;
     int found_split = 0;
     for(int cand_dim=0; cand_dim<dimensions; ++cand_dim) {
-        for(int i=0; i<node->items.n; ++i) {
+        for(int i=0; i<items->n; ++i) {
             double il, iu;
-            vectNd_get(&node->items.items[i]->bb.lower, cand_dim, &il);
-            vectNd_get(&node->items.items[i]->bb.upper, cand_dim, &iu);
+            vectNd_get(&items->items[i]->bb.lower, cand_dim, &il);
+            vectNd_get(&items->items[i]->bb.upper, cand_dim, &iu);
             double cand_pos = il-2*EPSILON;
-            if( kdtree_split_score(&node->items, cand_dim, cand_pos, &split_score)
+            if( kdtree_split_score(items, cand_dim, cand_pos, &split_score)
                 && split_score > best_score) {
                 split_dim = cand_dim;
                 split_pos = cand_pos;
@@ -334,7 +329,7 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
                 found_split = 1;
             }
             cand_pos = iu+2*EPSILON;
-            if( kdtree_split_score(&node->items, cand_dim, cand_pos, &split_score)
+            if( kdtree_split_score(items, cand_dim, cand_pos, &split_score)
                 && split_score > best_score) {
                 split_dim = cand_dim;
                 split_pos = cand_pos;
@@ -344,6 +339,14 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
         }
     }
     if( !found_split ) {
+        /* record object ids in leaf nodes */
+        node->num = items->n;
+        node->dim = -1;
+        node->boundary = 0.0;
+        node->obj_ids = calloc(node->num, sizeof(int*));
+        for(int i=0; i<node->num; ++i) {
+            node->obj_ids[i] = items->items[i]->id;
+        }
         return 1;
     }
     node->dim = split_dim;
@@ -352,48 +355,37 @@ static int kd_tree_split_node(kd_node_t *node, int levels_remaining, int min_per
     /* make child nodes */
     node->left = calloc(1, sizeof(kd_node_t));
     node->right = calloc(1, sizeof(kd_node_t));
-    kd_node_init(node->left, dimensions);
-    kd_node_init(node->right, dimensions);
-
-    /* set bounding boxes for child nodes */
-    aabb_copy(&node->left->bb, &node->bb);
-    aabb_copy(&node->right->bb, &node->bb);
-    vectNd_set(&node->left->bb.upper, split_dim, split_pos);
-    vectNd_set(&node->right->bb.lower, split_dim, split_pos);
-    #if 0
-    printf("Split node at %g in dimension %i\n", split_pos, split_dim);
-    aabb_print(&node->left->bb);
-    aabb_print(&node->right->bb);
-    #endif /* 0 */
+    kd_node_init(node->left);
+    kd_node_init(node->right);
 
     /* assign items to child nodes */
-    for(int i=0; i<node->items.n; ++i) {
+    kd_item_list_t left_items, right_items;
+    kd_item_list_init(&left_items);
+    kd_item_list_init(&right_items);
+    for(int i=0; i<items->n; ++i) {
         double il, iu;
-        vectNd_get(&node->items.items[i]->bb.lower, split_dim, &il);
-        vectNd_get(&node->items.items[i]->bb.upper, split_dim, &iu);
+        vectNd_get(&items->items[i]->bb.lower, split_dim, &il);
+        vectNd_get(&items->items[i]->bb.upper, split_dim, &iu);
         if( iu < split_pos-EPSILON ) {
-            kd_item_list_add(&node->left->items, node->items.items[i]);
-            kd_item_list_remove(&node->items, i);
-            --i;
+            kd_item_list_add(&left_items, items->items[i]);
         } else if( il > split_pos+EPSILON ) {
-            kd_item_list_add(&node->right->items, node->items.items[i]);
-            kd_item_list_remove(&node->items, i);
-            --i;
+            kd_item_list_add(&right_items, items->items[i]);
         } else {
-            kd_item_list_add(&node->left->items, node->items.items[i]);
-            kd_item_list_add(&node->right->items, node->items.items[i]);
-            kd_item_list_remove(&node->items, i);
-            --i;
+            kd_item_list_add(&left_items, items->items[i]);
+            kd_item_list_add(&right_items, items->items[i]);
         }
     }
 
     /* recurse to children only if useful split occured */
     node->left->dim = (node->dim+1)%dimensions;
     node->right->dim = (node->dim+1)%dimensions;
-    if( node->left->items.n > 0 && node->right->items.n > 0 ) {
-        kd_tree_split_node(node->left, levels_remaining-1, min_per_node);
-        kd_tree_split_node(node->right, levels_remaining-1, min_per_node);
+    if( left_items.n > 0 && right_items.n > 0 ) {
+        /* try to recursively split new leaves */
+        kd_tree_split_node(node->left, &left_items, levels_remaining-1, min_per_node, dimensions);
+        kd_tree_split_node(node->right, &right_items, levels_remaining-1, min_per_node, dimensions);
     }
+    kd_item_list_free(&left_items, 0);
+    kd_item_list_free(&right_items, 0);
 
     return 0;
 }
@@ -409,21 +401,19 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
         /* assign to master list */
         tree->obj_ptrs[i] = (void*)item->obj_ptr;
 
-        /* add to top level list */
-        kd_item_list_add(&tree->root->items, item);
-
         /* adjust top-level AABB */
-        aabb_add(&tree->root->bb, &item->bb);
+        aabb_add(&tree->bb, &item->bb);
     }
     tree->num_objs = items->n;
-    //aabb_print(&tree->root->bb);
+    aabb_print(&tree->bb);
 
     /* recursively split root node */
     tree->root->dim = 0;
-    //printf("building k-d tree with %d items.\n", items->n);
+    printf("building k-d tree with %d items.\n", items->n);
     int ret = 1;
-    ret = kd_tree_split_node(tree->root, -1, -1);
-    //ret = kd_tree_split_node(tree->root, 1, 1);
+    int dimensions = tree->bb.lower.n;
+    ret = kd_tree_split_node(tree->root, items, -1, -1, dimensions);
+    //ret = kd_tree_split_node(tree->root, items, 1, 1, dimensions);
     //kd_tree_print(tree);
     return ret;
 }
@@ -439,6 +429,19 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v_inv, char *id
     memcpy(&lnode, node, sizeof(*node));
     int node_dim = lnode.dim;
     double node_boundary = lnode.boundary;
+
+    if( lnode.dim < 0 ) {
+        /* is a leaf */
+        /* mark item ids in list. */
+        int *obj_ids = lnode.obj_ids;
+        int num = lnode.num;
+        for(int i=0; i<num; ++i) {
+            int id = obj_ids[i];
+            ids[id] = 1;
+        }
+
+        return 1;
+    }
 
     /* adjust for direction of v in split dimension */
     double v_inv_i, o_i;
@@ -481,15 +484,6 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v_inv, char *id
         }
     }
 
-    /* mark item ids in list. */
-    int num = lnode.items.n;
-    kd_item_t **items = lnode.items.items;
-    for(int i=0; i<num; ++i) {
-        #warning "This should be a list of just ids for better cache performance!"
-        int id = items[i]->id;
-        ids[id] = 1;
-    }
-
     return 1;
 }
 
@@ -515,7 +509,7 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask) {
             v_inv_i = 1.0/v_i;
         vectNd_set(&v_inv, i, v_inv_i);
     }
-    if( aabb_intersect(&tree->root->bb, o, v, &tl, &tu) )
+    if( aabb_intersect(&tree->bb, o, v, &tl, &tu) )
         ret = kd_node_intersect(tree->root, o, &v_inv, obj_mask, tl, tu);
     vectNd_free(&v_inv);
     return ret;

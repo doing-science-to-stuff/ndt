@@ -49,20 +49,22 @@ int kd_item_list_min(kd_item_list_t *list, kd_item_t **item);
 /* kd_node */
 
 typedef struct kd_node {
-    aabb_t bb;
     struct kd_node *left, *right;
     int dim;
     double boundary;
-    kd_item_list_t items;
+    int num;
+    int *obj_ids;
 } kd_node_t;
 
-int kd_node_init(kd_node_t *node, int dimensions);
+int kd_node_init(kd_node_t *node);
 int kd_node_free(kd_node_t *node);
 
 /* kd_tree */
 
 typedef struct kd_tree {
+    aabb_t bb;
     void **obj_ptrs;
+    int *ids;
     int num_objs;
     kd_node_t *root;
 } kd_tree_t;
