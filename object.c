@@ -656,15 +656,15 @@ int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
     bounds_node *curr = points.head;
     while( curr!=NULL ) {
         /* account for the radius of cluster */
-        vectNd_fill(&radiuses, curr->bounds.radius);
-        for(int j=0; j<obj->dimensions; ++j) {
-            vectNd_copy(&with_radius, &curr->bounds.center);
-            vectNd_add(&curr->bounds.center, &radiuses, &with_radius);
-            aabb_add_point(&item->bb, &curr->bounds.center);
-            vectNd_copy(&with_radius, &curr->bounds.center);
-            vectNd_sub(&curr->bounds.center, &radiuses, &with_radius);
-            aabb_add_point(&item->bb, &curr->bounds.center);
-        }
+        vectNd_fill(&radiuses, fabs(curr->bounds.radius));
+
+        vectNd_copy(&with_radius, &curr->bounds.center);
+        vectNd_add(&curr->bounds.center, &radiuses, &with_radius);
+        aabb_add_point(&item->bb, &curr->bounds.center);
+
+        vectNd_copy(&with_radius, &curr->bounds.center);
+        vectNd_sub(&curr->bounds.center, &radiuses, &with_radius);
+        aabb_add_point(&item->bb, &curr->bounds.center);
 
         curr = curr->next;
     }
