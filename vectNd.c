@@ -12,6 +12,7 @@
 #include "vectNd.h"
 #include "matrix.h"
 
+#if 0
 int vectNd_fill(vectNd *v, double val)
 {
     int i=0;
@@ -54,6 +55,7 @@ int vectNd_setStr(vectNd *v, char *str)
     free(lstr); lstr=NULL;
     return VECTND_SUCCESS;
 }
+#endif /* 0? */
 
 /* this requires dimmensions-1 vectors */
 int vectNd_cross(vectNd *vects, vectNd *res)

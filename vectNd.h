@@ -35,12 +35,12 @@ typedef struct vectNd_t
     int n;
 } __attribute__((__aligned__(16))) vectNd;
 
+#ifdef WITHOUT_INLINE
 int vectNd_fill(vectNd *v, double val);
 int vectNd_get(vectNd *v, int pos, double *val);
 int vectNd_set(vectNd *v, int pos, double val);
 int vectNd_setStr(vectNd *v, char *str);
 
-#ifdef WITHOUT_INLINE
 int vectNd_alloc(vectNd *v, int dim);
 int vectNd_calloc(vectNd *v, int dim);
 int vectNd_free(vectNd *v);
@@ -72,7 +72,8 @@ int vectNd_rotate2(vectNd *v, vectNd *center, vectNd *v1, vectNd *v2, double ang
 int vectNd_print(vectNd *v, char *name);
 
 #ifndef WITHOUT_INLINE
-#define __STATIC_INLINE__ static inline
+//#define __STATIC_INLINE__ static inline
+#define __STATIC_INLINE__ static inline __attribute__((__always_inline__))
 #include "vectNd_inline.h"
 #else
 #define __STATIC_INLINE__
