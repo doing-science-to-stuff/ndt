@@ -35,7 +35,7 @@ find_package(MPI)
 if(MSVC)
     string(REGEX REPLACE "/W[1-3]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    add_compile_options(-Wall -Wextra -pedantic -Werror -g3)
 endif()
 
 # add the binary tree to the search path for include files
