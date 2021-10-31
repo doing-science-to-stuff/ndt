@@ -94,10 +94,6 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, doub
         vectNd_get(&bb->upper, i, &bbu_i);
 
         if( fabs(v_i) < EPSILON2 ) {
-            #if 0
-            if( o_i < bbl_i-EPSILON || o_i > bbu_i+EPSILON )
-                return 0;
-            #endif /* 0? */
             continue;
         }
 
