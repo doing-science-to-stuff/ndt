@@ -2,7 +2,7 @@
 # CMakeLists.txt
 # ndt: n-dimensional tracer
 #
-# Copyright (c) 2019 Bryan Franklin. All rights reserved.
+# Copyright (c) 2019-2021 Bryan Franklin. All rights reserved.
 #
 cmake_minimum_required(VERSION 2.8)
 project (ndt)

@@ -2,7 +2,7 @@
  * hdisk.c
  * ndt: n-dimensional tracer
  *
- * Copyright (c) 2019-2020 Bryan Franklin. All rights reserved.
+ * Copyright (c) 2019-2021 Bryan Franklin. All rights reserved.
  */
 #include <stdlib.h>
 #include <stdio.h>

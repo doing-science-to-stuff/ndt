@@ -2,7 +2,7 @@
  * map.c
  * ndt: n-dimensional tracer
  *
- * Copyright (c) 2019 Bryan Franklin. All rights reserved.
+ * Copyright (c) 2019-2021 Bryan Franklin. All rights reserved.
  */
 #include <stdio.h>
 #include <pthread.h>

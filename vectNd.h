@@ -2,7 +2,7 @@
  * vectNd.h
  * ndt: n-dimensional tracer
  *
- * Copyright (c) 2019 Bryan Franklin. All rights reserved.
+ * Copyright (c) 2019-2021 Bryan Franklin. All rights reserved.
  */
 #ifndef VECTND_H
 #define VECTND_H

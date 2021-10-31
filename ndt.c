@@ -2,7 +2,7 @@
  * ndt.c
  * ndt: n-dimensional tracer
  *
- * Copyright (c) 2014-2020 Bryan Franklin. All rights reserved.
+ * Copyright (c) 2014-2021 Bryan Franklin. All rights reserved.
  */
 
 #include <stdio.h>
