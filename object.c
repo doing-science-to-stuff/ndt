@@ -629,7 +629,7 @@ static inline int vect_object_intersect(object *obj, vectNd *o, vectNd *v, vectN
     return ret;
 }
 
-#ifdef WITH_KDTREE
+#ifndef WITHOUT_KDTREE
 int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
 
     /* recurse into clusters */
@@ -698,7 +698,7 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
 
     return ret;
 }
-#endif /* WITH_KDTREE */
+#endif /* !WITHOUT_KDTREE */
 
 int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
     double min_dist = -1;

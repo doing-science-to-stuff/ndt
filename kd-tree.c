@@ -4,9 +4,11 @@
  *
  * Copyright (c) 2021 Bryan Franklin. All rights reserved.
  */
-#include "kd-tree.h"
 #include <float.h>
 #include <stdio.h>
+
+#ifndef WITHOUT_KDTREE
+#include "kd-tree.h"
 
 /* aabb */
 
@@ -508,9 +510,10 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask) {
             v_inv_i = 1.0/v_i;
         vectNd_set(&v_inv, i, v_inv_i);
     }
+    /* TODO: aabb_intersect should be faster using v_inv */
     if( aabb_intersect(&tree->bb, o, v, &tl, &tu) )
         ret = kd_node_intersect(tree->root, o, &v_inv, obj_mask, tl, tu);
     vectNd_free(&v_inv);
     return ret;
 }
-
+#endif /* !WITHOUT_KDTREE */

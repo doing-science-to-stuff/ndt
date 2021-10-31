@@ -2,15 +2,15 @@
  * object.h
  * ndt: n-dimensional tracer
  *
- * Copyright (c) 2019 Bryan Franklin. All rights reserved.
+ * Copyright (c) 2019-2021 Bryan Franklin. All rights reserved.
  */
 #ifndef OBJECT_H
 #define OBJECT_H
 #include "vectNd.h"
 #include "bounding.h"
-#ifdef WITH_KDTREE
+#ifndef WITHOUT_KDTREE
 #include "kd-tree.h"
-#endif /* WITH_KDTREE */
+#endif /* !WITHOUT_KDTREE */
 
 #define EPSILON (1e-4)
 #ifndef EPSILON2
@@ -112,10 +112,10 @@ int object_rotate2(object * obj, vectNd *center, vectNd *v1, vectNd *v2, double 
 int object_get_bounds(object *obj);
 
 /* tracing rays to objects */
-#ifdef WITH_KDTREE
+#ifndef WITHOUT_KDTREE
 int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id);
 int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit);
-#endif /* WITH_KDTREE */
+#endif /* !WITHOUT_KDTREE */
 int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit);
 
 #endif /* OBJECT_H */

@@ -1,3 +1,4 @@
+#ifndef WITHOUT_KDTREE
 /*
  * kd-tree.h
  * ndt: n-dimensional tracer
@@ -76,3 +77,4 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items);
 int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask);
 
 #endif /* KD_TREE_H */
+#endif /* !WITHOUT_KDTREE */
