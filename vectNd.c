@@ -12,51 +12,6 @@
 #include "vectNd.h"
 #include "matrix.h"
 
-#if 0
-int vectNd_fill(vectNd *v, double val)
-{
-    int i=0;
-    #if defined(__SSE__) && !defined(WITHOUT_SSE)
-    int k=(v->n+1)/2;
-    for(i=0; i<k; ++i)
-        vectNd_SSE(v)[i] = _mm_set1_pd(val);
-    #else
-    for(i=0; i<v->n; ++i)
-        v->v[i] = val;
-    #endif /* __SSE__ */
-    return VECTND_SUCCESS;
-}
-
-int vectNd_get(vectNd *v, int pos, double *val) {
-    if( pos<0 || pos >= v->n )
-        return VECTND_FAIL;
-    *val = v->v[pos];
-    return VECTND_SUCCESS;
-}
-
-int vectNd_set(vectNd *v, int pos, double val)
-{
-    if( pos<0 || pos >= v->n )
-        return VECTND_FAIL;
-    v->v[pos] = val;
-    return VECTND_SUCCESS;
-}
-
-int vectNd_setStr(vectNd *v, char *str)
-{
-    int pos=0;
-    char *lstr = strdup(str);
-    char *lasts=NULL;
-    char *a = strtok_r(lstr,",",&lasts);
-    while( a!=NULL ) {
-        vectNd_set(v,pos++,atof(a));
-        a = strtok_r(NULL,",",&lasts);
-    }
-    free(lstr); lstr=NULL;
-    return VECTND_SUCCESS;
-}
-#endif /* 0? */
-
 /* this requires dimmensions-1 vectors */
 int vectNd_cross(vectNd *vects, vectNd *res)
 {
