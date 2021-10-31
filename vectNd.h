@@ -173,6 +173,45 @@ static forceinline int vectNd_reset(vectNd *v)
     return VECTND_SUCCESS;
 }
 
+static forceinline void vectNd_min(vectNd *v, double *res) {
+    int dim = v->n;
+    int i;
+    double *vv = v->v;
+    double min = vv[0];
+    for(i=1; i<dim; ++i) {
+        double vvi = vv[i];
+        min = (vvi<min)?(vvi):(min);
+    }
+    *res = min;
+}
+
+static forceinline void vectNd_max(vectNd *v, double *res) {
+    int dim = v->n;
+    int i;
+    double *vv = v->v;
+    double max = vv[0];
+    for(i=1; i<dim; ++i) {
+        double vvi = vv[i];
+        max = (vvi>max)?(vvi):(max);
+    }
+    *res = max;
+}
+
+static forceinline void vectNd_mul(vectNd *v1, vectNd *v2, vectNd *res) {
+    int dim = v1->n;
+    int i;
+    double *v1v;
+    double *v2v;
+    double *r;
+
+    v1v = v1->v;
+    v2v = v2->v;
+    r = res->v;
+    for(i=0; i<dim; ++i) {
+        r[i] = v1v[i] * v2v[i];
+    }
+}
+
 static forceinline void vectNd_dot(vectNd *v1, vectNd *v2, double *res)
 {
     #if defined(__SSE__) && !defined(WITHOUT_SSE)
