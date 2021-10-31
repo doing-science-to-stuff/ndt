@@ -425,16 +425,13 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v_inv, char *id
     if( node==NULL )
         return 0;
 
-    kd_node_t lnode;
-    memcpy(&lnode, node, sizeof(*node));
-    int node_dim = lnode.dim;
-    double node_boundary = lnode.boundary;
+    int node_dim = node->dim;
 
-    if( lnode.dim < 0 ) {
+    if( node_dim < 0 ) {
         /* is a leaf */
         /* mark item ids in list. */
-        int *obj_ids = lnode.obj_ids;
-        int num = lnode.num;
+        int *obj_ids = node->obj_ids;
+        int num = node->num;
         for(int i=0; i<num; ++i) {
             int id = obj_ids[i];
             ids[id] = 1;
@@ -444,13 +441,15 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v_inv, char *id
     }
 
     /* adjust for direction of v in split dimension */
+    double node_boundary = node->boundary;
     double v_inv_i, o_i;
-    kd_node_t *near = lnode.left, *far = lnode.right;
+    kd_node_t *near = node->left, *far = node->right;
     vectNd_get(v_inv, node_dim, &v_inv_i);
     vectNd_get(o, node_dim, &o_i);
     if( v_inv_i < EPSILON2 ) {
-        near = lnode.right;
-        far = lnode.left;
+        kd_node_t *tmp = near;
+        near = far;
+        far = tmp;
     }
 
     /* check for intersection with bb */
