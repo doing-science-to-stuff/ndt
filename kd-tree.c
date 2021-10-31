@@ -102,6 +102,7 @@ static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, doub
         }
 
         double tl_i, tu_i;
+        /* TODO: do this subtraction as vector ops outside of loop. */
         tl_i = (bbl_i - o_i) / v_i;
         tu_i = (bbu_i - o_i) / v_i;
         if( tl_i > tu_i ) {
@@ -415,8 +416,6 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     int ret = 1;
     int dimensions = tree->bb.lower.n;
     ret = kd_tree_split_node(tree->root, items, -1, -1, dimensions);
-    //ret = kd_tree_split_node(tree->root, items, 1, 1, dimensions);
-    //kd_tree_print(tree);
     return ret;
 }
 
