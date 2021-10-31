@@ -1,10 +1,10 @@
-#ifndef WITHOUT_KDTREE
 /*
  * kd-tree.h
  * ndt: n-dimensional tracer
  *
  * Copyright (c) 2021 Bryan Franklin. All rights reserved.
  */
+#ifndef WITHOUT_KDTREE
 #ifndef KD_TREE_H
 #define KD_TREE_H
 
