@@ -660,11 +660,11 @@ int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
 
         vectNd_copy(&with_radius, &curr->bounds.center);
         vectNd_add(&curr->bounds.center, &radiuses, &with_radius);
-        aabb_add_point(&item->bb, &curr->bounds.center);
+        aabb_add_point(&item->bb, &with_radius);
 
         vectNd_copy(&with_radius, &curr->bounds.center);
         vectNd_sub(&curr->bounds.center, &radiuses, &with_radius);
-        aabb_add_point(&item->bb, &curr->bounds.center);
+        aabb_add_point(&item->bb, &with_radius);
 
         curr = curr->next;
     }
