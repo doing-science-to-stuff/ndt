@@ -644,10 +644,11 @@ int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
 
     /* add non-clusters */
     kd_item_t *item = calloc(1, sizeof(kd_item_t));
-    kd_item_init(item, obj->dimensions);
+    int dimensions = obj->dimensions;
+    kd_item_init(item, dimensions);
     vectNd radiuses, with_radius;
-    vectNd_alloc(&radiuses, obj->dimensions);
-    vectNd_alloc(&with_radius, obj->dimensions);
+    vectNd_alloc(&radiuses, dimensions);
+    vectNd_alloc(&with_radius, dimensions);
 
     bounds_list points;
     bounds_list_init(&points);
