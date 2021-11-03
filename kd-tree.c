@@ -218,6 +218,8 @@ int kd_node_free(kd_node_t *node) {
         kd_node_free(node->right);
         node->right = NULL;
     }
+    free(node->obj_ids); node->obj_ids=NULL;
+    free(node); node=NULL;
     return 1;
 }
 
@@ -267,8 +269,10 @@ int kd_tree_init(kd_tree_t *tree, int dimensions) {
 }
 
 int kd_tree_free(kd_tree_t *tree) {
-    kd_tree_free_node(tree->root);
+    kd_tree_free_node(tree->root);  tree->root=NULL;
+    aabb_free(&tree->bb);
     free(tree->obj_ptrs); tree->obj_ptrs = NULL;
+    free(tree->ids); tree->ids = NULL;
     tree->root = NULL;
     return 1;
 }

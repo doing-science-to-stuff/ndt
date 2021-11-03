@@ -177,6 +177,12 @@ int vectNd_refract(vectNd *u, vectNd *n, vectNd *res, double index)
     vectNd_scale(&np,rp,&ref_p);
 
     vectNd_add(&ref_n,&ref_p,res);
+    vectNd_free(&un);
+    vectNd_free(&np);
+    vectNd_free(&ref_n);
+    vectNd_free(&ref_p);
+    vectNd_free(&rev_n);
+    vectNd_free(&rev_u);
 
     return VECTND_SUCCESS;
 }

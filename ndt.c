@@ -1393,10 +1393,10 @@ int main(int argc, char **argv)
     int last_frame = -1;
     scene scn;
     char fname[NAME_MAX];
-    char dname[NAME_MAX];
-    char dname2[NAME_MAX];
+    char dname[128];
+    char dname2[145];
     char depth_dname[NAME_MAX];
-    char res_str[24];
+    char res_str[16];
     stereo_mode stereo = MONO;
     char *mode_str = "";
     char *cam_str = "";
@@ -1924,6 +1924,11 @@ int main(int argc, char **argv)
             printf("rendering frame %i/%i \n", i, frames);
             #endif /* WITH_MPI */
             render_image(&scn, fname, depth_fname, width, height, samples, stereo, threads, aa_diff, aa_depth, max_optic_depth, img, depth_img);
+
+            #ifndef WITHOUT_KDTREE
+            kd_item_list_free(&kditems, 1);
+            kd_tree_free(&kdtree);
+            #endif /* !WITHOUT_KDTREE */
 
         #ifdef WITH_MPI
             if( mpiRank!=0 && (mpi_mode == MPI_MODE_FRAME || mpi_mode == MPI_MODE_FRAME2) ) {
