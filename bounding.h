@@ -14,7 +14,7 @@ typedef struct bounding_sphere_t
     vectNd center;
     double radius;
 
-    int prepared:1;
+    unsigned int prepared:1;
     double radius_sqr;
 } bounding_sphere;
 
