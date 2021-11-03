@@ -110,7 +110,7 @@ static int add_faces(object *cube, int m) {
             fprintf(stderr, "%i-dimensional face shouldn't be requested.\n", m);
             exit(1);
         }
-        snprintf(obj->name, sizeof(obj->name), "%id face %i of %s", m, f, cube->name);
+        snprintf(obj->name, sizeof(obj->name), "%id face %i", m, f);
         object_add_obj(cube, obj);
 
         /* update counters */

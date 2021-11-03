@@ -89,7 +89,7 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
 }
 
 int bounding_points(object *obj, bounds_list *list) {
-    if( obj->flag[0] == 0 ) {
+    if( obj->n_flag>0 && obj->flag[0] == 0 ) {
         for(int i=0; i<obj->n_pos; ++i) {
             bounds_list_add(list, &obj->pos[i], obj->size[0]);
         }

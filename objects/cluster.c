@@ -113,7 +113,7 @@ static int cluster_do_clustering(object *clstr, int k)
     for(int i=0; i<k; ++i) {
         subs[i] = object_alloc(clstr->dimensions, "cluster", "sub cluster");
         object_add_flag(subs[i], k);
-        snprintf(subs[i]->name, sizeof(subs[i]->name), "%s %i", clstr->name, i);
+        snprintf(subs[i]->name, sizeof(subs[i]->name), "sub[%i]", i);
     }
     for(int i=0; i<clstr->n_obj; ++i) {
         int which = centers.data[i].which;
