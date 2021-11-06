@@ -206,8 +206,9 @@ int intersect(object *sub, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, ob
     det = qb*qb - 4*qa*qc;
     if( det >= 0.0 && fabs(qa)>EPSILON ) {
         detRoot = sqrt(det);
-        t1 = (-qb + detRoot) / (2*qa);
-        t2 = (-qb - detRoot) / (2*qa);
+        double half_inv_qa = 0.5/qa;
+        t1 = (-qb + detRoot) * half_inv_qa;
+        t2 = (-qb - detRoot) * half_inv_qa;
 
         /* pick which (if any) point to return */
         if( t2>EPSILON ) {
