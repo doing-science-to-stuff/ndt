@@ -687,9 +687,10 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
     kd_tree_intersect(kd, pos, look, obj_mask);
     object **active_objs = calloc(num_objs, sizeof(object*));
     int active_num = 0;
+    object **obj_ptrs = (object**)kd->obj_ptrs;
     for(int i=0; i<num_objs; ++i) {
-        if( obj_mask[i]!=0 || ((object*)kd->obj_ptrs[i])->bounds.radius <= 0.0 )
-            active_objs[active_num++] = (object*)kd->obj_ptrs[i];
+        if( obj_mask[i]!=0 || obj_ptrs[i]->bounds.radius <= 0.0 )
+            active_objs[active_num++] = obj_ptrs[i];
     }
     free(obj_mask); obj_mask=NULL;
 
