@@ -119,7 +119,7 @@ int bounding_points(object *obj, bounds_list *list) {
     return 1;
 }
 
-static int within_orthotope(object *sub, vectNd *point) {
+static forceinline int within_orthotope(object *sub, vectNd *point) {
     int dim  = point->n;
     int n = sub->flag[0];
     double scale;
