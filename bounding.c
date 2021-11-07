@@ -28,6 +28,9 @@ static int bounding_sphere_prepare(bounding_sphere *sph) {
     return 1;
 }
 
+/* TODO add a pointer to a hyper-plane that has v as a normal and contains o,
+ * if the pointer is null, ignore it, otherwise use hyperplane to rule out
+ * bounding sphere that are entirely behind the hyperplane. */
 int vect_bounding_sphere_intersect(bounding_sphere *sph, vectNd *o, vectNd *v, double min_dist)
 {
     /* see: http://en.wikipedia.org/wiki/Line–bounding_sphere_intersection */
