@@ -402,7 +402,7 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
         item->id = i;
 
         /* assign to master list */
-        tree->obj_ptrs[i] = (void*)item->obj_ptr;
+        tree->obj_ptrs[i] = item->obj_ptr;
 
         /* adjust top-level AABB */
         aabb_add(&tree->bb, &item->bb);
