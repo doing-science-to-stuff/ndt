@@ -50,11 +50,12 @@ int kd_item_list_min(kd_item_list_t *list, kd_item_t **item);
 /* kd_node */
 
 typedef struct kd_node {
-    struct kd_node *left, *right;
     int dim;
     double boundary;
     int num;
     int *obj_ids;
+    void **objs;
+    struct kd_node *left, *right;
 } kd_node_t;
 
 int kd_node_init(kd_node_t *node);
@@ -74,7 +75,7 @@ int kd_tree_init(kd_tree_t *tree, int dimensions);
 int kd_tree_free(kd_tree_t *tree);
 int kd_tree_print(kd_tree_t *tree);
 int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items);
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, char *obj_mask);
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd *hit_normal, void **ptr, double dist_limit);
 
 #endif /* KD_TREE_H */
 #endif /* !WITHOUT_KDTREE */

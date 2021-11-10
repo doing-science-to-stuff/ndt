@@ -239,7 +239,7 @@ int intersect(object *hcube, vectNd *o, vectNd *v, vectNd *res, vectNd *normal, 
         prepare(hcube);
     }
 
-    int ret = trace(o, v, hcube->obj, hcube->n_obj, res, normal, ptr, -1.0);
+    int ret = trace(o, v, hcube->obj, hcube->n_obj, res, normal, ptr, NULL, -1.0);
 
     if( ret && ptr != NULL ) {
         /* set object to hcube itself for material looks */

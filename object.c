@@ -681,28 +681,23 @@ int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
 }
 
 int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
-    /* traverse kd-tree to get list of hitable objects */
-    int num_objs = kd->num_objs;
-    char *obj_mask = calloc(num_objs, sizeof(char));
-    kd_tree_intersect(kd, pos, look, obj_mask);
-    object **active_objs = calloc(num_objs, sizeof(object*));
-    int active_num = 0;
-    object **obj_ptrs = (object**)kd->obj_ptrs;
-    for(int i=0; i<num_objs; ++i) {
-        if( obj_mask[i]!=0 || obj_ptrs[i]->bounds.radius <= 0.0 )
-            active_objs[active_num++] = obj_ptrs[i];
-    }
-    free(obj_mask); obj_mask=NULL;
 
-    /* pass list to real trace function. */
-    int ret = trace(pos, look, active_objs, active_num, hit, hit_normal, ptr, dist_limit);
-    free(active_objs); active_objs=NULL;
+    /* get a unit vector inthe direction of v */
+    vectNd unit_look;
+    vectNd_alloc(&unit_look,look->n);
+    vectNd_copy(&unit_look,look);
+    vectNd_unitize(&unit_look);
+
+    /* traverse kd-tree to get list of hitable objects */
+    int ret = kd_tree_intersect(kd, pos, &unit_look, hit, hit_normal, (void**)ptr, dist_limit);
+
+    vectNd_free(&unit_look);
 
     return ret;
 }
 #endif /* !WITHOUT_KDTREE */
 
-int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
+int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double *t_ptr, double dist_limit) {
     double min_dist = -1;
     vectNd res;
     vectNd normal;
@@ -738,6 +733,17 @@ int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *
                 break;
             }
         }
+    }
+
+    if( t_ptr != NULL ) {
+        /* TODO: get hit_dist and v_len above */
+        /* compute t for hit = o+v*t */
+        double hit_dist;
+        double v_len;
+        vectNd_dist(pos, hit, &hit_dist);
+        vectNd_length(look, &v_len);
+        if( fabs(v_len) > EPSILON )
+            *t_ptr = hit_dist/v_len;
     }
 
     vectNd_free(&normal);

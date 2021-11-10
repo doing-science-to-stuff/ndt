@@ -318,6 +318,7 @@ static forceinline void vectNd_l2norm(vectNd *v, double *res)
     vectNd_dot(v,v,&sum);
     *res = sqrt(sum);
 }
+#define vectNd_length vectNd_l2norm
 
 static forceinline void vectNd_unitize(vectNd *v)
 {
