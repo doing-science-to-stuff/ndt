@@ -67,7 +67,7 @@ typedef struct kd_tree {
     aabb_t bb;
     void **obj_ptrs;
     int *ids;
-    int num_objs;
+    int total_objs;
     kd_node_t *root;
 } kd_tree_t;
 

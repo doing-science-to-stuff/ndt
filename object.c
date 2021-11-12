@@ -697,7 +697,7 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
 }
 #endif /* !WITHOUT_KDTREE */
 
-int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *hit_normal, object **ptr, double *t_ptr, double dist_limit) {
+int trace(vectNd *pos, vectNd *look, object **objs, int *ids, int n, char *obj_mask, vectNd *hit, vectNd *hit_normal, object **ptr, double *t_ptr, double dist_limit) {
     double min_dist = -1;
     vectNd res;
     vectNd normal;
@@ -714,6 +714,16 @@ int trace(vectNd *pos, vectNd *look, object **objs, int n, vectNd *hit, vectNd *
     vectNd_copy(&unit_look,look);
     vectNd_unitize(&unit_look);
     for(int i=0; i<n; ++i) {
+
+        /* skip objects that have already been checked */
+        if( obj_mask && ids ) {
+            int id = ids[i];
+            if( obj_mask[id] != 0 ) {
+                continue;
+            }
+            obj_mask[id] = 1;
+        }
+
         int ret = VECTND_FAIL;
         double dist = -1;
         object *tmp_ptr = NULL;

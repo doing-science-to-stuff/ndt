@@ -431,6 +431,7 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     /* recursively split root node */
     tree->root->dim = 0;
     printf("building k-d tree with %d items.\n", items->n);
+    tree->total_objs = items->n;
     int ret = 1;
     int dimensions = tree->bb.lower.n;
     ret = kd_tree_split_node(tree->root, items, -1, -1, dimensions);
@@ -442,9 +443,12 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
 #define INV_EPSILON (1.0/(EPSILON))
 #define INV_EPSILON2 (1.0/(EPSILON2))
 
-static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_inv, vectNd *hit, vectNd *hit_normal, object **ptr, double *t_ptr, double dist_limit, double tl, double tu) {
+static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_inv, vectNd *hit, vectNd *hit_normal, char *obj_mask, object **ptr, double *t_ptr, double dist_limit, double tl, double tu) {
     if( node==NULL )
         return 0;
+
+    /* TODO: use a local variable for t_ptr for most comparisons and recursive
+     * calls */
 
     #if 1
     if( tu < 0.0 )
@@ -455,7 +459,6 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_in
         int node_dim = node->dim;
     int ret = 0;
     if( num > 0 ) {
-        /* TODO: call trace function here and update t */
         double t;
         int dim = o->n;
         object *obj_ptr;
@@ -463,7 +466,7 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_in
         vectNd_alloc(&lhit, dim);
         vectNd_alloc(&lhit_normal, dim);
         //printf("node %p: %i objects (tl, tu: %g, %g).\n", (void*)node, node->num, tl, tu);
-        ret = trace(o, v, (object**)node->objs, node->num, &lhit, &lhit_normal, &obj_ptr, &t, dist_limit);
+        ret = trace(o, v, (object**)node->objs, node->obj_ids, node->num, obj_mask, &lhit, &lhit_normal, &obj_ptr, &t, dist_limit);
         if( ret && t<*t_ptr ) {
             *t_ptr = t;
             *ptr = obj_ptr;
@@ -472,15 +475,6 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_in
         }
         vectNd_free(&lhit);
         vectNd_free(&lhit_normal);
-
-        #if 1
-        /* mark item ids as checked, in global list. */
-        int *obj_ids = node->obj_ids;
-        for(int i=0; i<num; ++i) {
-            int id = obj_ids[i];
-            ids[id] = 1;
-        }
-        #endif /* 1? */
 
         if( node_dim < 0 ) {
             /* is a leaf */
@@ -508,27 +502,29 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_in
 
         /* TODO: only recurse to sub-nodes where lower t limit is reachable */
         /* use t values to identify children to recurse to */
-        if( tu < tp-EPSILON ) {
+        if( tu < tp-EPSILON && *t_ptr > tl ) {
             /* recurse to near sub-AABB with tl and tu */
-            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, ptr, t_ptr, dist_limit, tl, tu);
-        } else if( tl > tp+EPSILON ) {
+            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
+        } else if( tl > tp+EPSILON && *t_ptr > tl ) {
             /* recurse to far sub-AABB with tl and tu */
-            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         } else {
             /* ray crosses dividing plane inside AABB,
              * recurse both directions, using tl,tp and tp,tu */
-            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, ptr, t_ptr, dist_limit, tl, tp+EPSILON);
-            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, ptr, t_ptr, dist_limit, tp-EPSILON, tu);
+            if( *t_ptr > tl )
+                ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tp+EPSILON);
+            if( *t_ptr > tp )
+                ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tp-EPSILON, tu);
         }
     } else {
         /* plane is parallel to v, compare o_dim and pos */
-        if( o_i < node_boundary+EPSILON ) {
+        if( o_i < node_boundary+EPSILON && *t_ptr > tl ) {
             /* recurse left with tl and tu */
-            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         }
-        if( o_i > node_boundary-EPSILON ) {
+        if( o_i > node_boundary-EPSILON && *t_ptr > tl ) {
             /* recurse right with tl and tu */
-            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         }
     }
 
@@ -560,7 +556,9 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd
     /* TODO: aabb_intersect should be faster using v_inv */
     if( aabb_intersect(&tree->bb, o, v, &tl, &tu) ) {
         double t=tu+EPSILON;
-        ret = kd_node_intersect(tree->root, o, v, &v_inv, hit, hit_normal, (object**)ptr, &t, dist_limit, tl, tu);
+        char *obj_mask = calloc(tree->total_objs, sizeof(char));
+        ret = kd_node_intersect(tree->root, o, v, &v_inv, hit, hit_normal, obj_mask, (object**)ptr, &t, dist_limit, tl, tu);
+        free(obj_mask); obj_mask=NULL;
     }
     vectNd_free(&v_inv);
     return ret;
