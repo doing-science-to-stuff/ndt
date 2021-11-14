@@ -62,15 +62,16 @@ int params(object *obj, int *n_pos, int *n_dir, int *n_size, int *n_flags, int *
     /* report how many of each type of parameter is needed */
     *n_pos = 2;
     *n_dir = 0;
-    *n_size = 1;
-    *n_flags = 1;
+    *n_size = 1;    /* radius */
+    *n_flags = 1;   /* flag[0], reserved for end types
+                     * flag[1]=1: infinite; 1 flag or flag[1]=0: finite */
     *n_obj = 0;
 
     return 0;
 }
 
 int bounding_points(object *obj, bounds_list *list) {
-    if( obj->flag[0] == 0 ) {
+    if( obj->n_flag<2 || obj->flag[1] == 0 ) {
         /* add both ends with radius */
         bounds_list_add(list, &obj->pos[0], obj->size[0]);
         bounds_list_add(list, &obj->pos[1], obj->size[0]);
@@ -81,7 +82,11 @@ int bounding_points(object *obj, bounds_list *list) {
     return 1;
 }
 
-static int between_ends(object *cyl, vectNd *point) {
+static forceinline int between_ends(object *cyl, vectNd *point) {
+
+    if( cyl->n_flag>1 && cyl->flag[1] != 0 )
+        return 1;
+
     double scale;
     prepped_t *prepped = cyl->prepped;
     vectNd Bc;
