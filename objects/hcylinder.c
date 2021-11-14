@@ -99,7 +99,7 @@ int bounding_points(object *obj, bounds_list *list) {
     return 1;
 }
 
-static int between_ends(object *cyl, vectNd *point) {
+static forceinline int between_ends(object *cyl, vectNd *point) {
     int dim;
     dim  = point->n;
 
