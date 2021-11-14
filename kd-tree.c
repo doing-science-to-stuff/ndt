@@ -452,6 +452,8 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
     }
     aabb_print(&tree->bb);
 
+    printf("%i finite objects, %i infinite objects.\n", tree->obj_num, tree->inf_obj_num);
+
     /* recursively split root node */
     tree->root->dim = 0;
     printf("building k-d tree with %d items.\n", items->n);
