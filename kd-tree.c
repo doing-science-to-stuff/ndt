@@ -275,8 +275,15 @@ int kd_tree_init(kd_tree_t *tree, int dimensions) {
 int kd_tree_free(kd_tree_t *tree) {
     kd_tree_free_node(tree->root);  tree->root=NULL;
     aabb_free(&tree->bb);
-    free(tree->obj_ptrs); tree->obj_ptrs = NULL;
-    free(tree->ids); tree->ids = NULL;
+    if( tree->obj_ptrs!=NULL ) {
+        free(tree->obj_ptrs); tree->obj_ptrs = NULL;
+    }
+    if( tree->inf_obj_ptrs != NULL ) {
+        free(tree->inf_obj_ptrs); tree->inf_obj_ptrs = NULL;
+    }
+    if( tree->ids != NULL ) {
+        free(tree->ids); tree->ids = NULL;
+    }
     tree->root = NULL;
     return 1;
 }
@@ -377,7 +384,12 @@ static int kd_tree_split_node(kd_node_t *node, kd_item_list_t *items, int levels
     kd_item_list_init(&left_items);
     kd_item_list_init(&right_items);
     for(int i=0; i<items->n; ++i) {
-        /* TODO: if item is infinite, don't move it. */
+        double radius = ((object*)items->items[i]->obj_ptr)->bounds.radius;
+        if( radius < 0.0 ) {
+            printf("Infinite object detected in k-d tree!");
+            continue;
+        }
+
         double il, iu;
         vectNd_get(&items->items[i]->bb.lower, split_dim, &il);
         vectNd_get(&items->items[i]->bb.upper, split_dim, &iu);
@@ -414,28 +426,41 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
         return 0;
     if( tree->root == NULL )
         tree->root = calloc(1, sizeof(kd_node_t));
+    kd_item_list_t root_items;
+    kd_item_list_init(&root_items);
+    /* TODO: count number of each type first */
     tree->root->objs = calloc(items->n, sizeof(void*));
+    tree->inf_obj_ptrs = calloc(items->n, sizeof(void*));
+    tree->obj_num = 0;
+    tree->inf_obj_num = 0;
     for(int i=0; i<items->n; ++i) {
         /* assign id */
         kd_item_t *item = items->items[i];
         item->id = i;
 
-        /* assign to root node */
-        tree->root->objs[i] = item->obj_ptr;
+        if( ((object*)item->obj_ptr)->bounds.radius >= 0.0 ) {
+            /* assign to root node */
+            tree->root->objs[tree->obj_num++] = item->obj_ptr;
+            kd_item_list_add(&root_items, item);
 
-        /* adjust top-level AABB */
-        aabb_add(&tree->bb, &item->bb);
+            /* adjust top-level AABB */
+            aabb_add(&tree->bb, &item->bb);
+        } else {
+            /* add infinite object to special list */
+            tree->inf_obj_ptrs[tree->inf_obj_num++] = item->obj_ptr;
+        }
     }
     aabb_print(&tree->bb);
 
     /* recursively split root node */
     tree->root->dim = 0;
     printf("building k-d tree with %d items.\n", items->n);
-    tree->total_objs = items->n;
+    tree->obj_num = items->n;
     int ret = 1;
     int dimensions = tree->bb.lower.n;
-    ret = kd_tree_split_node(tree->root, items, -1, -1, dimensions);
+    ret = kd_tree_split_node(tree->root, &root_items, -1, -1, dimensions);
     //ret = kd_tree_split_node(tree->root, items, 1, 1, dimensions);
+    kd_item_list_free(&root_items, 0);
     //kd_tree_print(tree);
     return ret;
 }
@@ -537,9 +562,9 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd
         printf("tree is null.\n");
         return 0;
     }
-    double tl, tu;
     int ret = 0;
     int dimensions = v->n;
+    vectNd_unitize(v);
     vectNd v_inv;
     vectNd_alloc(&v_inv, dimensions);
     for(int i=0; i<dimensions; ++i) {
@@ -553,11 +578,36 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd
             v_inv_i = 1.0/v_i;
         vectNd_set(&v_inv, i, v_inv_i);
     }
+
+    /* check infinite objects */
+    double t = DBL_MAX;
+    ret = trace(o, v, (object**)tree->inf_obj_ptrs, NULL, tree->inf_obj_num, NULL, hit, hit_normal, (object**)ptr, &t, dist_limit);
+
     /* TODO: aabb_intersect should be faster using v_inv */
+    double tl, tu;
     if( aabb_intersect(&tree->bb, o, v, &tl, &tu) ) {
-        double t=tu+EPSILON;
-        char *obj_mask = calloc(tree->total_objs, sizeof(char));
-        ret = kd_node_intersect(tree->root, o, v, &v_inv, hit, hit_normal, obj_mask, (object**)ptr, &t, dist_limit, tl, tu);
+        double lt = DBL_MAX;
+        char *obj_mask = calloc(tree->obj_num, sizeof(char));
+
+        object *obj_ptr=NULL;
+        vectNd lhit, lhit_normal;
+        vectNd_alloc(&lhit, dimensions);
+        vectNd_alloc(&lhit_normal, dimensions);
+
+        int lret = kd_node_intersect(tree->root, o, v, &v_inv, &lhit, &lhit_normal, obj_mask, &obj_ptr, &lt, dist_limit, tl, tu);
+
+        if( lret ) {
+            /* check if intersection with finite objects is closer than
+             * intersection with infinite objects. */
+            if( !ret || (lt > EPSILON && lt+EPSILON < t)) {
+                vectNd_copy(hit, &lhit);
+                vectNd_copy(hit_normal, &lhit_normal);
+                *ptr = obj_ptr;
+                ret |= lret;
+            }
+        }
+        vectNd_free(&lhit);
+        vectNd_free(&lhit_normal);
         free(obj_mask); obj_mask=NULL;
     }
     vectNd_free(&v_inv);

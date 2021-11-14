@@ -66,8 +66,10 @@ int kd_node_free(kd_node_t *node);
 typedef struct kd_tree {
     aabb_t bb;
     void **obj_ptrs;
+    void **inf_obj_ptrs;
     int *ids;
-    int total_objs;
+    int obj_num;
+    int inf_obj_num;
     kd_node_t *root;
 } kd_tree_t;
 
