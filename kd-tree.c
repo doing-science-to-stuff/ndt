@@ -81,15 +81,15 @@ int aabb_add_point(aabb_t *bb, vectNd *pnt) {
 }
 
 /* test if ray o+v*t intersects bounding box bb */
-static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *v, double *tl_ptr, double *tu_ptr) {
-    int dimensions = v->n;
+static int aabb_intersect(aabb_t *bb, vectNd *o, vectNd *unit_v, double *tl_ptr, double *tu_ptr) {
+    int dimensions = unit_v->n;
 
     /* find smallest and largest values of t where o+v*t is inside bb */
     double tl = -DBL_MAX, tu = DBL_MAX;
     double v_i, o_i;
     double bbl_i, bbu_i;
     for(int i=0; i<dimensions; ++i) {
-        vectNd_get(v, i, &v_i);
+        vectNd_get(unit_v, i, &v_i);
         vectNd_get(o, i, &o_i);
         vectNd_get(&bb->lower, i, &bbl_i);
         vectNd_get(&bb->upper, i, &bbu_i);
@@ -479,7 +479,7 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
 #define INV_EPSILON (1.0/(EPSILON))
 #define INV_EPSILON2 (1.0/(EPSILON2))
 
-static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_inv, vectNd *hit, vectNd *hit_normal, char *obj_mask, object **ptr, double *t_ptr, double dist_limit, double tl, double tu) {
+static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *unit_v, vectNd *v_inv, vectNd *hit, vectNd *hit_normal, char *obj_mask, object **ptr, double *t_ptr, double dist_limit, double tl, double tu) {
     if( node==NULL )
         return 0;
 
@@ -502,7 +502,7 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_in
         vectNd_alloc(&lhit, dim);
         vectNd_alloc(&lhit_normal, dim);
         //printf("node %p: %i objects (tl, tu: %g, %g).\n", (void*)node, node->num, tl, tu);
-        ret = trace(o, v, (object**)node->objs, node->obj_ids, node->num, obj_mask, &lhit, &lhit_normal, &obj_ptr, &t, dist_limit);
+        ret = trace(o, unit_v, (object**)node->objs, node->obj_ids, node->num, obj_mask, &lhit, &lhit_normal, &obj_ptr, &t, dist_limit);
         if( ret && t<*t_ptr ) {
             *t_ptr = t;
             *ptr = obj_ptr;
@@ -540,47 +540,46 @@ static int kd_node_intersect(kd_node_t *node, vectNd *o, vectNd *v, vectNd *v_in
         /* use t values to identify children to recurse to */
         if( tu < tp-EPSILON && *t_ptr > tl ) {
             /* recurse to near sub-AABB with tl and tu */
-            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(near, o, unit_v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         } else if( tl > tp+EPSILON && *t_ptr > tl ) {
             /* recurse to far sub-AABB with tl and tu */
-            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(far, o, unit_v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         } else {
             /* ray crosses dividing plane inside AABB,
              * recurse both directions, using tl,tp and tp,tu */
             if( *t_ptr > tl )
-                ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tp+EPSILON);
+                ret |= kd_node_intersect(near, o, unit_v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tp+EPSILON);
             if( *t_ptr > tp )
-                ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tp-EPSILON, tu);
+                ret |= kd_node_intersect(far, o, unit_v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tp-EPSILON, tu);
         }
     } else {
-        /* plane is parallel to v, compare o_dim and pos */
+        /* plane is parallel to unit_v, compare o_dim and pos */
         if( o_i < node_boundary+EPSILON && *t_ptr > tl ) {
             /* recurse left with tl and tu */
-            ret |= kd_node_intersect(near, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(near, o, unit_v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         }
         if( o_i > node_boundary-EPSILON && *t_ptr > tl ) {
             /* recurse right with tl and tu */
-            ret |= kd_node_intersect(far, o, v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
+            ret |= kd_node_intersect(far, o, unit_v, v_inv, hit, hit_normal, obj_mask, ptr, t_ptr, dist_limit, tl, tu);
         }
     }
 
     return ret;
 }
 
-int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd *hit_normal, void **ptr, double dist_limit) {
+int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *unit_v, vectNd *hit, vectNd *hit_normal, void **ptr, double dist_limit) {
     /* find all leaf nodes that ray o+x*v cross, and return items they contain */
     if( !tree ) {
         printf("tree is null.\n");
         return 0;
     }
     int ret = 0;
-    int dimensions = v->n;
-    vectNd_unitize(v);
+    int dimensions = unit_v->n;
     vectNd v_inv;
     vectNd_alloc(&v_inv, dimensions);
     for(int i=0; i<dimensions; ++i) {
         double v_i, v_inv_i;
-        vectNd_get(v, i, &v_i);
+        vectNd_get(unit_v, i, &v_i);
         if( v_i < EPSILON2 && v_i >= 0.0 )
             v_inv_i = INV_EPSILON2;
         else if( v_i > -EPSILON2 && v_i <= 0.0 )
@@ -592,11 +591,11 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd
 
     /* check infinite objects */
     double t = DBL_MAX;
-    ret = trace(o, v, (object**)tree->inf_obj_ptrs, NULL, tree->inf_obj_num, NULL, hit, hit_normal, (object**)ptr, &t, dist_limit);
+    ret = trace(o, unit_v, (object**)tree->inf_obj_ptrs, NULL, tree->inf_obj_num, NULL, hit, hit_normal, (object**)ptr, &t, dist_limit);
 
     /* TODO: aabb_intersect should be faster using v_inv */
     double tl, tu;
-    if( aabb_intersect(&tree->bb, o, v, &tl, &tu) ) {
+    if( aabb_intersect(&tree->bb, o, unit_v, &tl, &tu) ) {
         double lt = DBL_MAX;
         char *obj_mask = calloc(tree->obj_num, sizeof(char));
 
@@ -605,7 +604,7 @@ int kd_tree_intersect(kd_tree_t *tree, vectNd *o, vectNd *v, vectNd *hit, vectNd
         vectNd_alloc(&lhit, dimensions);
         vectNd_alloc(&lhit_normal, dimensions);
 
-        int lret = kd_node_intersect(tree->root, o, v, &v_inv, &lhit, &lhit_normal, obj_mask, &obj_ptr, &lt, dist_limit, tl, tu);
+        int lret = kd_node_intersect(tree->root, o, unit_v, &v_inv, &lhit, &lhit_normal, obj_mask, &obj_ptr, &lt, dist_limit, tl, tu);
 
         if( lret ) {
             /* check if intersection with finite objects is closer than

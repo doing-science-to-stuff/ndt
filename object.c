@@ -697,22 +697,18 @@ int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_
 }
 #endif /* !WITHOUT_KDTREE */
 
-int trace(vectNd *pos, vectNd *look, object **objs, int *ids, int n, char *obj_mask, vectNd *hit, vectNd *hit_normal, object **ptr, double *t_ptr, double dist_limit) {
+int trace(vectNd *pos, vectNd *unit_look, object **objs, int *ids, int n, char *obj_mask, vectNd *hit, vectNd *hit_normal, object **ptr, double *t_ptr, double dist_limit) {
     double min_dist = -1;
     vectNd res;
     vectNd normal;
-    int dim = look->n;
-    vectNd unit_look;
+    int dim = unit_look->n;
 
-    vectNd_alloc(&unit_look,dim);
     vectNd_alloc(&res,dim);
     vectNd_alloc(&normal,dim);
 
     /* for each object */
     if( ptr!=NULL )
         *ptr = NULL;
-    vectNd_copy(&unit_look,look);
-    vectNd_unitize(&unit_look);
     for(int i=0; i<n; ++i) {
 
         /* skip objects that have already been checked */
@@ -728,7 +724,7 @@ int trace(vectNd *pos, vectNd *look, object **objs, int *ids, int n, char *obj_m
         double dist = -1;
         object *tmp_ptr = NULL;
 
-        ret = vect_object_intersect(objs[i], pos, &unit_look, &res, &normal, &tmp_ptr, min_dist);
+        ret = vect_object_intersect(objs[i], pos, unit_look, &res, &normal, &tmp_ptr, min_dist);
         if( ret > 0 ) {
             vectNd_dist(pos,&res,&dist);
             if( dist > EPSILON && (dist+EPSILON < min_dist || min_dist < 0) ) {
@@ -745,20 +741,12 @@ int trace(vectNd *pos, vectNd *look, object **objs, int *ids, int n, char *obj_m
         }
     }
 
-    if( t_ptr != NULL ) {
-        /* TODO: get hit_dist and v_len above */
-        /* compute t for hit = o+v*t */
-        double hit_dist;
-        double v_len;
-        vectNd_dist(pos, hit, &hit_dist);
-        vectNd_length(look, &v_len);
-        if( fabs(v_len) > EPSILON )
-            *t_ptr = hit_dist/v_len;
+    if( t_ptr != NULL && min_dist > EPSILON ) {
+        *t_ptr = min_dist;
     }
 
     vectNd_free(&normal);
     vectNd_free(&res);
-    vectNd_free(&unit_look);
 
     if( min_dist < 0 )
         return 0;

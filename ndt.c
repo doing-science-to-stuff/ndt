@@ -156,6 +156,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
             } else if( scn->lights[i]->type == LIGHT_DIRECTIONAL ) {
                 vectNd_scale(&scn->lights[i]->dir, -1, &rev_light);
             }
+            vectNd_unitize(&rev_light);
             vectNd_sub(src, hit, &rev_view);
             double dotRev1, dotRev2;
             vectNd_dot(&rev_light, hit_normal,&dotRev1);
@@ -191,6 +192,9 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
             if( lgt_type == LIGHT_POINT ||
                 lgt_type == LIGHT_SPOT ) {
                 vectNd_sub(hit, &lgt_pos, &light_vec);
+                /* get distance squared, needed for diffuse lighting */
+                vectNd_dot(&light_vec,&light_vec,&ldist2);
+                vectNd_unitize(&light_vec);
 
                 /* check that hit point is within cone of light for
                  * spotlight, skip tracing path if not */
@@ -223,8 +227,6 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
                     continue;
                 }
 
-                /* distance for diffuse lighting */
-                vectNd_dot(&light_vec,&light_vec,&ldist2);
             } else if( lgt_type == LIGHT_DIRECTIONAL ) {
                 /* trace from object towards light */
                 vectNd_copy(&near_pos,&scn->lights[i]->dir);
@@ -324,7 +326,7 @@ static inline int apply_lights(scene *scn, int dim, object *obj_ptr, vectNd *src
 }
     
 /* get color of ray r,g,b \in [0,1] */
-int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
+int get_ray_color(vectNd *src, vectNd *unit_look, scene *scn, dbl_pixel_t *pixel,
             double pixel_frac, double *depth, int max_depth)
 {
     int ret = 0;
@@ -352,9 +354,9 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
 
     obj_ptr = NULL;
     #ifndef WITHOUT_KDTREE
-    trace_kd(src, look, &kdtree, &hit, &hit_normal, &obj_ptr, -1.0);
+    trace_kd(src, unit_look, &kdtree, &hit, &hit_normal, &obj_ptr, -1.0);
     #else
-    trace(src, look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr, -1.0);
+    trace(src, unit_look, scn->object_ptrs, scn->num_objects, &hit, &hit_normal, &obj_ptr, -1.0);
     #endif /* !WITHOUT_KDTREE */
 
     /* record depth for depth maps */
@@ -373,7 +375,7 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
     /* apply light */
     if( obj_ptr != NULL && trace_dist > EPSILON )
     {
-        apply_lights(scn,dim,obj_ptr,src,look,&hit,&hit_normal,&clr);
+        apply_lights(scn,dim,obj_ptr,src,unit_look,&hit,&hit_normal,&clr);
 
         #if 1
         /* get reflectivity of object */
@@ -393,7 +395,8 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
 
             /* apply reflectivity */
             if( hitr_r != 0.0 || hitr_g != 0.0 || hitr_b != 0.0 ) {
-                vectNd_reflect(look,&hit_normal,&new_ray,1.0);
+                vectNd_reflect(unit_look,&hit_normal,&new_ray,1.0);
+                vectNd_unitize(&new_ray);
 
                 /* set color based on actual reflection */
                 get_ray_color(&hit,&new_ray,scn,&ref, contrib*pixel_frac, NULL, max_depth-1);
@@ -417,7 +420,8 @@ int get_ray_color(vectNd *src, vectNd *look, scene *scn, dbl_pixel_t *pixel,
 
         /* apply transparency */
         if( obj_ptr->transparent ) {
-            vectNd_refract(look,&hit_normal,&new_ray,obj_ptr->refract_index);
+            vectNd_refract(unit_look,&hit_normal,&new_ray,obj_ptr->refract_index);
+            vectNd_unitize(&new_ray);
             get_ray_color(&hit,&new_ray,scn,&ref, (1-contrib)*pixel_frac, NULL, max_depth-1);
             clr.r += (1.0-hitr_r)*ref.r;
             clr.g += (1.0-hitr_g)*ref.g;
@@ -542,6 +546,7 @@ int get_pixel_color(scene *scn, int width, int height, double x, double y,
 
         l_clr.r = l_clr.g = l_clr.b = 0.0;
         l_clr.a = 1.0;
+        vectNd_unitize(&look);
         get_ray_color(&virtCam, &look, scn, &l_clr, 1.0, depth, max_optic_depth);
 
         if( i > 1 ) {
