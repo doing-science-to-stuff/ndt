@@ -11,8 +11,6 @@
 #include "kd-tree.h"
 #include "object.h"
 
-//typedef struct object_t object;
-
 /* aabb */
 
 int aabb_init(aabb_t *bb, int dimensions) {
@@ -428,9 +426,20 @@ int kd_tree_build(kd_tree_t *tree, kd_item_list_t *items) {
         tree->root = calloc(1, sizeof(kd_node_t));
     kd_item_list_t root_items;
     kd_item_list_init(&root_items);
-    /* TODO: count number of each type first */
-    tree->root->objs = calloc(items->n, sizeof(void*));
-    tree->inf_obj_ptrs = calloc(items->n, sizeof(void*));
+    /* count number of each type first */
+    int num_inf=0, num_fin=0;
+    for(int i=0; i<items->n; ++i) {
+        kd_item_t *item = items->items[i];
+        if( ((object*)item->obj_ptr)->bounds.radius >= 0.0 ) {
+            /* finite */
+            ++num_fin;
+        } else {
+            /* infinite */
+            ++num_inf;
+        }
+    }
+    tree->root->objs = calloc(num_fin, sizeof(void*));
+    tree->inf_obj_ptrs = calloc(num_inf, sizeof(void*));
     tree->obj_num = 0;
     tree->inf_obj_num = 0;
     for(int i=0; i<items->n; ++i) {
