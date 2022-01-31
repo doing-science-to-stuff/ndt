@@ -680,18 +680,10 @@ int object_kdlist_add(kd_item_list_t *list, object *obj, int obj_id) {
     return 1;
 }
 
-int trace_kd(vectNd *pos, vectNd *look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
-
-    /* get a unit vector inthe direction of v */
-    vectNd unit_look;
-    vectNd_alloc(&unit_look,look->n);
-    vectNd_copy(&unit_look,look);
-    vectNd_unitize(&unit_look);
+int trace_kd(vectNd *pos, vectNd *unit_look, kd_tree_t *kd, vectNd *hit, vectNd *hit_normal, object **ptr, double dist_limit) {
 
     /* traverse kd-tree to get list of hitable objects */
-    int ret = kd_tree_intersect(kd, pos, &unit_look, hit, hit_normal, (void**)ptr, dist_limit);
-
-    vectNd_free(&unit_look);
+    int ret = kd_tree_intersect(kd, pos, unit_look, hit, hit_normal, (void**)ptr, dist_limit);
 
     return ret;
 }
