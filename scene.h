@@ -51,7 +51,7 @@ typedef struct light_t
 typedef struct scene_t
 {
     int dimensions;
-   camera cam;
+    camera cam;
     int num_objects;
     int num_lights;
     object **object_ptrs;
